@@ -44,6 +44,9 @@ class OptionsDialog: public wxDialog
         void EditButton(int row);
 
 		//(*Declarations(OptionsDialog)
+        wxStaticText* StaticText_SectionGeneral;
+        wxStaticText* StaticText_SectionWeb;
+        wxStaticText* StaticText_SectionAudio;
 		wxButton* Button_ButtonAdd;
 		wxButton* Button_ButtonDelete;
 		wxButton* Button_ButtonEdit;
@@ -103,6 +106,9 @@ class OptionsDialog: public wxDialog
 	protected:
 
 		//(*Identifiers(OptionsDialog)
+        static const long ID_STATICTEXT_SECTIONGENERAL;
+        static const long ID_STATICTEXT_SECTIONWEB;
+        static const long ID_STATICTEXT_SECTIONAUDIO;
 		static const long ID_CHECKBOX4;
 		static const long ID_CHECKBOX3;
 		static const long ID_CHECKBOX5;

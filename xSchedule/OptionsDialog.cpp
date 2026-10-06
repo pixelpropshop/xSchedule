@@ -33,6 +33,9 @@
 #include <wx/config.h>
 
 //(*IdInit(OptionsDialog)
+const long OptionsDialog::ID_STATICTEXT_SECTIONGENERAL = wxNewId();
+const long OptionsDialog::ID_STATICTEXT_SECTIONWEB = wxNewId();
+const long OptionsDialog::ID_STATICTEXT_SECTIONAUDIO = wxNewId();
 const long OptionsDialog::ID_CHECKBOX4 = wxNewId();
 const long OptionsDialog::ID_CHECKBOX3 = wxNewId();
 const long OptionsDialog::ID_CHECKBOX5 = wxNewId();
@@ -112,6 +115,10 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     Create(parent, wxID_ANY, _("Options"), wxDefaultPosition, wxDefaultSize, wxCAPTION | wxRESIZE_BORDER | wxMAXIMIZE_BOX, _T("wxID_ANY"));
     FlexGridSizer1 = new wxFlexGridSizer(0, 1, 0, 0);
     FlexGridSizer1->AddGrowableCol(0);
+    StaticText_SectionGeneral = new wxStaticText(this, ID_STATICTEXT_SECTIONGENERAL, _("General"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_SECTIONGENERAL"));
+    wxFont StaticText_SectionGeneralFont(wxDEFAULT, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, wxEmptyString, wxFONTENCODING_DEFAULT);
+    StaticText_SectionGeneral->SetFont(StaticText_SectionGeneralFont);
+    FlexGridSizer1->Add(StaticText_SectionGeneral, 1, wxTOP | wxLEFT | wxRIGHT | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
     FlexGridSizer7 = new wxFlexGridSizer(0, 3, 0, 0);
     CheckBox_SimpleMode = new wxCheckBox(this, ID_CHECKBOX4, _("Advanced Mode"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_CHECKBOX4"));
     CheckBox_SimpleMode->SetValue(false);
@@ -182,6 +189,10 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     FlexGridSizer6->Add(Button_Import, 1, wxALL | wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 2);
     FlexGridSizer5->Add(FlexGridSizer6, 1, wxALL | wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 5);
     FlexGridSizer1->Add(FlexGridSizer5, 1, wxALL | wxEXPAND, 2);
+    StaticText_SectionWeb = new wxStaticText(this, ID_STATICTEXT_SECTIONWEB, _("Web interface"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_SECTIONWEB"));
+    wxFont StaticText_SectionWebFont(wxDEFAULT, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, wxEmptyString, wxFONTENCODING_DEFAULT);
+    StaticText_SectionWeb->SetFont(StaticText_SectionWebFont);
+    FlexGridSizer1->Add(StaticText_SectionWeb, 1, wxTOP | wxLEFT | wxRIGHT | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
     FlexGridSizer8 = new wxFlexGridSizer(0, 2, 0, 0);
     FlexGridSizer8->AddGrowableCol(1);
     StaticText3 = new wxStaticText(this, ID_STATICTEXT3, _("Web Server Port:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT3"));
@@ -218,6 +229,10 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     SpinCtrl_PasswordTimeout->SetValue(_T("30"));
     FlexGridSizer8->Add(SpinCtrl_PasswordTimeout, 1, wxALL | wxEXPAND, 5);
     FlexGridSizer1->Add(FlexGridSizer8, 1, wxALL | wxEXPAND, 2);
+    StaticText_SectionAudio = new wxStaticText(this, ID_STATICTEXT_SECTIONAUDIO, _("Audio, timecode && location"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_SECTIONAUDIO"));
+    wxFont StaticText_SectionAudioFont(wxDEFAULT, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, wxEmptyString, wxFONTENCODING_DEFAULT);
+    StaticText_SectionAudio->SetFont(StaticText_SectionAudioFont);
+    FlexGridSizer1->Add(StaticText_SectionAudio, 1, wxTOP | wxLEFT | wxRIGHT | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
     FlexGridSizer3 = new wxFlexGridSizer(0, 4, 0, 0);
     FlexGridSizer3->AddGrowableCol(3);
     StaticText7 = new wxStaticText(this, ID_STATICTEXT7, _("Default Audio Output Device:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT7"));

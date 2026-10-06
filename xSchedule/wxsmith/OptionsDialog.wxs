@@ -9,6 +9,17 @@
 			<cols>1</cols>
 			<growablecols>0</growablecols>
 			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_SECTIONGENERAL" variable="StaticText_SectionGeneral" member="yes">
+					<label>General</label>
+					<font>
+						<weight>bold</weight>
+					</font>
+				</object>
+				<flag>wxTOP|wxLEFT|wxRIGHT|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
 				<object class="wxFlexGridSizer" variable="FlexGridSizer7" member="no">
 					<cols>3</cols>
 					<object class="sizeritem">
@@ -231,6 +242,17 @@
 				<option>1</option>
 			</object>
 			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_SECTIONWEB" variable="StaticText_SectionWeb" member="yes">
+					<label>Web interface</label>
+					<font>
+						<weight>bold</weight>
+					</font>
+				</object>
+				<flag>wxTOP|wxLEFT|wxRIGHT|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
 				<object class="wxFlexGridSizer" variable="FlexGridSizer8" member="no">
 					<cols>2</cols>
 					<growablecols>1</growablecols>
@@ -351,6 +373,17 @@
 				</object>
 				<flag>wxALL|wxEXPAND</flag>
 				<border>2</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_SECTIONAUDIO" variable="StaticText_SectionAudio" member="yes">
+					<label>Audio, timecode &amp;&amp; location</label>
+					<font>
+						<weight>bold</weight>
+					</font>
+				</object>
+				<flag>wxTOP|wxLEFT|wxRIGHT|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+				<border>5</border>
 				<option>1</option>
 			</object>
 			<object class="sizeritem">
