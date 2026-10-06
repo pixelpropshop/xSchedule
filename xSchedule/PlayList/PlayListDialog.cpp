@@ -13,6 +13,8 @@
 #include "PlayListStep.h"
 #include "PlayListItem.h"
 #include "../MyTreeItemData.h"
+#include "../ModernUI.h"
+
 #include "PlayListPanel.h"
 #include "PlayListStepPanel.h"
 #include "PlayListItemVideo.h"
@@ -207,11 +209,46 @@ PlayListDialog::PlayListDialog(wxWindow* parent, OutputManager* outputManager, P
     wxConfigBase* config = wxConfigBase::Get();
     x = config->ReadLong(_("xsPLWindowPosX"), 50);
     y = config->ReadLong(_("xsPLWindowPosY"), 50);
-    w = config->ReadLong(_("xsPLWindowPosW"), 800);
-    h = config->ReadLong(_("xsPLWindowPosH"), 600);
+    w = config->ReadLong(_("xsPLWindowPosW"), FromDIP(1100));
+    h = config->ReadLong(_("xsPLWindowPosH"), FromDIP(720));
     SetPosition(wxPoint(x, y));
     SetSize(w, h);
     EnsureWindowHeaderIsOnScreen(this);
+
+    SplitterWindow1->SetMinimumPaneSize(FromDIP(220));
+    CallAfter([this]() {
+        SplitterWindow1->SetSashPosition(SplitterWindow1->GetClientSize().x * 48 / 100);
+    });
+
+    // the order must match ItemImage()
+    wxVector<wxBitmapBundle> images;
+    for (auto glyph : { ModernUI::Glyph::Playlist, ModernUI::Glyph::Step, ModernUI::Glyph::Sequence, ModernUI::Glyph::Audio, ModernUI::Glyph::Video,
+                        ModernUI::Glyph::Command, ModernUI::Glyph::Network, ModernUI::Glyph::Effect, ModernUI::Glyph::Delay }) {
+        images.push_back(ModernUI::MakeTreeIcon(TreeCtrl_PlayList, glyph));
+    }
+    TreeCtrl_PlayList->SetImages(images);
+    StaticText2->SetForegroundColour(ModernUI::GetTheme().muted);
+
+    _buttonAddItem = new wxButton(Panel1, wxID_ANY, _("Add Item..."));
+    _buttonAddItem->SetToolTip("Add a step or any type of item");
+    if (auto row = Button_AddAudio->GetContainingSizer(); row != nullptr) {
+        auto grid = new wxGridSizer(2, 3, 0, 0);
+        for (auto b : { Button_AddFSEQ, Button_FSEQVideo, Button_AddAudio, _buttonAddItem, Button_Clone, Button_Delete }) {
+            row->Detach(b);
+            grid->Add(b, 1, wxALL | wxEXPAND, 4);
+        }
+        Panel1->GetSizer()->Replace(row, grid, true);
+        if (auto item = Panel1->GetSizer()->GetItem(grid); item != nullptr) {
+            item->SetFlag(wxALL | wxEXPAND);
+        }
+    }
+    // the wxSmith size hints are from the old single button row
+    Panel1->SetMinSize(wxSize(FromDIP(320), -1));
+    Panel2->SetMinSize(wxSize(FromDIP(260), -1));
+    _buttonAddItem->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        ShowItemMenu(TreeCtrl_PlayList->GetSelection());
+    });
+    Panel1->Layout();
 
     // save the current state in case the user cancels
     _savedState = new PlayList(*playlist);
@@ -281,39 +318,29 @@ void PlayListDialog::PopulateTree(PlayList* selplaylist, PlayListStep* selstep, 
     wxTreeItemId select = nullptr;
     TreeCtrl_PlayList->DeleteAllItems();
 
-    wxTreeItemId id = TreeCtrl_PlayList->AddRoot(_playlist->GetName());
+    wxTreeItemId id = TreeCtrl_PlayList->AddRoot(GetPlayListLabel(_playlist), 0, 0);
     TreeCtrl_PlayList->SetItemData(id, new MyTreeItemData(_playlist));
     if (selstep == nullptr && selitem == nullptr) select = id;
 
     auto steps = _playlist->GetSteps();
     for (const auto& it : steps)
     {
-        wxTreeItemId step = TreeCtrl_PlayList->AppendItem(TreeCtrl_PlayList->GetRootItem(), it->GetName(_playlist));
+        wxTreeItemId step = TreeCtrl_PlayList->AppendItem(TreeCtrl_PlayList->GetRootItem(), GetStepLabel(it), 1, 1);
         TreeCtrl_PlayList->SetItemData(step, new MyTreeItemData(it));
         if (selitem == nullptr && selstep != nullptr && it->GetId() == selstep->GetId())
         {
             select = step;
         }
 
-        size_t ms;
-        PlayListItem* ts = it->GetTimeSource(ms);
-
         for (const auto& it2 : it->GetItems())
         {
-            id = TreeCtrl_PlayList->AppendItem(step, it2->GetName());
+            id = TreeCtrl_PlayList->AppendItem(step, GetItemLabel(it2));
             TreeCtrl_PlayList->SetItemData(id, new MyTreeItemData(it2));
 
             if (selitem != nullptr && it2->GetId() == selitem->GetId()) select = id;
-
-            if (ts != nullptr)
-            {
-                if (ts->GetId() == it2->GetId())
-                {
-                    TreeCtrl_PlayList->SetItemTextColour(id, *wxBLUE);
-                }
-            }
         }
     }
+    StyleTreeItems();
 
     if (select == nullptr) select = TreeCtrl_PlayList->GetRootItem();
     TreeCtrl_PlayList->ExpandAll();
@@ -574,6 +601,15 @@ void PlayListDialog::OnTreeCtrl_PlayListItemMenu(wxTreeEvent& event)
 {
     wxTreeItemId treeitem = TreeCtrl_PlayList->HitTest(event.GetPoint());
     TreeCtrl_PlayList->SelectItem(treeitem);
+    ShowItemMenu(treeitem);
+}
+
+void PlayListDialog::ShowItemMenu(wxTreeItemId treeitem)
+{
+    if (!treeitem.IsOk()) {
+        treeitem = TreeCtrl_PlayList->GetRootItem();
+        TreeCtrl_PlayList->SelectItem(treeitem);
+    }
 
     wxMenu mnu;
     if (!IsPlayList(treeitem))
@@ -968,11 +1004,99 @@ void PlayListDialog::OnNotebook1PageChanged(wxNotebookEvent& event)
 {
 }
 
+namespace {
+// tree image for an item, matching the order of the images set in the constructor
+int ItemImage(PlayListItem* item)
+{
+    const std::string title = item->GetTitle();
+    if (title == "FSEQ" || title == "FSEQ & Video" || title == "ESEQ") return 2;
+    if (title == "Audio" || title == "Microphone" || title == "Colour Organ") return 3;
+    if (title == "Video" || title == "Image" || title == "Screen Map" || title == "Text" || title == "Projector") return 4;
+    if (title == "Run Command" || title == "Run Process" || title == "File" || title == "Plugin" || title == "Play xLights Jukebox Button") return 5;
+    if (title == "CURL" || title == "MQTT" || title == "OSC" || title == "MIDI" || title == "Serial" || title == "ARTNet Trigger" || title == "FPP Event" || title == "RDS") return 6;
+    if (title == "Delay") return 8;
+    return 7; // All Set, Set Colour, Fade, Dim, Test
+}
+}
+
+std::string PlayListDialog::GetPlayListLabel(PlayList* playlist) const
+{
+    std::string label = playlist->GetNameNoTime();
+    if (playlist->GetLengthMS() != 0) {
+        label += " [" + ModernUI::FormatDuration(playlist->GetLengthMS()) + "]";
+    }
+    return label;
+}
+
+std::string PlayListDialog::GetStepLabel(PlayListStep* step) const
+{
+    long start = 0;
+    for (const auto& it : _playlist->GetSteps()) {
+        if (it == step) break;
+        if (!it->GetEveryStep()) start += it->GetLengthMS();
+    }
+    std::string label = step->GetNameNoTime() + " {" + ModernUI::FormatDuration(start) + "}";
+    if (step->GetLengthMS() != 0) {
+        label += " [" + ModernUI::FormatDuration(step->GetLengthMS()) + "]";
+    }
+    return label;
+}
+
+std::string PlayListDialog::GetItemLabel(PlayListItem* item) const
+{
+    std::string label = item->GetNameNoTime();
+    if (item->GetDurationMS() != 0) {
+        label += " [" + ModernUI::FormatDuration(item->GetDurationMS()) + "]";
+    }
+    if (!item->GetMissingFiles().empty()) {
+        label += "  (missing file)";
+    }
+    return label;
+}
+
+void PlayListDialog::StyleTreeItems()
+{
+    const auto& theme = ModernUI::GetTheme();
+    const wxColour normal = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+
+    wxTreeItemId root = TreeCtrl_PlayList->GetRootItem();
+    if (!root.IsOk()) return;
+    TreeCtrl_PlayList->SetItemImage(root, 0);
+    TreeCtrl_PlayList->SetItemBold(root, true);
+
+    wxTreeItemIdValue tid;
+    for (wxTreeItemId it = TreeCtrl_PlayList->GetFirstChild(root, tid); it.IsOk(); it = TreeCtrl_PlayList->GetNextChild(root, tid)) {
+        PlayListStep* step = (PlayListStep*)((MyTreeItemData*)TreeCtrl_PlayList->GetItemData(it))->GetData();
+        size_t ms;
+        PlayListItem* timeSource = step != nullptr ? step->GetTimeSource(ms) : nullptr;
+        bool stepMissing = false;
+
+        wxTreeItemIdValue tid2;
+        for (wxTreeItemId it2 = TreeCtrl_PlayList->GetFirstChild(it, tid2); it2.IsOk(); it2 = TreeCtrl_PlayList->GetNextChild(it, tid2)) {
+            PlayListItem* item = (PlayListItem*)((MyTreeItemData*)TreeCtrl_PlayList->GetItemData(it2))->GetData();
+            if (item == nullptr) continue;
+            TreeCtrl_PlayList->SetItemImage(it2, ItemImage(item));
+            if (!item->GetMissingFiles().empty()) {
+                stepMissing = true;
+                TreeCtrl_PlayList->SetItemTextColour(it2, theme.badText);
+            }
+            else if (timeSource != nullptr && timeSource->GetId() == item->GetId()) {
+                TreeCtrl_PlayList->SetItemTextColour(it2, theme.accentText);
+            }
+            else {
+                TreeCtrl_PlayList->SetItemTextColour(it2, normal);
+            }
+        }
+        TreeCtrl_PlayList->SetItemImage(it, 1);
+        TreeCtrl_PlayList->SetItemTextColour(it, stepMissing ? theme.badText : normal);
+    }
+}
+
 void PlayListDialog::UpdateTree()
 {
     wxTreeItemId root = TreeCtrl_PlayList->GetRootItem();
     PlayList* pl = (PlayList*)((MyTreeItemData*)TreeCtrl_PlayList->GetItemData(root))->GetData();
-    TreeCtrl_PlayList->SetItemText(root, pl->GetName());
+    TreeCtrl_PlayList->SetItemText(root, GetPlayListLabel(pl));
 
     wxTreeItemIdValue tid;
     for (wxTreeItemId it = TreeCtrl_PlayList->GetFirstChild(root, tid); it != nullptr; it = TreeCtrl_PlayList->GetNextChild(root, tid))
@@ -980,7 +1104,7 @@ void PlayListDialog::UpdateTree()
         PlayListStep* pls = (PlayListStep*)((MyTreeItemData*)TreeCtrl_PlayList->GetItemData(it))->GetData();
         if (pls != nullptr)
         {
-            TreeCtrl_PlayList->SetItemText(it, pls->GetName(pl));
+            TreeCtrl_PlayList->SetItemText(it, GetStepLabel(pls));
         }
 
         wxTreeItemIdValue tid2;
@@ -989,10 +1113,11 @@ void PlayListDialog::UpdateTree()
             PlayListItem* pli = (PlayListItem*)((MyTreeItemData*)TreeCtrl_PlayList->GetItemData(it2))->GetData();
             if (pli != nullptr)
             {
-                TreeCtrl_PlayList->SetItemText(it2, pli->GetName());
+                TreeCtrl_PlayList->SetItemText(it2, GetItemLabel(pli));
             }
         }
     }
+    StyleTreeItems();
     ValidateWindow();
 }
 

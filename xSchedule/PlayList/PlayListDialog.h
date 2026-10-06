@@ -48,6 +48,12 @@ class PlayListDialog: public wxDialog
     wxTreeItemId FindStepTreeItem(PlayListStep* step);
     void AddItem(PlayList* playlist, PlayListStep* step, PlayListItem* newitem);
     void Clone();
+    void ShowItemMenu(wxTreeItemId treeitem);
+    void StyleTreeItems();
+    std::string GetPlayListLabel(PlayList* playlist) const;
+    std::string GetStepLabel(PlayListStep* step) const;
+    std::string GetItemLabel(PlayListItem* item) const;
+    wxButton* _buttonAddItem = nullptr;
 
     public:
 
