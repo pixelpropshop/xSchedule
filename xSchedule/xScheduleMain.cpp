@@ -1094,7 +1094,12 @@ void xScheduleFrame::OnQuit(wxCommandEvent& event)
     {
         if (wxMessageBox("Unsaved changes to the schedule. Save now?", "Unsaved changes", wxYES_NO) == wxYES)
         {
-            __schedule->Save();
+            if (!SaveSchedule() &&
+                wxMessageBox("The schedule was not saved. Quit anyway and lose the changes?", "Save failed", wxYES_NO | wxICON_WARNING) != wxYES)
+            {
+                return;
+            }
+            __schedule->ClearDirty();
         }
         else
         {
@@ -1479,9 +1484,17 @@ void xScheduleFrame::OnTreeCtrl_PlayListsSchedulesKeyDown(wxTreeEvent& event)
 {
 }
 
+bool xScheduleFrame::SaveSchedule()
+{
+    if (__schedule->Save()) return true;
+    wxMessageBox("The schedule could not be saved to " + _showDir + ".\n\nCheck the folder is writable and has free space. "
+                 "Your changes are still open in xSchedule. See the log for details.", "Save failed", wxOK | wxICON_ERROR, this);
+    return false;
+}
+
 void xScheduleFrame::OnMenuItem_SaveSelected(wxCommandEvent& event)
 {
-    __schedule->Save();
+    SaveSchedule();
     UpdateUI();
 }
 
@@ -3078,7 +3091,7 @@ void xScheduleFrame::OnBitmapButton_IsScheduledClick(wxCommandEvent& event)
 
 void xScheduleFrame::OnBitmapButton_UnsavedClick(wxCommandEvent& event)
 {
-    __schedule->Save();
+    SaveSchedule();
     UpdateUI();
 }
 

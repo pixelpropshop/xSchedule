@@ -266,9 +266,20 @@ Schedule::Schedule()
     _fireFrequency = "Fire once";
 }
 
+// same as JSONSafe in UtilFunctions; kept here so the schedule logic builds on its own
+static std::string EscapeJSON(const std::string& s)
+{
+    std::string res;
+    for (char c : s) {
+        if (c == '\\' || c == '"') res += '\\';
+        res += c;
+    }
+    return res;
+}
+
 std::string Schedule::GetJSON(const std::string& reference)
 {
-    std::string res = "{\"name\":\"" + _name +
+    std::string res = "{\"name\":\"" + EscapeJSON(_name) +
         "\",\"id\":\"" + wxString::Format(wxT("%i"), _id).ToStdString() +
         "\",\"enabled\":\"" + std::string(_enabled ? "TRUE" : "FALSE") +
         "\",\"active\":\"" + std::string(CheckActive() ? "TRUE" : "FALSE") +
@@ -279,7 +290,7 @@ std::string Schedule::GetJSON(const std::string& reference)
  
     if (reference != "")
     {
-        res += "\",\"reference\":\"" + reference;
+        res += "\",\"reference\":\"" + EscapeJSON(reference);
     }
 
     res += "\",\"scheduleend\":\"" + (CheckActive() ? GetNextEndTime() : "N/A") +

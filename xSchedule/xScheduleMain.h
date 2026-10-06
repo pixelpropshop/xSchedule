@@ -156,6 +156,7 @@ class xScheduleFrame : public xlFrame {
     void UpdateUpcoming();
     void OnTreeFilter(wxCommandEvent& event);
     void RefreshTreeStates();
+    bool SaveSchedule();
     std::string GetPlayListLabel(PlayList* playlist) const;
 
     void SendStatus();

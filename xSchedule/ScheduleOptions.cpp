@@ -9,6 +9,7 @@
  **************************************************************/
 
 #include "ScheduleOptions.h"
+#include "../xlights/xLights/utils/UtilFunctions.h"
 
 #include <wx/dir.h> // Linux needs this
 #include <wx/filename.h>
@@ -430,19 +431,19 @@ std::string ScheduleOptions::GetButtonsJSON(const CommandManager& cmdMgr, const 
             // dont return these
         } else {
             auto cmd = cmdMgr.GetCommand(it->GetCommand());
-            if (!cmd->IsUIOnly()) {
+            if (cmd != nullptr && !cmd->IsUIOnly()) {
                 if (!first) {
                     res += ",";
                 }
                 first = false;
                 res += "{\"label\":\"" +
-                       it->GetLabel() + "\",\"color\":\"" +
+                       JSONSafe(it->GetLabel()) + "\",\"color\":\"" +
                        it->GetColorName() + "\",\"id\":\"" +
                        wxString::Format("%i", it->GetId()).ToStdString() + "\"}";
             }
         }
     }
-    res += "],\"reference\":\"" + reference + "\"}";
+    res += "],\"reference\":\"" + JSONSafe(reference) + "\"}";
 
     return res;
 }

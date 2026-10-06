@@ -199,7 +199,7 @@ public:
     static std::string GetScheduleFile() {
         return "xlights.xschedule";
     }
-    void Save();
+    bool Save();
     void StopAll(bool sustain = false);
     void AddPlayList(PlayList* playlist);
     bool IsQueuedPlaylistRunning() const;

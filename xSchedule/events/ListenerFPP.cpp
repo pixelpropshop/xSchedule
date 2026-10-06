@@ -62,7 +62,6 @@ void ListenerFPP::Stop() {
 }
 
 void ListenerFPP::StartProcess(const std::string& localIP) {
-    static 
 
     wxIPV4address localaddr;
     // if (IPOutput::GetLocalIP() == "")

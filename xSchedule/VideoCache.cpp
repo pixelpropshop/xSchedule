@@ -225,10 +225,6 @@ CachedVideoReader::~CachedVideoReader() {
 #define TIMEOUT(a) a / 2
 
 void CachedVideoReader::CacheImage(long millisecond, const wxImage& image) {
-#ifdef VIDEO_EXTRALOGGING
-    static 
-#endif
-
     std::unique_lock<std::mutex> locker(_cacheAccess);
     auto it = _cache.find(millisecond);
     if (it == _cache.end()) {

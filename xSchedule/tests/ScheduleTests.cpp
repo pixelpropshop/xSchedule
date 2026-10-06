@@ -316,6 +316,16 @@ void TestReviewFindings() {
     }
 }
 
+void TestJSONAndState() {
+    // names with quotes or backslashes still produce valid JSON
+    Schedule s = Make({ { "Name", R"(Kids "Request" Hour \ 2)" }, { "StartTime", "17:00" }, { "EndTime", "22:00" } });
+    std::string json = s.GetJSON("ref\"1");
+    CHECK(json.find(R"("name":"Kids \"Request\" Hour \\ 2")") != std::string::npos);
+    CHECK(json.find("\"reference\":\"ref\\\"1\"") != std::string::npos);
+    // a schedule loaded from a file starts inactive until it is checked
+    CHECK(!s.IsActive());
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -333,6 +343,7 @@ int main(int argc, char** argv) {
     TestFireOnceIsNotShared();
     TestFileCompatibility();
     TestReviewFindings();
+    TestJSONAndState();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

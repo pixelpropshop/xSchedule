@@ -55,7 +55,6 @@ void ListenerARTNet::Stop() {
 }
 
 void ListenerARTNet::StartProcess(const std::string& localIP) {
-    static 
 
     wxIPV4address localaddr;
     if (localIP == "") {

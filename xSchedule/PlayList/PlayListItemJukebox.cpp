@@ -96,14 +96,19 @@ void PlayListItemJukebox::Frame(uint8_t* buffer, size_t size, size_t ms, size_t 
 
         spdlog::info("Launching xLights Jukebox Button {}.", _jukeboxButton);
 
-        nlohmann::json result = xLightsRequest(GetPort(), "{\"cmd\":\"lightsOn\"}");
-        if (result["res"].get<int>() != 200) {
-            spdlog::error("Failed to turn on output to lights: {}", (const char*)result["msg"].get<std::string>().c_str());
-        }
+        // this runs in the frame loop, so an unexpected reply from xLights must not throw
+        try {
+            nlohmann::json result = xLightsRequest(GetPort(), "{\"cmd\":\"lightsOn\"}");
+            if (result.value("res", 0) != 200) {
+                spdlog::error("Failed to turn on output to lights: {}", result.value("msg", std::string()));
+            }
 
-        result = xLightsRequest(GetPort(), wxString::Format("{\"cmd\":\"playJukebox\",\"button\":%d}", _jukeboxButton));
-        if (result["res"].get<int>() != 200) {
-            spdlog::error("Failed to send jukebox button press: {}", (const char*)result["msg"].get<std::string>().c_str());
+            result = xLightsRequest(GetPort(), wxString::Format("{\"cmd\":\"playJukebox\",\"button\":%d}", _jukeboxButton));
+            if (result.value("res", 0) != 200) {
+                spdlog::error("Failed to send jukebox button press: {}", result.value("msg", std::string()));
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("Unexpected reply from xLights for jukebox button {}: {}", _jukeboxButton, e.what());
         }
     }
 }

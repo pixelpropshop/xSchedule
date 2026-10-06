@@ -503,7 +503,6 @@ size_t PlayListItemFSEQVideo::GetPositionMS() const {
 #define MAXMEDIAJITTER (3 * framems)
 
 void PlayListItemFSEQVideo::Frame(uint8_t* buffer, size_t size, size_t ms, size_t framems, bool outputframe) {
-    static 
     size_t adjustedMS = ms - _delay;
 
     wxStopWatch sw;

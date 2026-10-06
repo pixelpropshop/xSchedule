@@ -37,7 +37,7 @@ class Schedule
 	bool _random;
     bool _everyYear;
     int _priority;
-    bool _active;
+    bool _active = false;
     bool _enabled;
     bool _gracefullyInterrupt;
     int _nthDay;

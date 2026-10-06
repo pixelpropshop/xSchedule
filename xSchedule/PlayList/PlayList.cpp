@@ -986,7 +986,6 @@ bool PlayList::JumpToStep(PlayListStep* pls) {
 }
 
 bool PlayList::JumpToStep(const std::string& step) {
-    static 
 
     PlayListStep* pls = nullptr;
 

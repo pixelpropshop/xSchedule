@@ -418,7 +418,6 @@ ScheduleDialog::~ScheduleDialog()
 {
 	//(*Destroy(ScheduleDialog)
 	//*)
-    ApplyTo(_schedule);
 }
 
 std::string ScheduleDialog::GetHolidayId(wxChoice* choice) const
@@ -635,6 +634,7 @@ void ScheduleDialog::OnTextCtrl_OffTimeText(wxCommandEvent& event)
 
 void ScheduleDialog::OnButton_OkClick(wxCommandEvent& event)
 {
+    ApplyTo(_schedule);
     EndDialog(wxID_OK);
 }
 
