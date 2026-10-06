@@ -134,7 +134,11 @@ void TestHolidaySeason() {
     CHECK(!s.IsActiveAt(D(2027, 11, 25, 18, 0))); // Thanksgiving 2027 itself
     CHECK(s.IsActiveAt(D(2027, 11, 26, 18, 0)));
     CHECK(!s.IsActiveAt(D(2026, 11, 27, 23, 0))); // after the end time
-    CHECK(s.GetEffectiveStartDate().IsSameDate(D(2026, 11, 27)));
+    // every year: the current or next season, so the year depends on today
+    wxDateTime season = s.GetEffectiveStartDate();
+    CHECK(season.IsSameDate(Holidays::DateFor("thanksgiving_us", season.GetYear()) + wxDateSpan::Day()));
+    CHECK(s.GetEffectiveEndDate().IsSameDate(D(season.GetYear() + 1, 1, 6)));
+    CHECK(s.GetEffectiveEndDate() >= wxDateTime::Today());
 
     // more than a week ahead is found
     auto windows = s.GetUpcomingWindows(D(2026, 10, 6, 12, 0), 3);
@@ -228,8 +232,8 @@ void TestFileCompatibility() {
     Schedule holiday = Make({ { "Name", "Season" }, { "StartDate", "2026-01-01" }, { "EndDate", "2026-01-06" }, { "EveryYear", "TRUE" }, { "StartHoliday", "thanksgiving_us" },
                               { "StartHolidayOffset", "1" }, { "EndHoliday", "epiphany" }, { "SkipDates", "2026-12-24" }, { "StopAtEndOfLoop", "TRUE" } });
     n = holiday.Save();
-    CHECK(n->GetAttribute("StartDate") == "2026-11-27");
-    CHECK(n->GetAttribute("EndDate") == "2027-01-06");
+    CHECK(n->GetAttribute("StartDate") == holiday.GetEffectiveStartDate().Format("%Y-%m-%d"));
+    CHECK(n->GetAttribute("EndDate") == wxString::Format("%d-01-06", holiday.GetEffectiveStartDate().GetYear() + 1));
     CHECK(n->GetAttribute("StartHoliday") == "thanksgiving_us");
     CHECK(n->GetAttribute("StartHolidayOffset") == "1");
     CHECK(n->GetAttribute("EndHoliday") == "epiphany");
@@ -245,6 +249,71 @@ void TestFileCompatibility() {
     // copies keep the new settings
     Schedule copy(holiday, true);
     CHECK(copy.GetStartHoliday() == "thanksgiving_us" && copy.IsStopAtEndOfLoop() && copy.GetSkipDates().size() == 1);
+}
+
+
+// holiday offsets that cross New Year, and overnight windows with skip dates
+void TestReviewFindings() {
+    {
+        // Christmas + 10 days lands in the next year; saving and reloading must not move it again
+        Schedule s = Make({ { "StartDate", "2026-12-01" }, { "EndDate", "2026-12-25" }, { "StartTime", "17:00" }, { "EndTime", "22:00" },
+                            { "EndHoliday", "christmas" }, { "EndHolidayOffset", "10" } });
+        CHECK(s.GetEffectiveEndDate().IsSameDate(D(2027, 1, 4)));
+        wxXmlNode* n = s.Save();
+        CHECK(n->GetAttribute("EndDate") == "2027-01-04");
+        Schedule reloaded(n);
+        CHECK(reloaded.GetEffectiveEndDate().IsSameDate(D(2027, 1, 4)));
+        wxXmlNode* n2 = reloaded.Save();
+        CHECK(n2->GetAttribute("EndDate") == "2027-01-04");
+        delete n2;
+        delete n;
+    }
+    {
+        // New Year's Day - 5 days lands in the previous year
+        Schedule s = Make({ { "StartDate", "2027-01-01" }, { "EndDate", "2027-01-10" }, { "StartTime", "17:00" }, { "EndTime", "22:00" },
+                            { "StartHoliday", "newyearsday" }, { "StartHolidayOffset", "-5" } });
+        CHECK(s.GetEffectiveStartDate().IsSameDate(D(2026, 12, 27)));
+        wxXmlNode* n = s.Save();
+        Schedule reloaded(n);
+        CHECK(reloaded.GetEffectiveStartDate().IsSameDate(D(2026, 12, 27)));
+        delete n;
+    }
+    {
+        // every year, from 5 days before New Year's Day to Epiphany
+        Schedule s = Make({ { "StartDate", "2026-01-01" }, { "EndDate", "2026-01-06" }, { "EveryYear", "TRUE" }, { "StartTime", "17:00" }, { "EndTime", "22:00" },
+                            { "StartHoliday", "newyearsday" }, { "StartHolidayOffset", "-5" }, { "EndHoliday", "epiphany" } });
+        CHECK(!s.IsActiveAt(D(2026, 12, 26, 18, 0)));
+        CHECK(s.IsActiveAt(D(2026, 12, 27, 18, 0)));
+        CHECK(s.IsActiveAt(D(2026, 12, 28, 18, 0)));
+        CHECK(s.IsActiveAt(D(2027, 1, 3, 18, 0)));
+        CHECK(!s.IsActiveAt(D(2027, 1, 7, 18, 0)));
+        CHECK(s.IsActiveAt(D(2025, 12, 30, 18, 0)));
+    }
+    {
+        // the last night of an every year season still runs past midnight
+        Schedule s = Make({ { "StartDate", "2026-11-26" }, { "EndDate", "2027-01-06" }, { "EveryYear", "TRUE" }, { "StartTime", "18:00" }, { "EndTime", "02:00" } });
+        CHECK(s.IsActiveAt(D(2027, 1, 6, 23, 0)));
+        CHECK(s.IsActiveAt(D(2027, 1, 7, 1, 0)));
+        CHECK(!s.IsActiveAt(D(2027, 1, 7, 3, 0)));
+        CHECK(!s.IsActiveAt(D(2027, 1, 7, 19, 0)));
+        CHECK(s.IsActiveAt(D(2027, 11, 26, 19, 0)));
+    }
+    {
+        // a skipped night includes the part of its window after midnight, and only that night
+        Schedule s = Make({ { "StartDate", "2026-12-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "18:00" }, { "EndTime", "02:00" }, { "SkipDates", "2026-12-24" } });
+        CHECK(s.IsActiveAt(D(2026, 12, 24, 1, 0)));   // still the night of the 23rd
+        CHECK(!s.IsActiveAt(D(2026, 12, 24, 19, 0)));
+        CHECK(!s.IsActiveAt(D(2026, 12, 25, 0, 30)));
+        CHECK(s.IsActiveAt(D(2026, 12, 25, 19, 0)));
+    }
+    {
+        // a date range that is over needs no long search
+        Schedule s = Make({ { "StartDate", "2020-01-01" }, { "EndDate", "2020-12-31" }, { "StartTime", "17:00" }, { "EndTime", "22:00" } });
+        CHECK(s.GetUpcomingWindows(D(2026, 1, 1), 1).empty());
+        Schedule later = Make({ { "StartDate", "2030-06-01" }, { "EndDate", "2030-06-30" }, { "StartTime", "17:00" }, { "EndTime", "22:00" } });
+        auto w = later.GetUpcomingWindows(D(2026, 1, 1), 1, 5000);
+        CHECK(w.size() == 1 && w[0].first == D(2030, 6, 1, 17, 0));
+    }
 }
 
 } // namespace
@@ -263,6 +332,7 @@ int main(int argc, char** argv) {
     TestWindows();
     TestFireOnceIsNotShared();
     TestFileCompatibility();
+    TestReviewFindings();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

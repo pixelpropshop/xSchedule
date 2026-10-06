@@ -1160,6 +1160,7 @@ int ScheduleManager::CheckSchedule() {
                         // finish the current pass through the playlist (and its end steps) then stop
                         if (it->GetPlayList()->IsStoppingAtEndOfThisLoop()) continue;
                         spdlog::info("   Scheduler telling playlist {} due to schedule {} to stop at the end of this loop.", it->GetPlayList()->GetNameNoTime(), it->GetSchedule()->GetName());
+                        it->GetPlayList()->SetStepLooping(false); // a looping step would never reach the end of the loop
                         it->GetPlayList()->StopAtEndOfThisLoop();
                     } else {
                         spdlog::info("   Scheduler telling playlist {} due to schedule {} it is time to finish up.", it->GetPlayList()->GetNameNoTime(), it->GetSchedule()->GetName());

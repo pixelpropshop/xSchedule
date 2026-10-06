@@ -628,18 +628,54 @@ wxDateTime Schedule::DateFor(bool start, int year) const
     return d;
 }
 
+// the year whose holiday a stored date was resolved from (the stored date includes the offset,
+// which can carry it into the next or previous year)
+int Schedule::HolidayYear(bool start) const
+{
+    const wxDateTime& stored = start ? _startDate : _endDate;
+    return (stored - wxDateSpan::Days(start ? _startHolidayOffset : _endHolidayOffset)).GetYear();
+}
+
+// for a schedule that repeats every year: this year's season if it is not over yet, otherwise next year's
+void Schedule::GetCurrentOrNextSeason(wxDateTime& start, wxDateTime& end) const
+{
+    const wxDateTime today = wxDateTime::Today();
+    GetDateRange(today, start, end);
+    if (end >= today) return;
+    for (int year = today.GetYear(); year <= today.GetYear() + 2; ++year) {
+        wxDateTime s = DateFor(true, year);
+        wxDateTime e = DateFor(false, year);
+        if (e < s) e = DateFor(false, year + 1);
+        if (s > today) {
+            start = s;
+            end = e;
+            return;
+        }
+    }
+}
+
 wxDateTime Schedule::GetEffectiveStartDate() const
 {
     if (_startHoliday.empty()) return _startDate;
-    return DateFor(true, _startDate.GetYear());
+    if (_everyYear) {
+        wxDateTime start, end;
+        GetCurrentOrNextSeason(start, end);
+        return start;
+    }
+    return DateFor(true, HolidayYear(true));
 }
 
 wxDateTime Schedule::GetEffectiveEndDate() const
 {
     if (_endHoliday.empty()) return _endDate;
-    wxDateTime end = DateFor(false, _endDate.GetYear());
+    if (_everyYear) {
+        wxDateTime start, end;
+        GetCurrentOrNextSeason(start, end);
+        return end;
+    }
+    wxDateTime end = DateFor(false, HolidayYear(false));
     // a holiday end that lands before the start belongs to the following year
-    if (end < GetEffectiveStartDate()) end = DateFor(false, _endDate.GetYear() + 1);
+    if (end < GetEffectiveStartDate()) end = DateFor(false, HolidayYear(false) + 1);
     return end;
 }
 
@@ -647,17 +683,15 @@ wxDateTime Schedule::GetEffectiveEndDate() const
 void Schedule::GetDateRange(const wxDateTime& now, wxDateTime& start, wxDateTime& end) const
 {
     if (_everyYear) {
+        // the most recent season that has started (whether or not it is over: the window
+        // check needs it for the hours after midnight of its last night). An offset can put
+        // a season's start in the year before its holiday, so look one year either side.
         wxDateTime n = now.GetDateOnly();
-        start = DateFor(true, n.GetYear());
-        end = DateFor(false, n.GetYear());
-
-        if (start > n) {
-            start = DateFor(true, n.GetYear() - 1);
-            end = DateFor(false, n.GetYear() - 1);
-        }
-
-        if (start > end) {
-            end = DateFor(false, end.GetYear() + 1);
+        for (int year : { n.GetYear() + 1, n.GetYear(), n.GetYear() - 1 }) {
+            start = DateFor(true, year);
+            end = DateFor(false, year);
+            if (end < start) end = DateFor(false, year + 1); // the season runs past New Year
+            if (start <= n) break;
         }
     } else {
         start = GetEffectiveStartDate();
@@ -715,7 +749,7 @@ bool Schedule::IsActiveAt(const wxDateTime& now) const
     spdlog::debug("   Checking {}.", (const char *)now.Format("%Y-%m-%d %H:%M").c_str());
 #endif
 
-    if (!_enabled || !IsOkDOW(now) || !IsOkNthDay(now) || IsSkipDate(now))
+    if (!_enabled || !IsOkDOW(now) || !IsOkNthDay(now))
     {
 #ifdef LOGCALCNEXTTRIGGERTIME
         spdlog::debug("       Disabled or wrong day of week.");
@@ -733,6 +767,10 @@ bool Schedule::IsActiveAt(const wxDateTime& now) const
 
     SetTime(s, __city, _startTime, _startTimeString, _onOffsetMins);
     SetTime(e, __city, _endTime, _endTimeString, _offOffsetMins);
+
+    wxDateTime night = now;
+    if (e < s && now < e) night -= wxDateSpan::Day();
+    if (IsSkipDate(night)) return false;
 
     start.SetHour(s.GetHour());
     start.SetMinute(s.GetMinute());
@@ -811,8 +849,17 @@ std::vector<std::pair<wxDateTime, wxDateTime>> Schedule::GetUpcomingWindows(cons
     std::vector<std::pair<wxDateTime, wxDateTime>> res;
     if (!_enabled || count == 0) return res;
 
+    if (_dow.empty()) return res;
+
     wxDateTime day = from.GetDateOnly();
-    for (int i = 0; i <= maxDays && res.size() < count; ++i, day += wxDateSpan::Day()) {
+    wxDateTime last = day + wxDateSpan::Days(maxDays);
+    if (!_everyYear) {
+        wxDateTime first = GetEffectiveStartDate().GetDateOnly();
+        if (first > day) day = first;
+        wxDateTime rangeEnd = GetEffectiveEndDate().GetDateOnly();
+        if (rangeEnd < last) last = rangeEnd;
+    }
+    for (; day <= last && res.size() < count; day += wxDateSpan::Day()) {
         wxDateTime start = day;
         SetTime(start, __city, _startTime, _startTimeString, _onOffsetMins);
         start.SetSecond(0);

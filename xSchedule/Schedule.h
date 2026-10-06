@@ -62,6 +62,8 @@ class Schedule
     bool IsSkipDate(const wxDateTime& date) const;
     bool CheckActiveAt(const wxDateTime& now);
     wxDateTime DateFor(bool start, int year) const;
+    int HolidayYear(bool start) const;
+    void GetCurrentOrNextSeason(wxDateTime& start, wxDateTime& end) const;
     void GetDateRange(const wxDateTime& now, wxDateTime& start, wxDateTime& end) const;
 
     public:

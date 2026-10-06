@@ -510,7 +510,8 @@ void ScheduleDialog::ValidateWindow()
         picker->Enable(id.empty());
         spin->Enable(!id.empty());
         if (!id.empty()) {
-            wxDateTime d = Holidays::DateFor(id, picker->GetValue().GetYear());
+            // the field shows the holiday plus the offset, so take the year from before the offset
+            wxDateTime d = Holidays::DateFor(id, (picker->GetValue() - wxDateSpan::Days(spin->GetValue())).GetYear());
             if (d.IsValid()) {
                 d += wxDateSpan::Days(spin->GetValue());
                 if (!picker->GetValue().IsSameDate(d)) picker->SetValue(d);
@@ -524,8 +525,18 @@ void ScheduleDialog::ValidateWindow()
     TextCtrl_SkipDates->SetForegroundColour(skipOk ? wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT) : ModernUI::GetTheme().badText);
     TextCtrl_SkipDates->Refresh();
 
-    if (TextCtrl_Name->GetValue() != "" && skipOk &&
-        (holidays || DatePickerCtrl_Start->GetValue() <= DatePickerCtrl_End->GetValue()) &&
+    bool datesOk = DatePickerCtrl_Start->GetValue() <= DatePickerCtrl_End->GetValue();
+    if (holidays) {
+        if (CheckBox_EveryYear->GetValue()) {
+            datesOk = true; // resolved each year; a season may run past New Year
+        } else {
+            Schedule check(*_schedule);
+            ApplyTo(&check);
+            datesOk = check.GetEffectiveStartDate() <= check.GetEffectiveEndDate();
+        }
+    }
+
+    if (TextCtrl_Name->GetValue() != "" && skipOk && datesOk &&
         (CheckBox_Mon->GetValue() ||
             CheckBox_Tue->GetValue() ||
             CheckBox_Wed->GetValue() ||
