@@ -17,11 +17,14 @@
  #include <wx/datectrl.h>
  #include <wx/dateevt.h>
  #include <wx/dialog.h>
+ #include <wx/generic/datectrl.h>
  #include <wx/sizer.h>
  #include <wx/spinctrl.h>
  #include <wx/stattext.h>
  #include <wx/textctrl.h>
  //*)
+
+#include <string>
 
 class Schedule;
 
@@ -29,6 +32,9 @@ class ScheduleDialog: public wxDialog
 {
     Schedule* _schedule;
     void ValidateWindow();
+    void ApplyTo(Schedule* schedule) const;
+    void UpdatePreview();
+    std::string GetHolidayId(wxChoice* choice) const;
 
 	public:
 
@@ -46,7 +52,6 @@ class ScheduleDialog: public wxDialog
 		wxCheckBox* CheckBox_EveryYear;
 		wxCheckBox* CheckBox_Fri;
 		wxCheckBox* CheckBox_GracefullyInterrupt;
-		wxCheckBox* CheckBox_HardStop;
 		wxCheckBox* CheckBox_Loop;
 		wxCheckBox* CheckBox_Mon;
 		wxCheckBox* CheckBox_Sat;
@@ -56,8 +61,22 @@ class ScheduleDialog: public wxDialog
 		wxCheckBox* CheckBox_Tue;
 		wxCheckBox* CheckBox_Wed;
 		wxChoice* Choice_FireFrequency;
-		wxDatePickerCtrl* DatePickerCtrl_End;
-		wxDatePickerCtrl* DatePickerCtrl_Start;
+		wxChoice* Choice_EndAction;
+		wxChoice* Choice_EndHoliday;
+		wxChoice* Choice_StartHoliday;
+		wxDatePickerCtrlGeneric* DatePickerCtrl_End;
+		wxDatePickerCtrlGeneric* DatePickerCtrl_Start;
+		wxSpinCtrl* SpinCtrl_EndHolidayOffset;
+		wxSpinCtrl* SpinCtrl_StartHolidayOffset;
+		wxStaticText* StaticText_EndAction;
+		wxStaticText* StaticText_EndHoliday;
+		wxStaticText* StaticText_EndHolidayDays;
+		wxStaticText* StaticText_Preview;
+		wxStaticText* StaticText_PreviewLabel;
+		wxStaticText* StaticText_SkipDates;
+		wxStaticText* StaticText_StartHoliday;
+		wxStaticText* StaticText_StartHolidayDays;
+		wxTextCtrl* TextCtrl_SkipDates;
 		wxSpinCtrl* SpinCtrl_MaxLoops;
 		wxSpinCtrl* SpinCtrl_NthDay;
 		wxSpinCtrl* SpinCtrl_NthDayOffset;
@@ -134,7 +153,20 @@ class ScheduleDialog: public wxDialog
 		static const long ID_STATICTEXT21;
 		static const long ID_SPINCTRL6;
 		static const long ID_CHECKBOX12;
-		static const long ID_CHECKBOX13;
+		static const long ID_STATICTEXT_STARTHOLIDAY;
+		static const long ID_CHOICE_STARTHOLIDAY;
+		static const long ID_SPINCTRL_STARTHOLIDAYOFFSET;
+		static const long ID_STATICTEXT_STARTHOLIDAYDAYS;
+		static const long ID_STATICTEXT_ENDHOLIDAY;
+		static const long ID_CHOICE_ENDHOLIDAY;
+		static const long ID_SPINCTRL_ENDHOLIDAYOFFSET;
+		static const long ID_STATICTEXT_ENDHOLIDAYDAYS;
+		static const long ID_STATICTEXT_SKIPDATES;
+		static const long ID_TEXTCTRL_SKIPDATES;
+		static const long ID_STATICTEXT_ENDACTION;
+		static const long ID_CHOICE_ENDACTION;
+		static const long ID_STATICTEXT_PREVIEWLABEL;
+		static const long ID_STATICTEXT_PREVIEW;
 		static const long ID_STATICTEXT19;
 		static const long ID_CHOICE1;
 		static const long ID_CHECKBOX9;
@@ -161,6 +193,10 @@ class ScheduleDialog: public wxDialog
 		void OnSpinCtrl_NthDayChange(wxSpinEvent& event);
 		void OnSpinCtrl_NthDayOffsetChange(wxSpinEvent& event);
 		void OnChoice_FireFrequencySelect(wxCommandEvent& event);
+		void OnChoice_HolidaySelect(wxCommandEvent& event);
+		void OnSpinCtrl_HolidayOffsetChange(wxSpinEvent& event);
+		void OnTextCtrl_SkipDatesText(wxCommandEvent& event);
+		void OnChoice_EndActionSelect(wxCommandEvent& event);
 		//*)
 
         void OnTextCtrl_OnKillFocus(wxFocusEvent& event);

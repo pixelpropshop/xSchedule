@@ -2408,7 +2408,7 @@ void xScheduleFrame::UpdateUpcoming()
             }
             else {
                 r.when = s->GetNextTriggerDateTime();
-                if (r.when.IsValid()) {
+                if (r.when.IsValid() && r.when != wxDateTime((time_t)0)) { // the epoch means "no upcoming run"
                     r.kind = Later;
                     r.whenText = ModernUI::FormatWhen(r.when);
                     r.next = nextsch != nullptr && nextsch->GetId() == s->GetId();

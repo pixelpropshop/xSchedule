@@ -205,6 +205,9 @@ public:
     bool IsLooping() const {
         return _looping;
     }
+    bool IsStoppingAtEndOfThisLoop() const {
+        return _lastLoop;
+    }
     void StopAtEndOfThisLoop() {
         _lastLoop = true;
     }

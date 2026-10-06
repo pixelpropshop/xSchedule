@@ -61,8 +61,54 @@
 				<option>1</option>
 			</object>
 			<object class="sizeritem">
-				<object class="wxDatePickerCtrl" name="ID_DATEPICKERCTRL1" variable="DatePickerCtrl_Start" member="yes">
-					<handler function="OnDatePickerCtrl_StartChanged" entry="EVT_DATE_CHANGED" />
+				<object class="Custom" name="ID_DATEPICKERCTRL1" subclass="wxDatePickerCtrlGeneric" variable="DatePickerCtrl_Start" member="yes">
+					<creating_code>$(THIS) = new $(CLASS)($(PARENT),$(ID),wxDefaultDateTime,$(POS),$(SIZE),$(STYLE),wxDefaultValidator,$(NAME));</creating_code>
+					<include_file>wx/generic/datectrl.h</include_file>
+					<style>wxDP_DROPDOWN|wxDP_SHOWCENTURY</style>
+				</object>
+				<flag>wxALL|wxEXPAND</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_STARTHOLIDAY" variable="StaticText_StartHoliday" member="yes">
+					<label>Or holiday:</label>
+				</object>
+				<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxFlexGridSizer" variable="FlexGridSizer7" member="no">
+					<cols>3</cols>
+					<growablecols>0</growablecols>
+					<object class="sizeritem">
+						<object class="wxChoice" name="ID_CHOICE_STARTHOLIDAY" variable="Choice_StartHoliday" member="yes">
+							<handler function="OnChoice_HolidaySelect" entry="EVT_CHOICE" />
+						</object>
+						<flag>wxALL|wxEXPAND</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
+						<object class="wxSpinCtrl" name="ID_SPINCTRL_STARTHOLIDAYOFFSET" variable="SpinCtrl_StartHolidayOffset" member="yes">
+							<value>0</value>
+							<min>-60</min>
+							<max>60</max>
+							<handler function="OnSpinCtrl_HolidayOffsetChange" entry="EVT_SPINCTRL" />
+						</object>
+						<flag>wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
+						<object class="wxStaticText" name="ID_STATICTEXT_STARTHOLIDAYDAYS" variable="StaticText_StartHolidayDays" member="yes">
+							<label>days</label>
+						</object>
+						<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
 				</object>
 				<flag>wxALL|wxEXPAND</flag>
 				<border>5</border>
@@ -77,8 +123,54 @@
 				<option>1</option>
 			</object>
 			<object class="sizeritem">
-				<object class="wxDatePickerCtrl" name="ID_DATEPICKERCTRL2" variable="DatePickerCtrl_End" member="yes">
-					<handler function="OnDatePickerCtrl_EndChanged" entry="EVT_DATE_CHANGED" />
+				<object class="Custom" name="ID_DATEPICKERCTRL2" subclass="wxDatePickerCtrlGeneric" variable="DatePickerCtrl_End" member="yes">
+					<creating_code>$(THIS) = new $(CLASS)($(PARENT),$(ID),wxDefaultDateTime,$(POS),$(SIZE),$(STYLE),wxDefaultValidator,$(NAME));</creating_code>
+					<include_file>wx/generic/datectrl.h</include_file>
+					<style>wxDP_DROPDOWN|wxDP_SHOWCENTURY</style>
+				</object>
+				<flag>wxALL|wxEXPAND</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_ENDHOLIDAY" variable="StaticText_EndHoliday" member="yes">
+					<label>Or holiday:</label>
+				</object>
+				<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxFlexGridSizer" variable="FlexGridSizer8" member="no">
+					<cols>3</cols>
+					<growablecols>0</growablecols>
+					<object class="sizeritem">
+						<object class="wxChoice" name="ID_CHOICE_ENDHOLIDAY" variable="Choice_EndHoliday" member="yes">
+							<handler function="OnChoice_HolidaySelect" entry="EVT_CHOICE" />
+						</object>
+						<flag>wxALL|wxEXPAND</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
+						<object class="wxSpinCtrl" name="ID_SPINCTRL_ENDHOLIDAYOFFSET" variable="SpinCtrl_EndHolidayOffset" member="yes">
+							<value>0</value>
+							<min>-60</min>
+							<max>60</max>
+							<handler function="OnSpinCtrl_HolidayOffsetChange" entry="EVT_SPINCTRL" />
+						</object>
+						<flag>wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
+						<object class="wxStaticText" name="ID_STATICTEXT_ENDHOLIDAYDAYS" variable="StaticText_EndHolidayDays" member="yes">
+							<label>days</label>
+						</object>
+						<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
 				</object>
 				<flag>wxALL|wxEXPAND</flag>
 				<border>5</border>
@@ -274,6 +366,23 @@
 						<border>5</border>
 						<option>1</option>
 					</object>
+				</object>
+				<flag>wxALL|wxEXPAND</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_SKIPDATES" variable="StaticText_SkipDates" member="yes">
+					<label>Skip dates:</label>
+				</object>
+				<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxTextCtrl" name="ID_TEXTCTRL_SKIPDATES" variable="TextCtrl_SkipDates" member="yes">
+					<tooltip>Nights this schedule does not run, as YYYY-MM-DD separated by commas. When the schedule repeats every year only the month and day are used.</tooltip>
+					<handler function="OnTextCtrl_SkipDatesText" entry="EVT_TEXT" />
 				</object>
 				<flag>wxALL|wxEXPAND</flag>
 				<border>5</border>
@@ -515,14 +624,43 @@
 				<border>5</border>
 				<option>1</option>
 			</object>
-			<object class="spacer">
-				<flag>wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL</flag>
+			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_ENDACTION" variable="StaticText_EndAction" member="yes">
+					<label>At off time:</label>
+				</object>
+				<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
 				<border>5</border>
 				<option>1</option>
 			</object>
 			<object class="sizeritem">
-				<object class="wxCheckBox" name="ID_CHECKBOX13" variable="CheckBox_HardStop" member="yes">
-					<label>Hard stop at end time</label>
+				<object class="wxChoice" name="ID_CHOICE_ENDACTION" variable="Choice_EndAction" member="yes">
+					<content>
+						<item>Finish the current step</item>
+						<item>Finish the current loop</item>
+						<item>Hard stop at end time</item>
+					</content>
+					<selection>0</selection>
+					<tooltip>What happens when the off time arrives. Finishing the step or the loop also plays the playlist's end step, if it has one.</tooltip>
+					<handler function="OnChoice_EndActionSelect" entry="EVT_CHOICE" />
+				</object>
+				<flag>wxALL|wxEXPAND</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_PREVIEWLABEL" variable="StaticText_PreviewLabel" member="yes">
+					<label>Next runs:</label>
+					<font>
+						<weight>bold</weight>
+					</font>
+				</object>
+				<flag>wxALL|wxALIGN_LEFT|wxALIGN_TOP</flag>
+				<border>5</border>
+				<option>1</option>
+			</object>
+			<object class="sizeritem">
+				<object class="wxStaticText" name="ID_STATICTEXT_PREVIEW" variable="StaticText_Preview" member="yes">
+					<label>-</label>
 				</object>
 				<flag>wxALL|wxEXPAND</flag>
 				<border>5</border>

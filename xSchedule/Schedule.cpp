@@ -9,10 +9,12 @@
  **************************************************************/
 
 #include "Schedule.h"
-#include "ScheduleDialog.h"
 #include <wx/xml/xml.h>
+#include <wx/tokenzr.h>
+#include <algorithm>
 #include <log.h>
 #include "City.h"
+#include "Holidays.h"
 
 int __scheduleid = 0;
 std::string Schedule::__city = "Sydney";
@@ -163,6 +165,13 @@ void Schedule::Load(wxXmlNode* node)
     _nthDay = wxAtoi(node->GetAttribute("NthDay", "1"));
     _nthDayOffset = wxAtoi(node->GetAttribute("NthDayOffset", "0"));
     _fireFrequency = node->GetAttribute("FireFrequency", "Fire once");
+    _stopAtEndOfLoop = node->GetAttribute("StopAtEndOfLoop", "FALSE") == "TRUE";
+    _startHoliday = node->GetAttribute("StartHoliday", "").ToStdString();
+    _startHolidayOffset = wxAtoi(node->GetAttribute("StartHolidayOffset", "0"));
+    _endHoliday = node->GetAttribute("EndHoliday", "").ToStdString();
+    _endHolidayOffset = wxAtoi(node->GetAttribute("EndHolidayOffset", "0"));
+    _skipDates.clear();
+    ParseSkipDates(node->GetAttribute("SkipDates", "").ToStdString(), _skipDates);
 }
 
 wxXmlNode* Schedule::Save()
@@ -171,8 +180,8 @@ wxXmlNode* Schedule::Save()
 
     node->AddAttribute("Name", _name);
     node->AddAttribute("DOW", _dow);
-    node->AddAttribute("StartDate", _startDate.Format("%Y-%m-%d"));
-    node->AddAttribute("EndDate", _endDate.Format("%Y-%m-%d"));
+    node->AddAttribute("StartDate", GetEffectiveStartDate().Format("%Y-%m-%d"));
+    node->AddAttribute("EndDate", GetEffectiveEndDate().Format("%Y-%m-%d"));
     if (_startTimeString != "") {
         node->AddAttribute("StartTime", _startTimeString);
     }
@@ -213,6 +222,17 @@ wxXmlNode* Schedule::Save()
     {
         node->AddAttribute("GracefullyInterrupt", "TRUE");
     }
+    // newer settings are only written when used, so files that do not use them are unchanged
+    if (_stopAtEndOfLoop) node->AddAttribute("StopAtEndOfLoop", "TRUE");
+    if (_startHoliday != "") {
+        node->AddAttribute("StartHoliday", _startHoliday);
+        if (_startHolidayOffset != 0) node->AddAttribute("StartHolidayOffset", wxString::Format(wxT("%i"), _startHolidayOffset));
+    }
+    if (_endHoliday != "") {
+        node->AddAttribute("EndHoliday", _endHoliday);
+        if (_endHolidayOffset != 0) node->AddAttribute("EndHolidayOffset", wxString::Format(wxT("%i"), _endHolidayOffset));
+    }
+    if (!_skipDates.empty()) node->AddAttribute("SkipDates", GetSkipDatesAsString());
 
     return node;
 }
@@ -302,19 +322,15 @@ Schedule::Schedule(const Schedule& schedule, bool newid)
     _nthDay = schedule._nthDay;
     _nthDayOffset = schedule._nthDayOffset;
     _fireFrequency = schedule._fireFrequency;
+    _stopAtEndOfLoop = schedule._stopAtEndOfLoop;
+    _startHoliday = schedule._startHoliday;
+    _startHolidayOffset = schedule._startHolidayOffset;
+    _endHoliday = schedule._endHoliday;
+    _endHolidayOffset = schedule._endHolidayOffset;
+    _skipDates = schedule._skipDates;
+    _lastFired = schedule._lastFired;
 }
 
-Schedule* Schedule::Configure(wxWindow* parent)
-{
-    ScheduleDialog dlg(parent, this);
-
-    if (dlg.ShowModal() == wxID_CANCEL)
-    {
-        return nullptr;
-    }
-
-    return this;
-}
 
 bool Schedule::IsOnDOW(const std::string& dow) const
 {
@@ -427,7 +443,7 @@ void Schedule::Test()
     spdlog::warn("    Schedule tests done.");
 }
 
-bool Schedule::IsOkDOW(const wxDateTime& date)
+bool Schedule::IsOkDOW(const wxDateTime& date) const
 {
     return (_dow.find(wxDateTime::GetEnglishWeekDayName(date.GetWeekDay(), wxDateTime::Name_Abbr).ToStdString()) != std::string::npos);
 }
@@ -439,7 +455,6 @@ bool Schedule::CheckActive()
 
 bool Schedule::ShouldFire() const
 {
-    static 
     bool fire = true;
     wxDateTime start = GetStartTime();
     wxTimeSpan gap = wxDateTime::Now() - _lastFired;
@@ -540,9 +555,114 @@ void Schedule::DidFire()
 
 //#define LOGCALCNEXTTRIGGERTIME
 
-bool Schedule::IsOkNthDay(const wxDateTime& date)
+bool Schedule::IsOkNthDay(const wxDateTime& date) const
 {
+    if (_nthDay <= 1) return _nthDayOffset == 0 || _nthDay < 1; // every day; also guards a bad value from the file
     return ((date.GetDayOfYear() % _nthDay) - _nthDayOffset == 0);
+}
+
+bool Schedule::IsSkipDate(const wxDateTime& date) const
+{
+    for (const auto& d : _skipDates) {
+        if (_everyYear) {
+            if (d.GetMonth() == date.GetMonth() && d.GetDay() == date.GetDay()) return true;
+        } else if (d.IsSameDate(date)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Schedule::SetSkipDates(const std::vector<wxDateTime>& dates)
+{
+    std::vector<wxDateTime> clean;
+    for (const auto& d : dates) {
+        clean.push_back(d.GetDateOnly());
+    }
+    std::sort(clean.begin(), clean.end());
+    clean.erase(std::unique(clean.begin(), clean.end()), clean.end());
+    if (clean != _skipDates) {
+        _skipDates = clean;
+        _changeCount++;
+    }
+}
+
+std::string Schedule::GetSkipDatesAsString() const
+{
+    std::string res;
+    for (const auto& d : _skipDates) {
+        if (!res.empty()) res += ", ";
+        res += d.Format("%Y-%m-%d").ToStdString();
+    }
+    return res;
+}
+
+bool Schedule::ParseSkipDates(const std::string& text, std::vector<wxDateTime>& dates)
+{
+    bool ok = true;
+    wxStringTokenizer tokens(text, ",; \t", wxTOKEN_STRTOK);
+    while (tokens.HasMoreTokens()) {
+        wxString token = tokens.GetNextToken();
+        wxDateTime d;
+        wxString::const_iterator end;
+        if (d.ParseFormat(token, "%Y-%m-%d", &end) && end == token.end()) {
+            dates.push_back(d.GetDateOnly());
+        } else {
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+wxDateTime Schedule::DateFor(bool start, int year) const
+{
+    const std::string& holiday = start ? _startHoliday : _endHoliday;
+    if (!holiday.empty()) {
+        wxDateTime d = Holidays::DateFor(holiday, year);
+        if (d.IsValid()) {
+            return d + wxDateSpan::Days(start ? _startHolidayOffset : _endHolidayOffset);
+        }
+    }
+    wxDateTime d = start ? _startDate : _endDate;
+    d.SetYear(year);
+    return d;
+}
+
+wxDateTime Schedule::GetEffectiveStartDate() const
+{
+    if (_startHoliday.empty()) return _startDate;
+    return DateFor(true, _startDate.GetYear());
+}
+
+wxDateTime Schedule::GetEffectiveEndDate() const
+{
+    if (_endHoliday.empty()) return _endDate;
+    wxDateTime end = DateFor(false, _endDate.GetYear());
+    // a holiday end that lands before the start belongs to the following year
+    if (end < GetEffectiveStartDate()) end = DateFor(false, _endDate.GetYear() + 1);
+    return end;
+}
+
+// the date range (dates only) that applies at 'now', honoring every year and holidays
+void Schedule::GetDateRange(const wxDateTime& now, wxDateTime& start, wxDateTime& end) const
+{
+    if (_everyYear) {
+        wxDateTime n = now.GetDateOnly();
+        start = DateFor(true, n.GetYear());
+        end = DateFor(false, n.GetYear());
+
+        if (start > n) {
+            start = DateFor(true, n.GetYear() - 1);
+            end = DateFor(false, n.GetYear() - 1);
+        }
+
+        if (start > end) {
+            end = DateFor(false, end.GetYear() + 1);
+        }
+    } else {
+        start = GetEffectiveStartDate();
+        end = GetEffectiveEndDate();
+    }
 }
 
 void Schedule::SetStartTime(const std::string& start)
@@ -589,46 +709,24 @@ void Schedule::SetEndTime(const std::string& end)
     }
 }
 
-bool Schedule::CheckActiveAt(const wxDateTime& now)
+bool Schedule::IsActiveAt(const wxDateTime& now) const
 {
 #ifdef LOGCALCNEXTTRIGGERTIME
     spdlog::debug("   Checking {}.", (const char *)now.Format("%Y-%m-%d %H:%M").c_str());
 #endif
 
-    if (!_enabled || !IsOkDOW(now) || !IsOkNthDay(now))
+    if (!_enabled || !IsOkDOW(now) || !IsOkNthDay(now) || IsSkipDate(now))
     {
 #ifdef LOGCALCNEXTTRIGGERTIME
         spdlog::debug("       Disabled or wrong day of week.");
 #endif
 
-        _active = false;
-        return _active;
+        return false;
     }
 
-    wxDateTime start = _startDate;
-    wxDateTime end = _endDate;
-
-    if (_everyYear)
-    {
-        wxDateTime n = now;
-        n.SetHour(0);
-        n.SetMinute(0);
-        n.SetSecond(0);
-
-        start.SetYear(n.GetYear());
-        end.SetYear(n.GetYear());
-
-        if (start > n)
-        {
-            start.SetYear(n.GetYear() - 1);
-            end.SetYear(n.GetYear() - 1);
-        }
-
-        if (start > end)
-        {
-            end = end.SetYear(end.GetYear() + 1);
-        }
-    }
+    wxDateTime start;
+    wxDateTime end;
+    GetDateRange(now, start, end);
 
     wxDateTime s = now;
     wxDateTime e = now;
@@ -653,15 +751,16 @@ bool Schedule::CheckActiveAt(const wxDateTime& now)
     // handle the 24 hours a day case
     if (s == e)
     {
-        _active = now >= start && now < end;
+        bool active = now >= start && now < end;
 
 #ifdef LOGCALCNEXTTRIGGERTIME
-        if (!_active) spdlog::debug("       24 hrs a day but not within dates. {}-{}", (const char *)start.Format("%Y-%m-%d %H:%M").c_str(), (const char *)end.Format("%Y-%m-%d %H:%M").c_str());
+        if (!active) spdlog::debug("       24 hrs a day but not within dates. {}-{}", (const char *)start.Format("%Y-%m-%d %H:%M").c_str(), (const char *)end.Format("%Y-%m-%d %H:%M").c_str());
 #endif
 
-        return _active;
+        return active;
     }
 
+    bool active = false;
     if (now >= start && now <= end)
     {
         // dates are ok ... now check the times
@@ -683,10 +782,10 @@ bool Schedule::CheckActiveAt(const wxDateTime& now)
             end.Add(wxDateSpan::Day());
         }
 
-        _active = now >= start && now < end;
+        active = now >= start && now < end;
 
 #ifdef LOGCALCNEXTTRIGGERTIME
-        if (!_active) spdlog::debug("       Valid dates but not at this time {}-{}.", (const char *)start.Format("%Y-%m-%d %H:%M").c_str(), (const char *)end.Format("%Y-%m-%d %H:%M").c_str());
+        if (!active) spdlog::debug("       Valid dates but not at this time {}-{}.", (const char *)start.Format("%Y-%m-%d %H:%M").c_str(), (const char *)end.Format("%Y-%m-%d %H:%M").c_str());
 #endif
     }
     else
@@ -695,102 +794,57 @@ bool Schedule::CheckActiveAt(const wxDateTime& now)
         spdlog::debug("       Not valid on this date {}-{}.", (const char *)start.Format("%Y-%m-%d %H:%M").c_str(), (const char *)end.Format("%Y-%m-%d %H:%M").c_str());
 #endif
         // outside date range
-        _active = false;
-        return _active;
+        return false;
     }
 
+    return active;
+}
+
+bool Schedule::CheckActiveAt(const wxDateTime& now)
+{
+    _active = IsActiveAt(now);
     return _active;
+}
+
+std::vector<std::pair<wxDateTime, wxDateTime>> Schedule::GetUpcomingWindows(const wxDateTime& from, size_t count, int maxDays) const
+{
+    std::vector<std::pair<wxDateTime, wxDateTime>> res;
+    if (!_enabled || count == 0) return res;
+
+    wxDateTime day = from.GetDateOnly();
+    for (int i = 0; i <= maxDays && res.size() < count; ++i, day += wxDateSpan::Day()) {
+        wxDateTime start = day;
+        SetTime(start, __city, _startTime, _startTimeString, _onOffsetMins);
+        start.SetSecond(0);
+        if (start <= from || !IsActiveAt(start)) continue;
+
+        wxDateTime end = day;
+        SetTime(end, __city, _endTime, _endTimeString, _offOffsetMins);
+        end.SetSecond(0);
+        if (end.FormatISOTime() == start.FormatISOTime()) {
+            // 24 hours a day: one window that runs to the end of the date range
+            wxDateTime rangeStart;
+            wxDateTime rangeEnd;
+            GetDateRange(start, rangeStart, rangeEnd);
+            SetTime(rangeEnd, __city, _endTime, _endTimeString, _offOffsetMins);
+            rangeEnd.SetSecond(0);
+            res.push_back({ start, rangeEnd });
+            break;
+        }
+        if (end < start) end += wxDateSpan::Day(); // runs past midnight
+        res.push_back({ start, end });
+    }
+    return res;
 }
 
 wxDateTime Schedule::GetNextTriggerDateTime()
 {
-#ifdef LOGCALCNEXTTRIGGERTIME
-    static 
-#endif
-
     wxDateTime now = wxDateTime::Now();
-    wxDateTime end = _endDate.GetDateOnly();
-    wxDateTime start = _startDate.GetDateOnly();
-
-    if (_everyYear)
-    {
-        start.SetYear(now.GetYear());
-        end.SetYear(now.GetYear());
-        if (end < start)
-        {
-            end.SetYear(end.GetYear() + 1);
-        }
-
-        if (end < now)
-        {
-            // over already this year ... so set to next year
-            start.SetYear(start.GetYear() + 1);
-            end.SetYear(end.GetYear() + 1);
-        }
-    }
-
-    // deal with the simple cases
     if (CheckActive()) return now;
-    if (end < now.GetDateOnly()) return wxDateTime((time_t)0);
 
-    if (start.GetDateOnly() > now.GetDateOnly()) // tomorrow or later
-    {
-        // some time in the future
-        wxDateTime next = start;
-
-        SetTime(next, __city, _startTime, _startTimeString, _onOffsetMins);
-
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("   Checking {}.", (const char*)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-        if (next > now && CheckActiveAt(next))
-        {
-            return next;
-        }
-
-        for (int i = 0; i < 7; i++)
-        {
-            next += wxDateSpan::Day();
-#ifdef LOGCALCNEXTTRIGGERTIME
-            spdlog::debug("   Checking {}.", (const char*)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-            if (next > now && CheckActiveAt(next))
-            {
-                return next;
-            }
-        }
-
-        return wxDateTime((time_t)0);
-    }
-
-    // so now is between _startDate and end
-
-    // check if the right answer is the starttime today
-    wxDateTime next = now;
-    SetTime(next, __city, _startTime, _startTimeString, _onOffsetMins);
-    next.SetSecond(0);
-#ifdef LOGCALCNEXTTRIGGERTIME
-    spdlog::debug("   Checking {}.", (const char*)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-    if (next > now && CheckActiveAt(next))
-    {
-        return next;
-    }
-
-    for (int i = 0; i < 7; i++)
-    {
-        next += wxDateSpan::Day();
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("   Checking {}.", (const char*)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-        if (next > now && CheckActiveAt(next))
-        {
-            return next;
-        }
-    }
-
-    // I give up
-    return wxDateTime((time_t)0);
+    auto next = GetUpcomingWindows(now, 1);
+    if (next.empty()) return wxDateTime((time_t)0);
+    return next.front().first;
 }
 
 std::string Schedule::GetNextNthDay(int nthDay, int nthDayOffset)
@@ -811,31 +865,6 @@ std::string Schedule::GetNextNthDay(int nthDay, int nthDayOffset)
 
 std::string Schedule::GetNextTriggerTime()
 {
-#ifdef LOGCALCNEXTTRIGGERTIME
-#endif
-
-    wxDateTime end = _endDate;
-
-    wxDateTime end_time = wxDateTime::Now();
-    SetTime(end_time, __city, _endTime, _endTimeString, _offOffsetMins);
-    end_time.SetSecond(0);
-
-    end.SetHour(end_time.GetHour());
-    end.SetMinute(end_time.GetMinute());
-
-#ifdef LOGCALCNEXTTRIGGERTIME
-    spdlog::debug("End date {}.", (const char *)end.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-
-    if (_everyYear)
-    {
-        end.SetYear(wxDateTime::Now().GetYear() + 1);
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("Adjusted for every year {}.", (const char *)end.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-    }
-
-    // deal with the simple cases
     if (CheckActive())
     {
         if (GetFireFrequency() == "Fire once")
@@ -845,7 +874,7 @@ std::string Schedule::GetNextTriggerTime()
         else
         {
             wxDateTime nextFire = GetNextFireTime();
-            if (!CheckActiveAt(nextFire))
+            if (!IsActiveAt(nextFire))
             {
                 return "Done";
             }
@@ -853,103 +882,12 @@ std::string Schedule::GetNextTriggerTime()
         }
     }
 
-    if (end < wxDateTime::Now())
+    wxDateTime next = GetNextTriggerDateTime();
+    if (next == wxDateTime((time_t)0))
     {
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("End if before today ... so Never.");
-#endif
         return "Never";
     }
-
-    if (_startDate > wxDateTime::Now()) // tomorrow or later
-    {
-        // some time in the future
-        wxDateTime next = _startDate;
-
-        SetTime(next, __city, _startTime, _startTimeString, _onOffsetMins);
-
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("Checking {}.", (const char *)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-
-        if (next > wxDateTime::Now() && CheckActiveAt(next))
-        {
-            return next.Format("%Y-%m-%d %H:%M").ToStdString();
-        }
-
-        for (int i = 0; i < 7; i++)
-        {
-            next += wxDateSpan::Day();
-#ifdef LOGCALCNEXTTRIGGERTIME
-            spdlog::debug("Checking {}.", (const char *)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-            if (next > wxDateTime::Now() && CheckActiveAt(next))
-            {
-                return next.Format("%Y-%m-%d %H:%M").ToStdString();
-            }
-        }
-
-        return "Never";
-    }
-
-    // so now is between _startDate and end
-
-    // check if the right answer is the starttime today
-    wxDateTime next = wxDateTime::Now();
-    SetTime(next, __city, _startTime, _startTimeString, _onOffsetMins);
-    next.SetSecond(0);
-
-#ifdef LOGCALCNEXTTRIGGERTIME
-    spdlog::debug("Checking {}.", (const char *)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-    if (next > wxDateTime::Now() && CheckActiveAt(next))
-    {
-        return next.Format("%Y-%m-%d %H:%M").ToStdString();
-    }
-
-    for (int i = 0; i < 7; i++)
-    {
-        next += wxDateSpan::Day();
-        SetTime(next, __city, _startTime, _startTimeString, _onOffsetMins);
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("Checking {}.", (const char *)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-
-        if (next > wxDateTime::Now() && CheckActiveAt(next))
-        {
-            return next.Format("%Y-%m-%d %H:%M").ToStdString();
-        }
-    }
-
-    if (_everyYear)
-    {
-        next = _startDate;
-        next.SetYear(wxDateTime::Now().GetYear());
-
-        SetTime(next, __city, _startTime, _startTimeString, _onOffsetMins);
-
-        if (next < wxDateTime::Now())
-        {
-            next.SetYear(next.GetYear() + 1);
-        }
-
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("Checking {}.", (const char *)next.Format("%Y-%m-%d %H:%M").c_str());
-#endif
-
-        if (CheckActiveAt(next))
-        {
-            return next.Format("%Y-%m-%d %H:%M").ToStdString();
-        }
-    }
-
-    // I give up
-    if (_everyYear)
-    {
-        return "A long time from now";
-    }
-
-    return "Never";
+    return next.Format("%Y-%m-%d %H:%M").ToStdString();
 }
 
 void Schedule::AddMinsToEndTime(int mins)
@@ -969,7 +907,9 @@ std::string Schedule::GetNextEndTime()
     // when end and start are the same we play 24 hours a day
     if (s1 == e1)
     {
-        wxDateTime end = _endDate;
+        wxDateTime rangeStart;
+        wxDateTime end;
+        GetDateRange(wxDateTime::Now(), rangeStart, end);
 
         SetTime(end, __city, _endTime, _endTimeString, _offOffsetMins);
         end.SetSecond(0);

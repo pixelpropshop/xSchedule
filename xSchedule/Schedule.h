@@ -12,6 +12,8 @@
 
 #include <wx/wx.h>
 #include <string>
+#include <utility>
+#include <vector>
 
 class wxWindow;
 class wxXmlNode;
@@ -44,12 +46,23 @@ class Schedule
     int _onOffsetMins = 0;
     int _offOffsetMins = 0;
     bool _hardStop = false;
+    bool _stopAtEndOfLoop = false;
+    // a start/end date can follow a holiday (plus or minus some days) instead of a fixed date
+    std::string _startHoliday;
+    int _startHolidayOffset = 0;
+    std::string _endHoliday;
+    int _endHolidayOffset = 0;
+    // nights the schedule does not run; month and day only when it repeats every year
+    std::vector<wxDateTime> _skipDates;
     wxDateTime _lastFired;
 
     void SetTime(wxDateTime& toset, std::string city, wxDateTime time, std::string timeString, int offset) const;
-    bool IsOkDOW(const wxDateTime& date);
-    bool IsOkNthDay(const wxDateTime& date);
+    bool IsOkDOW(const wxDateTime& date) const;
+    bool IsOkNthDay(const wxDateTime& date) const;
+    bool IsSkipDate(const wxDateTime& date) const;
     bool CheckActiveAt(const wxDateTime& now);
+    wxDateTime DateFor(bool start, int year) const;
+    void GetDateRange(const wxDateTime& now, wxDateTime& start, wxDateTime& end) const;
 
     public:
 
@@ -79,6 +92,25 @@ class Schedule
         void SetNthDay(int nthDay) { if (_nthDay != nthDay) { _nthDay = nthDay; _changeCount++; } }
         bool IsHardStop() const { return _hardStop; }
         void SetHardStop(bool hardStop) { if (_hardStop != hardStop) { _hardStop = hardStop; _changeCount++; } }
+        // at the end time, finish the playlist's current loop rather than its current step
+        bool IsStopAtEndOfLoop() const { return _stopAtEndOfLoop; }
+        void SetStopAtEndOfLoop(bool stop) { if (_stopAtEndOfLoop != stop) { _stopAtEndOfLoop = stop; _changeCount++; } }
+        std::string GetStartHoliday() const { return _startHoliday; }
+        void SetStartHoliday(const std::string& holiday) { if (_startHoliday != holiday) { _startHoliday = holiday; _changeCount++; } }
+        int GetStartHolidayOffset() const { return _startHolidayOffset; }
+        void SetStartHolidayOffset(int days) { if (_startHolidayOffset != days) { _startHolidayOffset = days; _changeCount++; } }
+        std::string GetEndHoliday() const { return _endHoliday; }
+        void SetEndHoliday(const std::string& holiday) { if (_endHoliday != holiday) { _endHoliday = holiday; _changeCount++; } }
+        int GetEndHolidayOffset() const { return _endHolidayOffset; }
+        void SetEndHolidayOffset(int days) { if (_endHolidayOffset != days) { _endHolidayOffset = days; _changeCount++; } }
+        const std::vector<wxDateTime>& GetSkipDates() const { return _skipDates; }
+        void SetSkipDates(const std::vector<wxDateTime>& dates);
+        std::string GetSkipDatesAsString() const;
+        // parses comma separated YYYY-MM-DD dates; false if any entry is not a valid date
+        static bool ParseSkipDates(const std::string& text, std::vector<wxDateTime>& dates);
+        // start and end dates with any holiday resolved (for the year of the stored date)
+        wxDateTime GetEffectiveStartDate() const;
+        wxDateTime GetEffectiveEndDate() const;
         int GetNthDayOffset() const { return _nthDayOffset; }
         void SetNthDayOffset(int nthDayOffset) { if (_nthDayOffset != nthDayOffset) { _nthDayOffset = nthDayOffset; _changeCount++; } }
         void SetEnabled(bool enabled) { if (_enabled != enabled) { _enabled = enabled; _changeCount++; } }
@@ -115,6 +147,10 @@ class Schedule
 		Schedule* Configure(wxWindow* parent);
         bool IsActive() const { return _active; }
         bool CheckActive();
+        // whether the schedule would be active at the given time; unlike CheckActive this changes nothing
+        bool IsActiveAt(const wxDateTime& when) const;
+        // the next windows (start, end) that start after 'from', looking at most maxDays ahead
+        std::vector<std::pair<wxDateTime, wxDateTime>> GetUpcomingWindows(const wxDateTime& from, size_t count, int maxDays = 400) const;
         std::string GetNextTriggerTime();
         std::string GetNextEndTime();
         void AddMinsToEndTime(int mins);

@@ -304,6 +304,8 @@
 		<Unit filename="MatrixMapper.h" />
 		<Unit filename="ModernUI.cpp" />
 		<Unit filename="ModernUI.h" />
+		<Unit filename="Holidays.cpp" />
+		<Unit filename="Holidays.h" />
 		<Unit filename="OSCPacket.cpp" />
 		<Unit filename="OSCPacket.h" />
 		<Unit filename="OptionsDialog.cpp" />
