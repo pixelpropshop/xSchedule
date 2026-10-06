@@ -36,6 +36,10 @@ class ScheduleDialog: public wxDialog
 		virtual ~ScheduleDialog();
 
 		//(*Declarations(ScheduleDialog)
+		wxStaticText* StaticText_SectionWhen;
+		wxStaticText* StaticText_SectionTimes;
+		wxStaticText* StaticText_SectionPlayback;
+		wxStaticText* StaticText_SectionPriority;
 		wxButton* Button_Cancel;
 		wxButton* Button_Ok;
 		wxCheckBox* CheckBox_Enabled;
@@ -89,6 +93,10 @@ class ScheduleDialog: public wxDialog
 	protected:
 
 		//(*Identifiers(ScheduleDialog)
+		static const long ID_STATICTEXT_SECTIONWHEN;
+		static const long ID_STATICTEXT_SECTIONTIMES;
+		static const long ID_STATICTEXT_SECTIONPLAYBACK;
+		static const long ID_STATICTEXT_SECTIONPRIORITY;
 		static const long ID_CHECKBOX11;
 		static const long ID_STATICTEXT15;
 		static const long ID_TEXTCTRL3;
