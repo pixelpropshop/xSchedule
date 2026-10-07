@@ -10,6 +10,7 @@
  * License: https://github.com/xLightsSequencer/xLights/blob/master/License.txt
  **************************************************************/
 
+#include <list>
 #include <string>
 
 // xSchedule's settings stay in wxConfig (HKCU\Software\xSchedule on Windows). The shared xLights wx helpers
@@ -23,4 +24,11 @@ namespace ScheduleConfig {
 
     bool IsSuppressDarkMode();
     void SetSuppressDarkMode(bool suppress);
+
+    // xLights moved its settings out of the registry into settings.json in April 2026 and stopped updating the
+    // registry. These read xLights' own settings from there, falling back to the registry for older xLights.
+    std::string GetXLightsSetting(const std::string& key);
+    std::list<std::string> GetXLightsMediaDirs();
+    // Show folders can differ in slashes and case and still be the same folder
+    bool IsSameFolder(const std::string& a, const std::string& b);
 }
