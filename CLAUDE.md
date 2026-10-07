@@ -8,7 +8,7 @@ xSchedule is a show scheduler and player for lighting control. It plays FSEQ seq
 
 Built on wxWidgets 3.3 (custom fork).
 
-**Supported platforms:** Linux (Ubuntu 24.04 or newer, the current xLights minimum; Debian 12 is untested since the move to the current xLights core), Windows 10+. No macOS build since xSchedule left the xLights repo (2026-04).
+**Supported platforms:** Linux (Ubuntu 24.04 or newer; xSchedule follows the xLights minimum, so raise it when xLights does), Windows 10+. No macOS build since xSchedule left the xLights repo (2026-04).
 
 ## Build Commands
 
