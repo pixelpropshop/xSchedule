@@ -14,10 +14,29 @@
 #include "SyncManager.h"
 #include <wx/socket.h>
 
+#include <ctime>
+#include <map>
+#include <vector>
+
 class ListenerManager;
 
 class SyncFPP : public SyncBase {
-    virtual void SendFPPSync(const std::string& item, uint32_t stepMS, uint32_t frameMS) const = 0;
+    virtual void SendFPPSync(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS) const = 0;
+
+    // What this master last told its remotes about one file. Each master keeps its own: several FPP modes can be on
+    // at once, and shared state left all but the first without periodic syncs.
+    struct Tracked {
+        std::string item;
+        uint32_t lastSyncMS = 0;
+    };
+    mutable Tracked _seq;
+    mutable Tracked _media;
+    mutable uint32_t _lastStepMS = 0;
+    mutable uint32_t _lastStepNo = 0xFFFFFFFF;
+    void Track(Tracked& tracked, const std::string& item, uint32_t stepMS, uint32_t frameMS, bool restart, bool isSeq) const;
+
+protected:
+    static std::vector<uint8_t> MakeSyncPacket(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS);
 
 public:
     static void Ping(bool remote, const std::string& localIP);
@@ -33,7 +52,7 @@ class SyncBroadcastFPP : public SyncFPP {
     wxDatagramSocket* _fppBroadcastSocket = nullptr;
     wxIPV4address _remoteAddr;
 
-    virtual void SendFPPSync(const std::string& item, uint32_t stepMS, uint32_t frameMS) const override;
+    virtual void SendFPPSync(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS) const override;
 
 public:
     SyncBroadcastFPP(SYNCMODE sm, REMOTEMODE rm, const ScheduleOptions& options, ScheduleManager* schm, ListenerManager* listenerManager, const std::string& localIP);
@@ -47,9 +66,12 @@ public:
 class SyncUnicastFPP : public SyncFPP {
     wxDatagramSocket* _fppUnicastSocket = nullptr;
     std::list<std::string> _remotes;
+    // remotes can be host names; look each up once rather than on every packet, retrying failures now and then
+    mutable std::map<std::string, wxIPV4address> _addresses;
+    mutable std::map<std::string, time_t> _failedLookups;
 
-    void SendUnicastSync(const std::string& ip, const std::string& item, size_t msec, size_t frameMS, int action) const;
-    virtual void SendFPPSync(const std::string& item, uint32_t stepMS, uint32_t frameMS) const override;
+    bool Resolve(const std::string& host, wxIPV4address& address) const;
+    virtual void SendFPPSync(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS) const override;
 
 public:
     SyncUnicastFPP(SYNCMODE sm, REMOTEMODE rm, const ScheduleOptions& options, ScheduleManager* schm, ListenerManager* listenerManager, const std::string& localIP);
@@ -65,7 +87,7 @@ class SyncUnicastCSVFPP : public SyncFPP {
     std::list<std::string> _remotes;
 
     void SendUnicastSync(const std::string& ip, const std::string& item, size_t msec, size_t frameMS, int action) const;
-    virtual void SendFPPSync(const std::string& item, uint32_t stepMS, uint32_t frameMS) const override;
+    virtual void SendFPPSync(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS) const override;
 
 public:
     SyncUnicastCSVFPP(SYNCMODE sm, REMOTEMODE rm, const ScheduleOptions& options, ScheduleManager* schm, ListenerManager* listenerManager, const std::string& localIP);
@@ -80,7 +102,7 @@ class SyncMulticastFPP : public SyncFPP {
     wxDatagramSocket* _fppMulticastSocket = nullptr;
     wxIPV4address _remoteAddr;
 
-    virtual void SendFPPSync(const std::string& item, uint32_t stepMS, uint32_t frameMS) const override;
+    virtual void SendFPPSync(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS) const override;
 
 public:
     SyncMulticastFPP(SYNCMODE sm, REMOTEMODE rm, const ScheduleOptions& options, ScheduleManager* schm, ListenerManager* listenerManager, const std::string& localIP);

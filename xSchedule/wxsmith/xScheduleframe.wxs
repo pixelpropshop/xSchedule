@@ -497,7 +497,7 @@
 						<checkable>1</checkable>
 					</object>
 					<object class="wxMenuItem" name="ID_MNU_FPP_UNICASTCSVMASTER" variable="MenuItem_ModeFPPUnicastCSVMaster" member="yes">
-						<label>FPP Unicast CSV</label>
+						<label>FPP Unicast CSV (Falcon v2 and xSchedule remotes)</label>
 						<handler function="OnMenuItem_ModeFPPUnicastCSVMasterSelected" entry="EVT_MENU" />
 						<checkable>1</checkable>
 					</object>
@@ -530,7 +530,7 @@
 						<radio>1</radio>
 					</object>
 					<object class="wxMenuItem" name="ID_MNU_FPPCSVREMOTE" variable="MenuItem_ModeFPPCSVRemote" member="yes">
-						<label>FPP CSV</label>
+						<label>FPP CSV (from an xSchedule or FPP 3 master)</label>
 						<handler function="OnMenuItem_ModeFPPCSVRemoteSelected" entry="EVT_MENU" />
 						<radio>1</radio>
 					</object>
