@@ -122,7 +122,7 @@ xSMSDaemonFrame::xSMSDaemonFrame(wxWindow* parent, const std::string& showDir, c
     FlexGridSizer1->AddGrowableRow(1);
     FlexGridSizer2 = new wxFlexGridSizer(0, 2, 0, 0);
     FlexGridSizer2->AddGrowableCol(1);
-    StaticText4 = new wxStaticText(this, ID_STATICTEXT9, _("Phone"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT9"));
+    StaticText4 = new wxStaticText(this, ID_STATICTEXT9, _("Phone:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT9"));
     FlexGridSizer2->Add(StaticText4, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
     StaticText_Phone = new wxStaticText(this, ID_STATICTEXT10, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER, _T("ID_STATICTEXT10"));
     FlexGridSizer2->Add(StaticText_Phone, 1, wxALL|wxEXPAND, 5);

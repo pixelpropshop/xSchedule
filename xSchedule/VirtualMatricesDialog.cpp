@@ -43,7 +43,7 @@ VirtualMatricesDialog::VirtualMatricesDialog(wxWindow* parent, OutputManager* ou
     wxBoxSizer* BoxSizer1;
     wxFlexGridSizer* FlexGridSizer1;
 
-    Create(parent, id, _("Matrices"), wxDefaultPosition, wxDefaultSize, wxCAPTION | wxRESIZE_BORDER | wxMAXIMIZE_BOX, _T("id"));
+    Create(parent, id, _("Virtual Matrices"), wxDefaultPosition, wxDefaultSize, wxCAPTION | wxRESIZE_BORDER | wxMAXIMIZE_BOX, _T("id"));
     SetClientSize(wxDefaultSize);
     Move(wxDefaultPosition);
     FlexGridSizer1 = new wxFlexGridSizer(0, 2, 0, 0);

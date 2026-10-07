@@ -50,6 +50,7 @@ class PlayListDialog: public wxDialog
     void Clone();
     void ShowItemMenu(wxTreeItemId treeitem);
     void StyleTreeItems();
+    void BalanceSplitter();
     std::string GetPlayListLabel(PlayList* playlist) const;
     std::string GetStepLabel(PlayListStep* step) const;
     std::string GetItemLabel(PlayListItem* item) const;

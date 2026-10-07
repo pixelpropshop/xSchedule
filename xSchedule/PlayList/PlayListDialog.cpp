@@ -215,10 +215,7 @@ PlayListDialog::PlayListDialog(wxWindow* parent, OutputManager* outputManager, P
     SetSize(w, h);
     EnsureWindowHeaderIsOnScreen(this);
 
-    SplitterWindow1->SetMinimumPaneSize(FromDIP(220));
-    CallAfter([this]() {
-        SplitterWindow1->SetSashPosition(SplitterWindow1->GetClientSize().x * 48 / 100);
-    });
+    CallAfter([this]() { BalanceSplitter(); });
 
     // the order must match ItemImage()
     wxVector<wxBitmapBundle> images;
@@ -242,9 +239,10 @@ PlayListDialog::PlayListDialog(wxWindow* parent, OutputManager* outputManager, P
             item->SetFlag(wxALL | wxEXPAND);
         }
     }
-    // the wxSmith size hints are from the old single button row
-    Panel1->SetMinSize(wxSize(FromDIP(320), -1));
-    Panel2->SetMinSize(wxSize(FromDIP(260), -1));
+    // the wxSmith size hints are from the old single button row; the buttons now set the width
+    Panel1->SetMinSize(wxDefaultSize);
+    Panel2->SetMinSize(wxDefaultSize);
+    StaticText2->SetLabel("Right-click the tree for more items and options.");
     _buttonAddItem->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
         ShowItemMenu(TreeCtrl_PlayList->GetSelection());
     });
@@ -388,8 +386,18 @@ void PlayListDialog::OnTreeCtrl_PlayListSelectionChanged(wxTreeEvent& event)
         PlayListItem* pli = (PlayListItem*)((MyTreeItemData*)TreeCtrl_PlayList->GetItemData(treeitem))->GetData();
         SwapPage(nullptr);
         pli->Configure(Notebook1);
+        ModernUI::EscapePageTitles(Notebook1);
     }
+    ModernUI::GrowFilePickers(Notebook1);
+    ModernUI::FitToContents(this);
+    BalanceSplitter();
+    CallAfter([this]() { ModernUI::LogClippedControls(this); });
     ValidateWindow();
+}
+
+void PlayListDialog::BalanceSplitter()
+{
+    ModernUI::BalanceSplitter(SplitterWindow1, 0.48);
 }
 
 void PlayListDialog::OnTreeMouseMove(wxMouseEvent& event)

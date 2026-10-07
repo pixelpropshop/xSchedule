@@ -22,6 +22,7 @@
 #include "../../xlights/src-core/utils/UtilFunctions.h"
 #include "../../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "../ScheduleOptions.h"
+#include "../ModernUI.h"
 
 #include <wx/xml/xml.h>
 #include <wx/menu.h>
@@ -151,6 +152,17 @@ PlayListSimpleDialog::PlayListSimpleDialog(wxWindow* parent, OutputManager* outp
     SetPosition(wxPoint(x, y));
     SetSize(w, h);
     EnsureWindowHeaderIsOnScreen(this);
+    // two rows of buttons, as in the full editor, so the list doesn't have to be as wide as all five
+    if (auto grid = new wxGridSizer(2, 3, 0, 0); Panel1->GetSizer()->Replace(BoxSizer1, grid, true)) {
+        for (auto b : { Button_AddFSEQ, Button_FSEQVideo, Button_AddAudio, Button_Clone, Button_Delete }) {
+            grid->Add(b, 1, wxALL | wxEXPAND, 4);
+        }
+        if (auto item = Panel1->GetSizer()->GetItem(grid); item != nullptr) item->SetFlag(wxALL | wxEXPAND);
+        Panel1->Layout();
+    }
+    CallAfter([this]() {
+        ModernUI::BalanceSplitter(SplitterWindow1, 0.55);
+    });
 
     // save the current state in case the user cancels
     _savedState = new PlayList(*playlist);
@@ -285,8 +297,12 @@ void PlayListSimpleDialog::OnTreeCtrl_PlayListSelectionChanged(wxTreeEvent& even
                 PlayListItem* pli = pls->GetItems().front();
                 SwapPage(nullptr);
                 pli->Configure(Notebook1);
+                ModernUI::EscapePageTitles(Notebook1);
             }
         }
+        ModernUI::GrowFilePickers(Notebook1);
+        ModernUI::FitToContents(this);
+        ModernUI::BalanceSplitter(SplitterWindow1, 0.55);
     }
 
     ValidateWindow();

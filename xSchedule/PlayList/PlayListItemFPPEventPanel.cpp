@@ -51,7 +51,7 @@ PlayListItemFPPEventPanel::PlayListItemFPPEventPanel(wxWindow* parent, PlayListI
 	FlexGridSizer1->Add(StaticText3, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
 	TextCtrl_FPPEventName = new wxTextCtrl(this, ID_TEXTCTRL3, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_TEXTCTRL3"));
 	FlexGridSizer1->Add(TextCtrl_FPPEventName, 1, wxALL|wxEXPAND, 5);
-	StaticText6 = new wxStaticText(this, ID_STATICTEXT6, _("Method"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT6"));
+	StaticText6 = new wxStaticText(this, ID_STATICTEXT6, _("Method:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT6"));
 	FlexGridSizer1->Add(StaticText6, 1, wxALL|wxEXPAND, 5);
 	Choice_Method = new wxChoice(this, ID_CHOICE1, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICE1"));
 	Choice_Method->Append(_("Oldest"));

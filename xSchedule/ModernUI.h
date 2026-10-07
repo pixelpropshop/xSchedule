@@ -20,6 +20,9 @@
 #include <string>
 
 class wxDC;
+class wxTopLevelWindow;
+class wxBookCtrlBase;
+class wxSplitterWindow;
 
 namespace ModernUI {
 
@@ -87,6 +90,21 @@ wxBitmap MakeTreeIcon(wxWindow* win, Glyph glyph);
 wxBitmap MakeSwatch(wxWindow* win, const wxColour& color);
 
 void DrawLevel(wxDC& dc, wxWindow* win, const wxString& label, int value);
+
+// Grows a window to at least what its sizer needs at the current DPI (a size saved at another scale can be
+// too small), within the screen it is on. Never shrinks it.
+void FitToContents(wxTopLevelWindow* win);
+// Widens report list columns whose header text does not fit.
+void FitListHeaders(wxWindow* root);
+// Lets the text box of file pickers take the spare width instead of staying a fixed share.
+void GrowFilePickers(wxWindow* root);
+// Logs every button, check box and label in the window that is narrower than its text (a layout check for
+// development; enabled with the XSCHEDULE_LAYOUT_CHECK environment variable).
+void LogClippedControls(wxWindow* root);
+// Places a side by side splitter's sash at the given fraction, but never so either pane gets less than it needs.
+void BalanceSplitter(wxSplitterWindow* splitter, double fraction);
+// Tab titles treat "&" as a shortcut marker ("FSEQ & Video" shows as "FSEQ _Video"); escape them.
+void EscapePageTitles(wxBookCtrlBase* book);
 
 std::string FormatDuration(size_t ms);
 std::string FormatWhen(const wxDateTime& when);

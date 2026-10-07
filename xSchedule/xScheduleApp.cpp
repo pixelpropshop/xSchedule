@@ -30,6 +30,8 @@
 #include "xScheduleVersion.h"
 #include "../xlights/src-core/utils/UtilFunctions.h"
 #include "ScheduleConfig.h"
+#include "ModernUI.h"
+#include <wx/dialog.h>
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "../xlights/src-core/utils/AppCallbacks.h"
 #include <wx/cmdline.h>
@@ -274,6 +276,20 @@ int xScheduleApp::OnExit()
     spdlog::info("xSchedule exiting.");
 
     return 0;
+}
+
+int xScheduleApp::FilterEvent(wxEvent& event)
+{
+    // every dialog opens big enough for its contents, whatever display scale its saved size came from
+    if (event.GetEventType() == wxEVT_SHOW && static_cast<wxShowEvent&>(event).IsShown()) {
+        if (auto dlg = dynamic_cast<wxDialog*>(event.GetEventObject()); dlg != nullptr) {
+            ModernUI::FitListHeaders(dlg);
+            ModernUI::GrowFilePickers(dlg);
+            ModernUI::FitToContents(dlg);
+            dlg->CallAfter([dlg]() { ModernUI::LogClippedControls(dlg); });
+        }
+    }
+    return xlBaseApp::FilterEvent(event);
 }
 
 bool xScheduleApp::OnInit()
