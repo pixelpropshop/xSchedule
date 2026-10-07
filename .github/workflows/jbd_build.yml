@@ -17,7 +17,6 @@ concurrency:
 
 env:
   LABEL: JBD Build
-  WXTAG: xlights_2026.19
 
 jobs:
   windows:
@@ -77,6 +76,10 @@ jobs:
             libavcodec-dev libavformat-dev libavfilter-dev libswscale-dev libswresample-dev libavutil-dev \
             libsdl2-dev libzstd-dev libwebp-dev libcurl4-openssl-dev libexpat1-dev libsecret-1-dev \
             libltc-dev libportmidi-dev
+
+      # the wxWidgets tag that matches the dependency bundle of the xLights version in the submodule
+      - name: wxWidgets version
+        run: echo "WXTAG=$(tr -d '[:space:]' < xlights/ci_scripts/deps_version.txt)" >> "$GITHUB_ENV"
 
       - name: Cache wxWidgets
         id: wx
