@@ -12,7 +12,8 @@ DEL_FILE        = rm -f
 ICON_SIZES      = 16x16 32x32 64x64 128x128 256x256
 SUDO            = `which sudo`
 
-WXWIDGETS_TAG=xlights_2026.19
+# the wxWidgets build that matches the xLights dependency bundle the xlights submodule uses
+WXWIDGETS_TAG := $(shell tr -d "[:space:]" < xlights/ci_scripts/deps_version.txt)
 
 .NOTPARALLEL:
 
@@ -64,7 +65,7 @@ install:
 	install -d -m 755 $(DESTDIR)/${PREFIX}/share/xSchedule/xScheduleWeb
 	cp -r bin/xScheduleWeb/* $(DESTDIR)/${PREFIX}/share/xSchedule/xScheduleWeb
 	install -d -m 755 $(DESTDIR)/${PREFIX}/share/xSchedule/controllers
-	install -m 644 controllers/*.xcontroller $(DESTDIR)/${PREFIX}/share/xSchedule/controllers
+	install -m 644 xlights/resources/controllers/*.xcontroller $(DESTDIR)/${PREFIX}/share/xSchedule/controllers
 	$(foreach size, $(ICON_SIZES), install -D -m 644 images/icons/$(size).png $(DESTDIR)/${PREFIX}/share/icons/hicolor/$(size)/apps/xschedule.png ; )
 
 uninstall:
