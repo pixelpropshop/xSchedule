@@ -9,6 +9,7 @@
  **************************************************************/
 
 #include <wx/wx.h>
+#include <wx/config.h>
 
 //(*AppHeaders
 #include "xSMSDaemonMain.h"
@@ -306,6 +307,18 @@ bool xSMSDaemonApp::OnInit()
     InitialiseLogging(false);
 
      spdlog::info("******* OnInit: xSMSDaemon started.");
+
+#ifdef __WXMSW__
+    // the plugin has its own copy of wxWidgets, so xSchedule turning dark mode on doesn't reach it
+    {
+        wxConfig config("xSchedule");
+        bool suppress = false;
+        config.Read("SuppressDarkMode", &suppress, false);
+        if (!suppress) {
+            MSWEnableDarkMode();
+        }
+    }
+#endif
 
     //(*AppInitialize
     xSMSDaemonFrame* Frame = new xSMSDaemonFrame(0, __showDir, __xScheduleURL, __action);

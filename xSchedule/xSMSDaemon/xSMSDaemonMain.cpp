@@ -126,15 +126,15 @@ xSMSDaemonFrame::xSMSDaemonFrame(wxWindow* parent, const std::string& showDir, c
     FlexGridSizer2->Add(StaticText4, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
     StaticText_Phone = new wxStaticText(this, ID_STATICTEXT10, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER, _T("ID_STATICTEXT10"));
     FlexGridSizer2->Add(StaticText_Phone, 1, wxALL|wxEXPAND, 5);
-    StaticText3 = new wxStaticText(this, ID_STATICTEXT3, _("Text Item"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT3"));
+    StaticText3 = new wxStaticText(this, ID_STATICTEXT3, _("Text Item:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT3"));
     FlexGridSizer2->Add(StaticText3, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
     StaticText_TextItemName = new wxStaticText(this, ID_STATICTEXT4, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER, _T("ID_STATICTEXT4"));
     FlexGridSizer2->Add(StaticText_TextItemName, 1, wxALL|wxEXPAND, 5);
-    StaticText5 = new wxStaticText(this, ID_STATICTEXT5, _("Messages last retrieved"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT5"));
+    StaticText5 = new wxStaticText(this, ID_STATICTEXT5, _("Messages last retrieved:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT5"));
     FlexGridSizer2->Add(StaticText5, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
     StaticText_LastRetrieved = new wxStaticText(this, ID_STATICTEXT6, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER, _T("ID_STATICTEXT6"));
     FlexGridSizer2->Add(StaticText_LastRetrieved, 1, wxALL|wxEXPAND, 5);
-    StaticText2 = new wxStaticText(this, ID_STATICTEXT7, _("Message last displayed"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT7"));
+    StaticText2 = new wxStaticText(this, ID_STATICTEXT7, _("Message last displayed:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT7"));
     FlexGridSizer2->Add(StaticText2, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
     StaticText_LastDisplayed = new wxStaticText(this, ID_STATICTEXT8, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER, _T("ID_STATICTEXT8"));
     FlexGridSizer2->Add(StaticText_LastDisplayed, 1, wxALL|wxEXPAND, 5);

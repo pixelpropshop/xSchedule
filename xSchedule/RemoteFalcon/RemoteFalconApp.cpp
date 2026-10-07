@@ -9,6 +9,7 @@
  **************************************************************/
 
 #include <wx/wx.h>
+#include <wx/config.h>
 
 //(*AppHeaders
 #include "RemoteFalconMain.h"
@@ -289,6 +290,18 @@ bool RemoteFalconApp::OnInit()
     InitialiseLogging(false);
 
     spdlog::info("******* OnInit: RemoteFalcon started.");
+
+#ifdef __WXMSW__
+    // the plugin has its own copy of wxWidgets, so xSchedule turning dark mode on doesn't reach it
+    {
+        wxConfig config("xSchedule");
+        bool suppress = false;
+        config.Read("SuppressDarkMode", &suppress, false);
+        if (!suppress) {
+            MSWEnableDarkMode();
+        }
+    }
+#endif
 
     //(*AppInitialize
     RemoteFalconFrame* Frame = new RemoteFalconFrame(0, __showDir, __xScheduleURL, __action);
