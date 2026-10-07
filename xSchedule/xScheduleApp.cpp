@@ -116,7 +116,7 @@
 IMPLEMENT_APP(xScheduleApp)
 
 xScheduleApp::xScheduleApp() :
-    xlBaseApp("xSchedule")
+    xlBaseApp(GetXScheduleAppName())
 {
 }
 
@@ -160,7 +160,7 @@ std::string DecodeOS(wxOperatingSystemId o)
 
 void DumpConfig()
 {
-    spdlog::info("Version: " + xschedule_version_string);
+    spdlog::info("Version: " + GetXScheduleDisplayVersionString());
     spdlog::info("Bits: " + GetBitness());
     spdlog::info("Build Date: " + xschedule_build_date);
     spdlog::info("WX Version: " + std::string(wxString(wxVERSION_STRING).c_str()));

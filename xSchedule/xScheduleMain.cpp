@@ -1119,7 +1119,7 @@ void xScheduleFrame::OnAbout(wxCommandEvent& event)
 
 void xScheduleFrame::OnMenuItem_DownloadSelected(wxCommandEvent& event)
 {
-    ::wxLaunchDefaultBrowser("https://github.com/xLightsSequencer/xSchedule");
+    ::wxLaunchDefaultBrowser("https://github.com/" + xschedule_releases_repo);
 }
 
 void xScheduleFrame::OnMenuItem_DonateSelected(wxCommandEvent& event)
@@ -1138,7 +1138,7 @@ void xScheduleFrame::OnMenuItem_UpdateSelected(wxCommandEvent& event)
 bool xScheduleFrame::CheckForUpdate(bool showMessageBoxes)
 {
     bool found_update = false;
-    std::string githubTagURL = "https://api.github.com/repos/xLightsSequencer/xSchedule/releases?per_page=6";
+    std::string githubTagURL = "https://api.github.com/repos/" + xschedule_releases_repo + "/releases?per_page=6";
     int rc = 0;
     spdlog::info("Checking for xSchedule updates at {}", githubTagURL);
 
@@ -1200,7 +1200,7 @@ bool xScheduleFrame::CheckForUpdate(bool showMessageBoxes)
         }
     }
 
-    std::string currentVersion = xschedule_version_string;
+    std::string currentVersion = GetXScheduleUpdateVersion();
     spdlog::info("xSchedule current version: '{}'. Latest available: '{}'. Skip version: '{}'.",
                  currentVersion, urlVersion, skipver.ToStdString());
 

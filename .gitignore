@@ -12,3 +12,6 @@ xSchedule/xSchedule.cbp.mak.orig
 
 # schedule unit test build output
 xSchedule/tests/build/
+
+# written by fork release builds
+xSchedule/xschedule_build_info.h
