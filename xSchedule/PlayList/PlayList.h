@@ -96,6 +96,8 @@ public:
         _forceNextStep = step;
     }
     PlayListStep* GetNextStep(bool& didloop);
+    // The step that plays after the current one, for display. Unlike GetNextStep it leaves the step loop count alone.
+    PlayListStep* PeekNextStep();
     PlayListStep* GetRunningStep() const {
         return _currentStep;
     }
@@ -144,8 +146,9 @@ public:
         return _loops;
     }
     void DoLoop() {
+        if (_loops <= 0) return; // no limit
         --_loops;
-        if (_loops == 1) {
+        if (_loops <= 1) {
             _loops = -1;
             _looping = false;
         }

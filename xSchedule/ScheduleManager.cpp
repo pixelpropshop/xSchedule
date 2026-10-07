@@ -2513,7 +2513,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                     PlayList* p = GetPlayList(pl);
 
                     if (p != nullptr) {
-                        if (!PlayPlayList(p, rate, false, "", false, loops)) {
+                        if (!PlayPlayList(p, rate, loops > 1, "", false, loops)) {
                             result = false;
                             msg = "Unable to start playlist.";
                         }
@@ -3104,13 +3104,12 @@ bool ScheduleManager::Query(const wxString& command, const wxString& parameters,
         } else {
             std::string nextsong;
             std::string nextsongid;
-            bool didloop;
 
             if (p->IsRandom()) {
                 nextsong = "God knows";
                 nextsongid = "";
             } else {
-                auto next = p->GetNextStep(didloop);
+                auto next = p->PeekNextStep();
                 if (next == nullptr) {
                     nextsong = "";
                     nextsongid = "";

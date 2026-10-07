@@ -195,8 +195,7 @@ std::string PlayListItem::ReplaceTags(const std::string s) const {
             }
 
             if (pl != nullptr && !pl->IsRandom()) {
-                bool dummy;
-                auto nextstep = pl->GetNextStep(dummy);
+                auto nextstep = pl->PeekNextStep();
                 if (nextstep != nullptr) {
                     res.Replace("%NEXTSTEPNAME%", nextstep->GetNameNoTime());
                 }

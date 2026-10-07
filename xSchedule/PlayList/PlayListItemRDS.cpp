@@ -315,8 +315,7 @@ void PlayListItemRDS::Frame(uint8_t* buffer, size_t size, size_t ms, size_t fram
         if (playlist != nullptr && !playlist->IsRandom())
         {
             step = playlist->GetRunningStep();
-            bool dummy;
-            auto nextstep = playlist->GetNextStep(dummy);
+            auto nextstep = playlist->PeekNextStep();
             if (nextstep != nullptr)
             {
                 text.Replace("%NEXTSTEPNAME%", nextstep->GetNameNoTime());
