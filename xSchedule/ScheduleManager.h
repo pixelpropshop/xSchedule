@@ -261,7 +261,8 @@ public:
     bool Query(const wxString& command, const wxString& parameters, wxString& data, wxString& msg, const wxString& ip, const wxString& reference);
     bool IsQuery(const wxString& command);
     PlayList* GetPlayList(const std::string& playlist) const;
-    void StopPlayList(PlayList* playlist, bool atendofcurrentstep, bool sustain = false);
+    void StopPlayList(PlayList* playlist, bool atendofcurrentstep, bool sustain = false, bool stopSchedules = false);
+    bool ReleaseFinishedImmediatePlay();
     bool StoreData(const wxString& key, const wxString& data, wxString& msg) const;
     bool RetrieveData(const wxString& key, wxString& data, wxString& msg) const;
     bool ToggleOutputToLights(xScheduleFrame* frame, wxString& msg, bool interactive);
