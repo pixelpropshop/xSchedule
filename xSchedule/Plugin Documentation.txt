@@ -42,6 +42,12 @@ void xSchedule_Stop()
 
 	This is called when xSchedule wants your plugin to cease interacting with the user. All UIs should close when this is received.
 	
+	To let your window's close button turn the plugin off, call the action function with the command "Stop plugin" and
+	your menu label as the parameter (the text you return from xSchedule_GetMenuLabel). xSchedule then calls xSchedule_Stop
+	once your close handler has returned, and remembers the plugin as off, as unticking it in the Plugins menu does.
+	Veto the close event and hide the window yourself. Asking first is a good idea, since a plugin turned off by accident
+	stays off; the Remote Falcon and SMS plugins ask, and minimize the window if the answer is no.
+	
 void xSchedule_Unload()
 
 	This is called just before xSchedule exits.
