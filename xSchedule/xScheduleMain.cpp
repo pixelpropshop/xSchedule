@@ -531,7 +531,7 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     MenuItem3->Append(MenuItem_ModeFPPMulticastMaster);
     MenuItem_ModeFPPUnicastMaster = new wxMenuItem(MenuItem3, ID_MNU_FPP_UNICASTMASTER, _("FPP Unicast"), wxEmptyString, wxITEM_CHECK);
     MenuItem3->Append(MenuItem_ModeFPPUnicastMaster);
-    MenuItem_ModeFPPUnicastCSVMaster = new wxMenuItem(MenuItem3, ID_MNU_FPP_UNICASTCSVMASTER, _("FPP Unicast CSV"), wxEmptyString, wxITEM_CHECK);
+    MenuItem_ModeFPPUnicastCSVMaster = new wxMenuItem(MenuItem3, ID_MNU_FPP_UNICASTCSVMASTER, _("FPP Unicast CSV (Falcon v2 and xSchedule remotes)"), wxEmptyString, wxITEM_CHECK);
     MenuItem3->Append(MenuItem_ModeFPPUnicastCSVMaster);
     MenuItem_ModeArtNetMaster = new wxMenuItem(MenuItem3, IDM_MNU_ARTNETMASTER, _("ARTNet Timecode"), wxEmptyString, wxITEM_CHECK);
     MenuItem3->Append(MenuItem_ModeArtNetMaster);
@@ -545,7 +545,7 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     Menu6->Append(MenuItem_ModeRemoteDisabled);
     MenuItem_ModeFPPRemote = new wxMenuItem(Menu6, ID_MNU_FPPREMOTE, _("FPP"), wxEmptyString, wxITEM_RADIO);
     Menu6->Append(MenuItem_ModeFPPRemote);
-    MenuItem_ModeFPPCSVRemote = new wxMenuItem(Menu6, ID_MNU_FPPCSVREMOTE, _("FPP CSV"), wxEmptyString, wxITEM_RADIO);
+    MenuItem_ModeFPPCSVRemote = new wxMenuItem(Menu6, ID_MNU_FPPCSVREMOTE, _("FPP CSV (from an xSchedule or FPP 3 master)"), wxEmptyString, wxITEM_RADIO);
     Menu6->Append(MenuItem_ModeFPPCSVRemote);
     MenuItem_ModeArtNetSlave = new wxMenuItem(Menu6, ID_MNU_ARTNETTIMECODESLAVE, _("ARTNet Timecode"), wxEmptyString, wxITEM_RADIO);
     Menu6->Append(MenuItem_ModeArtNetSlave);
