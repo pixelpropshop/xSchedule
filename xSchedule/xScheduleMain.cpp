@@ -4249,7 +4249,10 @@ void xScheduleFrame::OnMenuItem_EditEventsSelected(wxCommandEvent& event)
 {
     EventsDialog dlg(this, __schedule->GetOutputManager(), __schedule->GetOptions());
 
+    // the listeners walk the event list on their own threads; hold them off while it is edited
+    __schedule->GetListenerManager()->Pause(true);
     dlg.ShowModal();
+    __schedule->GetListenerManager()->Pause(false);
 
     __schedule->StartListeners();
 }
