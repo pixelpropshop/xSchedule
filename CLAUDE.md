@@ -87,6 +87,14 @@ The core is wx-free and reaches the app through hooks registered in `xScheduleAp
 - **Settings:** xLights moved its settings to a JSON file, and shared helpers (`IsDarkMode`, `GetConfigBool`, ...) read that store. xSchedule keeps its settings in wxConfig (registry `HKCU\Software\xSchedule`); use `ScheduleConfig` for xSchedule's settings, and it mirrors them into the core's in-memory store at startup.
 - `ScheduleManager::StartOutputToLights()` wraps `OutputManager::StartOutput()`: a failed output is skipped and the rest keep going, without dialogs. Use it instead of calling `StartOutput()` directly.
 
+### Web UI (`bin/xScheduleWeb/`)
+Plain jQuery + Bootstrap 3 pages, served as-is (no build step, no CDN; shows often run without internet). Third-party plugins in `Plugins/<name>/<name>.html` are loaded into `index.html`, so keep what they rely on:
+- jQuery, Bootstrap 3 CSS/JS, bootstrap-notify, bootstrap-colorpicker, DataTables and the ReconnectingWebSocket script stay loaded.
+- Globals: `socket`, `playingStatus`, `uiSettings`, `runCommand`, `notification`, `registerStatusFunction`, `getQueryVariable`, `updatePage`, `storeKey`/`retrieveKey`, `populateSideBar`.
+- Element IDs `#nav`, `#header` and `#footer` (plugins hide them for `?args=noheader`), `#pageContent`, and a page-supplied `#help` modal.
+- The `uiSettings` stash keeps its keys; add new ones beside them.
+- URLs `index.html?page=…&args=…`, `index.html?plugin=…`, `guestbuttons.html` (the server fills in `!PASS!`) and `login.html`.
+
 ## Code Style
 
 - C++20 with GNU extensions (`-std=gnu++20`)
