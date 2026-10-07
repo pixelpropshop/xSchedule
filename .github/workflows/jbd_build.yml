@@ -17,7 +17,7 @@ concurrency:
 
 env:
   LABEL: JBD Build
-  WXTAG: xlights_2026.17c
+  WXTAG: xlights_2026.19
 
 jobs:
   windows:
