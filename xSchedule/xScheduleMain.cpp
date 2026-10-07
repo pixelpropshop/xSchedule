@@ -2764,8 +2764,7 @@ void xScheduleFrame::UpdateStatus(bool force)
         PlayListStep* next = nullptr;
 
         if (!p->IsRandom()) {
-            bool didloop;
-            next = p->GetNextStep(didloop);
+            next = p->PeekNextStep();
         }
 
         bool currenthighlighted = false;

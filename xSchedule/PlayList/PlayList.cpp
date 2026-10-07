@@ -572,6 +572,11 @@ void PlayList::Start(bool loop, bool random, int loops, const std::string& step)
         _loops = loops;
         _looping = loop;
         _random = random;
+        if (_looping && _loops == 1) {
+            // a limit of one pass means no repeat; DoLoop only ends looping on the pass before the last
+            _looping = false;
+            _loops = -1;
+        }
 
         spdlog::info("******** Playlist {} starting to play.", (const char*)GetName().c_str());
         spdlog::info("********     {} {} {}",
@@ -722,6 +727,17 @@ PlayListStep* PlayList::GetNextStep(bool& didloop) {
     return nullptr;
 }
 
+PlayListStep* PlayList::PeekNextStep() {
+    if (_currentStep == nullptr) return nullptr;
+
+    PlayListStep* current = _currentStep;
+    int loops = current->GetLoopsLeft();
+    bool didloop;
+    PlayListStep* next = GetNextStep(didloop);
+    current->SetLoops(loops);
+    return next;
+}
+
 PlayListStep* PlayList::GetPriorStep() {
     if (_stopAtEndOfCurrentStep)
         return nullptr;
@@ -839,6 +855,7 @@ bool PlayList::JumpToNextStep() {
 
     _currentStep->Stop();
     StopEveryStep();
+    PlayListStep* previous = _currentStep;
     bool didloop;
     _currentStep = GetNextStep(didloop);
     if (didloop)
@@ -847,7 +864,8 @@ bool PlayList::JumpToNextStep() {
     if (_currentStep == nullptr)
         return false;
 
-    _currentStep->Start(-1);
+    // a step repeating for "play n times" keeps the count of plays it has left
+    _currentStep->Start(_currentStep == previous ? _currentStep->GetLoopsLeft() : -1);
     StartEveryStep(-1);
     return success;
 }
@@ -875,6 +893,7 @@ bool PlayList::MoveToNextStep(bool suppressNext) {
     }
 
     if (!suppressNext) {
+        PlayListStep* previous = _currentStep;
         bool didloop;
         _currentStep = GetNextStep(didloop);
 
@@ -888,7 +907,8 @@ bool PlayList::MoveToNextStep(bool suppressNext) {
             return false;
         }
 
-        _currentStep->Start(-1);
+        // a step repeating for "play n times" keeps the count of plays it has left
+        _currentStep->Start(_currentStep == previous ? _currentStep->GetLoopsLeft() : -1);
         StartEveryStep(-1);
 
         spdlog::debug("Move to next step moved to {}.", (const char*)_currentStep->GetNameNoTime().c_str());
