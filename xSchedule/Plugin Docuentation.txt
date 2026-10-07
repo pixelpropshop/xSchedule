@@ -7,6 +7,10 @@ Only the xSchedule_Load API must exist otherwise the DLL will not be recognised 
 
 All Apis are StdCall or extern "C" calling convention ... see the DemoPlugin and xSMSDaemon for examples.
 
+A plugin with a window and its own copy of wxWidgets does not get xSchedule's dark mode. Call MSWEnableDarkMode() in
+its OnInit unless xSchedule's SuppressDarkMode setting is on (wxConfig("xSchedule"), key SuppressDarkMode); the
+Remote Falcon and SMS plugins do this.
+
 bool xSchedule_Load(char* showDir);
 
 	This is called when the DLL is first loaded but the plugin is not active at this point and should take no action.
