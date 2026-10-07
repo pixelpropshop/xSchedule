@@ -13,6 +13,7 @@
 
 //(*InternalHeaders(EventFPPCommandPresetPanel)
 #include <wx/intl.h>
+#include <wx/sizer.h>
 #include <wx/string.h>
 //*)
 
@@ -42,6 +43,16 @@ EventFPPCommandPresetPanel::EventFPPCommandPresetPanel(wxWindow* parent,wxWindow
 	FlexGridSizer1->Fit(this);
 	FlexGridSizer1->SetSizeHints(this);
 	//*)
+
+    // a note above the wxSmith layout, added here so the generated code stays as generated
+    auto* note = new wxStaticText(this, wxID_ANY, _("Fires when an FPP runs the Trigger Command Preset command (match the preset name) or Trigger Command Preset Slot (match the slot number) for all hosts, or for this computer's name or IP."));
+    note->Wrap(FromDIP(440));
+    auto* outer = new wxBoxSizer(wxVERTICAL);
+    outer->Add(note, 0, wxALL, 5);
+    SetSizer(nullptr, false);
+    outer->Add(FlexGridSizer1, 1, wxEXPAND);
+    SetSizer(outer);
+    outer->SetSizeHints(this);
 }
 
 EventFPPCommandPresetPanel::~EventFPPCommandPresetPanel()
