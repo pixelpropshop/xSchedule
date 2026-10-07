@@ -84,6 +84,7 @@ The core is wx-free and reaches the app through hooks registered in `xScheduleAp
 - `AppCallbacks` (main-thread posting, error dialogs, crash handling). Without them, "main thread" work runs on the calling thread and errors are only logged.
 - `GetResourcesDirectory()` sets the folder the core finds `controllers/` in.
 - **Settings:** xLights moved its settings to a JSON file, and shared helpers (`IsDarkMode`, `GetConfigBool`, ...) read that store. xSchedule keeps its settings in wxConfig (registry `HKCU\Software\xSchedule`); use `ScheduleConfig` for xSchedule's settings, and it mirrors them into the core's in-memory store at startup.
+- **xLights' own settings** (its show folder, media folders) are read with `ScheduleConfig::GetXLightsSetting()` from xLights' `settings.json`, falling back to the registry for older xLights.
 - `ScheduleManager::StartOutputToLights()` wraps `OutputManager::StartOutput()`: a failed output is skipped and the rest keep going, without dialogs. Use it instead of calling `StartOutput()` directly.
 
 ### Web UI (`bin/xScheduleWeb/`)
