@@ -8,7 +8,7 @@ xSchedule is a show scheduler and player for lighting control. It plays FSEQ seq
 
 Built on wxWidgets 3.3 (custom fork).
 
-**Supported platforms:** Linux (Debian 12 / Ubuntu 24.04), Windows 10+.
+**Supported platforms:** Linux (Ubuntu 24.04 or newer, the current xLights minimum; Debian 12 is untested since the move to the current xLights core), Windows 10+. No macOS build since xSchedule left the xLights repo (2026-04).
 
 ## Build Commands
 
@@ -23,13 +23,16 @@ make clean                    # Clean all
 Build uses Code::Blocks .cbp project files converted to makefiles via cbp2make. Object files go to `.objs_debug/` or `.objs_release/`.
 
 ### Windows
-Open `xSchedule/xSchedule.sln` in Visual Studio 2022 and build Release x64. wxWidgets must be cloned as a sibling directory (`../../wxWidgets/`).
+Windows builds use the xLights dependency bundle (prebuilt wxWidgets, FFmpeg 8, SDL2, curl), staged in `xlights/dependencies-bundle/` by `xlights/ci_scripts/fetch_dependencies.ps1`. The bundle is built with VS 2026, so the x64 configurations use the **v145** toolset (VS 2026 or its Build Tools); VS 2022 cannot link it.
 
-Or use the build script:
 ```cmd
 cd build_scripts\msw
-call build_xSchedule_x64.cmd
+call build_xSchedule_x64.cmd     # fetches the bundle + VC++ redistributable, builds xSchedule and both plugins
 ```
+
+After the bundle is staged, `xSchedule/xSchedule.sln` can be built from Visual Studio (Release x64). The plugins have their own solutions (`xSchedule/RemoteFalcon/`, `xSchedule/xSMSDaemon/`).
+
+LibLTC (`xSchedule/libltc/`, 1.3.1) and PortMidi (`xSchedule/portmidi/`, 217) are compiled from source on Windows; xLights no longer ships those libraries. Linux links the system packages instead.
 
 ### wxSmith Generated Code
 Some dialogs use wxSmith (wxWidgets RAD tool). Generated code is delimited by `//(* ... //*)` guards in `.cpp`/`.h` files. **Any changes within these guards MUST also be reflected in the corresponding `.wxs` file** in `xSchedule/wxsmith/`. Otherwise the changes will be overwritten the next time the `.wxs` file is opened in wxSmith.
@@ -50,27 +53,39 @@ When adding new `.cpp`/`.h` files, the following project files must be updated m
   - `wxHTTPServer/` — embedded HTTP server for web UI
   - `wxMIDI/` — wxWidgets MIDI wrapper
   - `wxJSON/` — JSON parsing library
-  - `libltc/` — SMPTE timecode headers
+  - `libltc/` — SMPTE timecode (header, plus the 1.3.1 sources compiled on Windows)
+  - `portmidi/` — PortMidi 217 (headers, plus the Windows sources)
   - `Xyzzy/` — configuration/sample data
-- **`xlights/`** — git submodule pointing to the xLights repository, providing:
-  - `xlights/xLights/outputs/` — all output protocol implementations
-  - `xlights/xLights/controllers/` — controller hardware handlers
-  - `xlights/xLights/utils/` — shared utilities (UtilFunctions, CurlManager, AudioManager, etc.)
-  - `xlights/xLights/render/` — FSEQFile, VideoReader, SequenceData
-  - `xlights/xLights/ui/` — shared UI utilities, Discovery
-  - `xlights/xLights/vamp-hostsdk/` — Vamp audio analysis plugins
-  - `xlights/common/` — base application framework
+- **`xlights/`** — git submodule pointing to the xLights repository. Shared code is split into a wx-free core and a wx layer:
+  - `xlights/src-core/outputs/` — all output protocol implementations, OutputManager
+  - `xlights/src-core/controllers/` — controller hardware handlers, ControllerCaps
+  - `xlights/src-core/media/` — AudioManager, SDL audio output/input, VideoReader, kiss_fft
+  - `xlights/src-core/render/` — FSEQFile, SequenceData
+  - `xlights/src-core/utils/` — UtilFunctions, FileUtils, ip_utils, CurlManager, AppCallbacks, etc.
+  - `xlights/src-core/settings/` — XLightsSettings (xLights' JSON settings store; see ScheduleConfig below)
+  - `xlights/src-core/discovery/` — Discovery
+  - `xlights/src-ui-wx/shared/utils/` — wxUtilities, xLightsTimer
+  - `xlights/dependencies/vamp-hostsdk/` — Vamp host (only needed because AudioManager references it)
+  - `xlights/common/` — base application framework (xlBaseApp)
   - `xlights/include/` — shared headers, icons
-  - `xlights/dependencies/` — pugixml, spdlog submodules
-- **`controllers/`** — local copies of the `.xcontroller` hardware-definition XML files, bundled by the Windows installer into `{app}/controllers` so a standalone xSchedule install works without xLights also being installed (see note below). Runtime code that reads this folder (`ControllerCaps::LoadControllers()`) lives in `xlights/xLights/controllers/ControllerCaps.cpp`.
+  - `xlights/resources/controllers/` — upstream `.xcontroller` definitions
+- **`controllers/`** — local copies of the `.xcontroller` hardware-definition XML files, bundled by the Windows installer into `{app}/controllers` so a standalone xSchedule install works without xLights also being installed (see note below). Runtime code that reads this folder (`ControllerCaps::LoadControllers()`) lives in `xlights/src-core/controllers/ControllerCaps.cpp`; it looks in `FileUtils::GetResourcesDir() + "/controllers"`, which xSchedule sets at startup.
 - **`bin/`** — xScheduleWeb directory, desktop files
 - **`images/icons/`** — application icons for Linux
 
 ### Include Path Mapping
 xSchedule source files reference shared code via `../xlights/` paths:
-- `#include "../xlights/xLights/utils/UtilFunctions.h"`
+- `#include "../xlights/src-core/utils/UtilFunctions.h"`
 - `#include "../xlights/common/xlBaseApp.h"`
-- `#include "../xlights/xLights/outputs/OutputManager.h"`
+- `#include "../xlights/src-core/outputs/OutputManager.h"`
+- `#include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"`
+
+### Hooks the xLights core needs from xSchedule
+The core is wx-free and reaches the app through hooks registered in `xScheduleApp::OnInit`. Without them it still compiles but behaves differently:
+- `AppCallbacks` (main-thread posting, error dialogs, crash handling). Without them, "main thread" work runs on the calling thread and errors are only logged.
+- `GetResourcesDirectory()` sets the folder the core finds `controllers/` in.
+- **Settings:** xLights moved its settings to a JSON file, and shared helpers (`IsDarkMode`, `GetConfigBool`, ...) read that store. xSchedule keeps its settings in wxConfig (registry `HKCU\Software\xSchedule`); use `ScheduleConfig` for xSchedule's settings, and it mirrors them into the core's in-memory store at startup.
+- `ScheduleManager::StartOutputToLights()` wraps `OutputManager::StartOutput()`: a failed output is skipped and the rest keep going, without dialogs. Use it instead of calling `StartOutput()` directly.
 
 ## Code Style
 
@@ -86,8 +101,8 @@ xSchedule source files reference shared code via `../xlights/` paths:
 
 ## Key Dependencies
 
-wxWidgets 3.3 (custom fork `xLightsSequencer/wxWidgets`, branch `xlights_2026.04`), spdlog, libcurl, pugixml, FFmpeg, SDL2, PortMIDI, libltc, zstd, nlohmann/json.
+wxWidgets 3.3 (custom fork `xLightsSequencer/wxWidgets`, tag `xlights_2026.17c`, matching the dependency bundle), spdlog, libcurl, pugixml, FFmpeg (8 on Windows via the bundle, the system version on Linux), SDL2, PortMIDI, libltc, zstd, nlohmann/json.
 
 ## Maintenance Notes
 
-- **`controllers/` is a hand-maintained duplicate of `xlights/controllers/`.** It was added (2026-08) to fix a standalone-install bug (xSchedule issue #13: installer never packaged a `controllers` folder, so `ControllerCaps::LoadControllers()` logged "Controllers folder not found" and every controller showed disconnected). Deliberately NOT sourced from the `xlights` submodule at install/build time, to avoid depending on upstream xLights changes/PRs for an xSchedule-only bug fix. Consequence: when upstream xLights adds a new controller vendor or edits an existing `.xcontroller` file, this copy will NOT pick it up automatically — periodically diff `controllers/` against `xlights/controllers/` and re-copy as needed, especially before cutting an xSchedule release.
+- **`controllers/` is a hand-maintained duplicate of `xlights/controllers/`.** It was added (2026-08) to fix a standalone-install bug (xSchedule issue #13: installer never packaged a `controllers` folder, so `ControllerCaps::LoadControllers()` logged "Controllers folder not found" and every controller showed disconnected). Deliberately NOT sourced from the `xlights` submodule at install/build time, to avoid depending on upstream xLights changes/PRs for an xSchedule-only bug fix. Consequence: when upstream xLights adds a new controller vendor or edits an existing `.xcontroller` file, this copy will NOT pick it up automatically — periodically diff `controllers/` against `xlights/resources/controllers/` (where upstream moved them) and re-copy as needed, especially before cutting an xSchedule release or moving the submodule. Last synced 2026-10-06 with xLights `166c80914`.

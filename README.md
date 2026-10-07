@@ -20,11 +20,11 @@ xSchedule is part of the [xLights](https://github.com/xLightsSequencer/xLights) 
 ### Linux
 
 ```bash
-# Install dependencies (Ubuntu/Debian)
+# Install dependencies (Ubuntu 24.04 or newer, the same minimum as current xLights)
 sudo apt-get install g++ build-essential libgtk-3-dev libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev freeglut3-dev libavcodec-dev \
-    libavformat-dev libswscale-dev libsdl2-dev libavutil-dev \
-    libportmidi-dev libzstd-dev libwebp-dev libcurl4-openssl-dev \
+    libavformat-dev libavfilter-dev libswscale-dev libswresample-dev libsdl2-dev libavutil-dev \
+    libportmidi-dev libzstd-dev libwebp-dev libcurl4-openssl-dev libexpat1-dev \
     libsecret-1-dev libltc-dev cbp2make
 
 # Build (downloads wxWidgets automatically if not installed)
@@ -36,16 +36,18 @@ sudo make install
 
 ### Windows
 
-1. Clone [wxWidgets](https://github.com/xLightsSequencer/wxWidgets) (branch `xlights_2026.04`) as a sibling directory
-2. Build wxWidgets with Visual Studio 2022
-3. Open `xSchedule/xSchedule.sln` in Visual Studio 2022
-4. Build Release x64
+Windows builds use the prebuilt libraries (wxWidgets, FFmpeg, SDL2, curl) from the xLights dependency
+bundle. The bundle is built with Visual Studio 2026, so the build needs the VS 2026 (v145) toolset; any
+edition works, including the free Build Tools.
 
-Or use the build script:
+The build script fetches the bundle and the matching VC++ redistributable, then builds xSchedule and both plugins:
 ```cmd
 cd build_scripts\msw
 call build_xSchedule_x64.cmd
 ```
+
+To work in Visual Studio, run the script once (or `xlights\ci_scripts\fetch_dependencies.ps1 -Only Dependencies`),
+then open `xSchedule/xSchedule.sln` and build Release x64.
 
 ## Repository Structure
 
