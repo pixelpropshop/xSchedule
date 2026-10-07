@@ -170,10 +170,11 @@ void RemoteFalconFrame::DoSendPlaylists() {
 void RemoteFalconFrame::AddMessage(MESSAGE_LEVEL msgLevel, const std::string& msg)
 {
     if (msgLevel <= _options.GetMessageLevel()) {
+        // count before posting: the handler can run before wxPostEvent returns
+        _toProcess++;
         wxCommandEvent e(EVT_ADDMESSAGE);
         e.SetString(msg);
         wxPostEvent(this, e);
-        _toProcess++;
     }
 }
 
@@ -812,7 +813,9 @@ void RemoteFalconFrame::NotifyStatus(const std::string& status)
         }
     }
 
-    while (_toProcess > 0) {
+    // the plugin has no event loop of its own, so deliver its pending log messages here. Pumping once is enough;
+    // waiting for the count to reach zero hung xSchedule's main thread whenever the count was off.
+    if (_toProcess > 0) {
         ProcessPendingEvents();
     }
 }
@@ -930,10 +933,9 @@ void RemoteFalconFrame::HandleAddMessage(wxCommandEvent& event)
 {
     // while not technically an issue this likely means we are in the middle of exiting
     if (_remoteFalcon == nullptr) return;
-    if (_toProcess == 0) return;
 
     DoAddMessage(event.GetString());
-    _toProcess--;
+    if (_toProcess > 0) _toProcess--;
 }
 
 #define MAX_LOG_CHARS 10000
