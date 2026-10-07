@@ -25,11 +25,13 @@
 #include <wx/msgdlg.h>
 
 #include "ScheduleManager.h"
-#include "../xlights/xLights/outputs/OutputManager.h"
-#include "../xlights/xLights/xLightsVersion.h"
+#include "../xlights/src-core/outputs/OutputManager.h"
+#include "../xlights/src-core/xLightsVersion.h"
 #include "xScheduleVersion.h"
-#include "../xlights/xLights/utils/UtilFunctions.h"
-#include "../xlights/xLights/ui/wxUtilities.h"
+#include "../xlights/src-core/utils/UtilFunctions.h"
+#include "ScheduleConfig.h"
+#include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
+#include "../xlights/src-core/utils/AppCallbacks.h"
 #include <wx/cmdline.h>
 #include <wx/confbase.h>
 #include <wx/debugrpt.h>
@@ -60,9 +62,6 @@
         #pragma comment(lib, "msvcprtd.lib")
         #pragma comment(lib, "libzstdd_static_VS.lib")
 
-        #if !defined(SKIP_SMPTE)
-            #pragma comment(lib, "libltcd.lib")
-        #endif
 
     #else
         #pragma comment(lib, "wxbase"WXWIDGETS_VERSION"u.lib")
@@ -81,12 +80,9 @@
         #pragma comment(lib, "libzstd_static_VS.lib")
         #pragma comment(lib, "portmidi.lib")
         #pragma comment(lib, "msvcprt.lib")
-        #if !defined(SKIP_SMPTE)
-            #pragma comment(lib, "libltc.lib")
-        #endif
     #endif
 
-    #pragma comment(lib, "libcurl.dll.a")
+    #pragma comment(lib, "libcurl.lib")
     #pragma comment(lib, "z.lib")
     #pragma comment(lib, "iphlpapi.lib")
     #pragma comment(lib, "WS2_32.Lib")
@@ -111,7 +107,6 @@
     #pragma comment(lib, "avfilter.lib")
     #pragma comment(lib, "avformat.lib")
     #pragma comment(lib, "avutil.lib")
-    #pragma comment(lib, "postproc.lib")
     #pragma comment(lib, "swresample.lib")
     #pragma comment(lib, "swscale.lib")
     #pragma comment(lib, "SDL2.lib")
@@ -269,6 +264,7 @@ void xScheduleApp::WipeSettings()
 
     wxConfigBase* config = wxConfigBase::Get();
     config->DeleteAll();
+    ScheduleConfig::MirrorIntoCore();
 }
 
 int xScheduleApp::OnExit()
@@ -296,10 +292,47 @@ bool xScheduleApp::OnInit()
     InitialiseLogging(false);
     spdlog::info("******* OnInit: xSchedule started.");
 
+    // The wx-free xLights core reaches the app through these hooks. Without them "main thread" work runs on
+    // the calling thread, errors are only logged, and a worker thread exception terminates.
+    AppCallbacks::SetPostToMainThread([](std::function<void()> fn) {
+        wxTheApp->CallAfter(std::move(fn));
+    });
+    AppCallbacks::SetHandleUnhandledException([] {
+        wxTheApp->OnUnhandledException();
+    });
+    AppCallbacks::SetSetupThreadCrashHandler([] {
+        xlCrashHandler::SetupCrashHandlerForNonWxThread();
+    });
+    AppCallbacks::SetDisplayMessageCallback([](AppCallbacks::DisplayMessageLevel level, const std::string& msg) {
+        auto showBox = [level, msg]() {
+            switch (level) {
+            case AppCallbacks::DisplayMessageLevel::Error:
+                wxMessageBox(msg, "Error", wxICON_ERROR | wxOK);
+                break;
+            case AppCallbacks::DisplayMessageLevel::Warning:
+                wxMessageBox(msg, "Warning", wxICON_WARNING | wxOK);
+                break;
+            case AppCallbacks::DisplayMessageLevel::Info:
+                wxMessageBox(msg, "Information", wxICON_INFORMATION | wxOK);
+                break;
+            }
+        };
+        if (wxThread::IsMain()) {
+            showBox();
+        } else {
+            AppCallbacks::PostToMainThread(showBox);
+        }
+    });
+
+    // the core finds the controller definitions here
+    spdlog::info("Resources folder: {}", GetResourcesDirectory());
+
+    ScheduleConfig::MirrorIntoCore();
+
 #ifdef __WXMSW__
     spdlog::debug("xSchedule module handle {:#x}", reinterpret_cast<uintptr_t>(::GetModuleHandle(nullptr)));
     spdlog::debug("xSchedule wxTheApp {:#x}", reinterpret_cast<uintptr_t>(wxTheApp));
-    if (!IsSuppressDarkMode()) {
+    if (!ScheduleConfig::IsSuppressDarkMode()) {
         MSWEnableDarkMode();
     }
 #endif

@@ -306,6 +306,8 @@
 		<Unit filename="ModernUI.h" />
 		<Unit filename="Holidays.cpp" />
 		<Unit filename="Holidays.h" />
+		<Unit filename="ScheduleConfig.cpp" />
+		<Unit filename="ScheduleConfig.h" />
 		<Unit filename="OSCPacket.cpp" />
 		<Unit filename="OSCPacket.h" />
 		<Unit filename="OptionsDialog.cpp" />

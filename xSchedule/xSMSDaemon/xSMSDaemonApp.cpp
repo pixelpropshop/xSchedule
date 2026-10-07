@@ -33,7 +33,7 @@
 #include <wx/file.h>
 #include <wx/msgdlg.h>
 
-#include "../../xlights/xLights/xLightsVersion.h"
+#include "../../xlights/src-core/xLightsVersion.h"
 
 #ifdef _MSC_VER
 #ifdef _DEBUG

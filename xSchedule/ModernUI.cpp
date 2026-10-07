@@ -21,7 +21,7 @@
 #include <cstring>
 #include <memory>
 
-#include "../xlights/xLights/ui/wxUtilities.h"
+#include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 
 namespace ModernUI {
 

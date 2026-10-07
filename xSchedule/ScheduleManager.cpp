@@ -28,18 +28,20 @@
 #include "UserButton.h"
 #include "Xyzzy.h"
 #include "xScheduleApp.h"
-#include "../xlights/xLights/ui/wxUtilities.h"
+#include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "xScheduleMain.h"
-#include "../xlights/xLights/utils/AudioManager.h"
-#include "../xlights/xLights/utils/Parallel.h"
-#include "../xlights/xLights/utils/UtilFunctions.h"
-#include "../xlights/xLights/ui/wxUtilities.h"
-#include "../xlights/xLights/render/VideoReader.h"
-#include "../xlights/xLights/outputs/Controller.h"
-#include "../xlights/xLights/outputs/ControllerEthernet.h"
-#include "../xlights/xLights/outputs/IPOutput.h"
-#include "../xlights/xLights/outputs/Output.h"
-#include "../xlights/xLights/outputs/OutputManager.h"
+#include "../xlights/src-core/media/AudioManager.h"
+#include "../xlights/src-core/utils/Parallel.h"
+#include "../xlights/src-core/utils/UtilFunctions.h"
+#include "ScheduleConfig.h"
+#include "../xlights/src-core/utils/ip_utils.h"
+#include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
+#include "../xlights/src-core/media/VideoReader.h"
+#include "../xlights/src-core/outputs/Controller.h"
+#include "../xlights/src-core/outputs/ControllerEthernet.h"
+#include "../xlights/src-core/outputs/IPOutput.h"
+#include "../xlights/src-core/outputs/Output.h"
+#include "../xlights/src-core/outputs/OutputManager.h"
 #include "xScheduleVersion.h"
 #include "PlayList/PlayList.h"
 #include "PlayList/PlayListItemAudio.h"
@@ -159,11 +161,11 @@ ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showD
 
     if (_scheduleOptions->IsSendOffWhenNotRunning()) {
         if (!_outputManager->IsOutputting()) {
-            if (GetConfigBool("OutputActive", false)) {
+            if (ScheduleConfig::GetBool("OutputActive", false)) {
                 spdlog::warn("Warning: Lights output is already open in another process. This will cause issues.");
             }
             DisableRemoteOutputs();
-            if (_outputManager->StartOutput()) SetConfigBool("OutputActive", true);
+            if (_outputManager->StartOutput()) ScheduleConfig::SetBool("OutputActive", true);
 #ifdef __WXMSW__
             ::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 #endif
@@ -346,7 +348,7 @@ ScheduleManager::~ScheduleManager() {
     AllOff();
     spdlog::debug("ScheduleManager destructor: stopping output.");
     _outputManager->StopOutput();
-    SetConfigBool("OutputActive", false);
+    ScheduleConfig::SetBool("OutputActive", false);
 #ifdef __WXMSW__
     ::SetPriorityClass(::GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 #endif
@@ -3350,12 +3352,12 @@ void ScheduleManager::SetOutputToLights(xScheduleFrame* frame, bool otl, bool in
     if (_outputManager != nullptr) {
         if (otl) {
             if (!IsOutputToLights()) {
-                if (GetConfigBool("OutputActive", false) && interactive) {
+                if (ScheduleConfig::GetBool("OutputActive", false) && interactive) {
                     wxMessageBox("Warning: Lights output is already open in another process. This will cause issues.", "WARNING", 4 | wxCENTRE, frame);
                 }
                 DisableRemoteOutputs();
                 bool success = _outputManager->StartOutput();
-                if (success) SetConfigBool("OutputActive", true);
+                if (success) ScheduleConfig::SetBool("OutputActive", true);
 #ifdef __WXMSW__
                 ::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 #endif
@@ -3370,7 +3372,7 @@ void ScheduleManager::SetOutputToLights(xScheduleFrame* frame, bool otl, bool in
         } else {
             if (IsOutputToLights()) {
                 _outputManager->StopOutput();
-                SetConfigBool("OutputActive", false);
+                ScheduleConfig::SetBool("OutputActive", false);
 #ifdef __WXMSW__
                 ::SetPriorityClass(::GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 #endif
@@ -3390,11 +3392,11 @@ void ScheduleManager::ManualOutputToLightsClick(xScheduleFrame* frame) {
     if (_manualOTL > 1)
         _manualOTL = -1;
     if (_manualOTL == 1) {
-        if (GetConfigBool("OutputActive", false)) {
+        if (ScheduleConfig::GetBool("OutputActive", false)) {
             wxMessageBox("Warning: Lights output is already open in another process. This will cause issues.", "WARNING", 4 | wxCENTRE, frame);
         }
         DisableRemoteOutputs();
-        if (_outputManager->StartOutput()) SetConfigBool("OutputActive", true);
+        if (_outputManager->StartOutput()) ScheduleConfig::SetBool("OutputActive", true);
 #ifdef __WXMSW__
         ::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 #endif
@@ -3403,7 +3405,7 @@ void ScheduleManager::ManualOutputToLightsClick(xScheduleFrame* frame) {
         GetListenerManager()->ProcessPacket("State", "Lights On");
     } else if (_manualOTL == 0) {
         _outputManager->StopOutput();
-        SetConfigBool("OutputActive", false);
+        ScheduleConfig::SetBool("OutputActive", false);
 #ifdef __WXMSW__
         ::SetPriorityClass(::GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 #endif
@@ -4847,11 +4849,11 @@ void ScheduleManager::SetForceLocalIP(const std::string& forceLocalIP) {
         bool outputting = false;
         if (_outputManager->IsOutputting()) {
             _outputManager->StopOutput();
-            SetConfigBool("OutputActive", false);
+            ScheduleConfig::SetBool("OutputActive", false);
         }
         _outputManager->Load(_showDir);
         if (outputting) {
-            if (_outputManager->StartOutput()) SetConfigBool("OutputActive", true);
+            if (_outputManager->StartOutput()) ScheduleConfig::SetBool("OutputActive", true);
         }
     }
 }
@@ -4861,7 +4863,7 @@ std::string ScheduleManager::GetForceLocalIP() const {
     wxString localIP;
     config->Read(_("xLightsLocalIP"), &localIP, "");
     if (localIP != "") {
-        if (IsValidLocalIP(localIP)) {
+        if (ip_utils::IsValidLocalIP(localIP.ToStdString())) {
             spdlog::info("Forcing output via {}.", localIP.ToStdString());
         } else {
             spdlog::warn("Forcing output via {} IGNORED as the IP does not exist on this machine at this time.", localIP.ToStdString());
