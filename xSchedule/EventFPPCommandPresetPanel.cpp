@@ -45,8 +45,8 @@ EventFPPCommandPresetPanel::EventFPPCommandPresetPanel(wxWindow* parent,wxWindow
 	//*)
 
     // a note above the wxSmith layout, added here so the generated code stays as generated
-    auto* note = new wxStaticText(this, wxID_ANY, _("Fires when an FPP runs the Trigger Command Preset command (match the preset name) or Trigger Command Preset Slot (match the slot number) for all hosts, or for this computer's name or IP."));
-    note->Wrap(FromDIP(440));
+    auto* note = new wxStaticText(this, wxID_ANY, _("Fires when an FPP sends Trigger Command Preset (enter the preset name) or Trigger Command Preset Slot (enter the slot number)."));
+    note->Wrap(FromDIP(340));
     auto* outer = new wxBoxSizer(wxVERTICAL);
     outer->Add(note, 0, wxALL, 5);
     SetSizer(nullptr, false);
