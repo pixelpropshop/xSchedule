@@ -385,13 +385,13 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     FlexGridSizer5->Add(BitmapButton_Unsaved, 1, wxRIGHT|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
     BitmapButton_BrightnessDown = new wxBitmapButton(Panel2, ID_BITMAPBUTTON10, wxNullBitmap, wxDefaultPosition, wxDLG_UNIT(Panel2,wxSize(16,16)), wxBU_AUTODRAW|wxBORDER_NONE, wxDefaultValidator, _T("ID_BITMAPBUTTON10"));
     FlexGridSizer5->Add(BitmapButton_BrightnessDown, 1, wxTOP|wxBOTTOM|wxLEFT|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
-    Brightness = new BrightnessControl(Panel2,ID_CUSTOM1,wxDefaultPosition,wxDLG_UNIT(Panel2,wxSize(16,16)),ZERO,wxDefaultValidator,_T("ID_CUSTOM1"));
+    Brightness = new BrightnessControl(Panel2,ID_CUSTOM1,wxDefaultPosition,wxDLG_UNIT(Panel2,wxSize(16,16)),wxBORDER_NONE,wxDefaultValidator,_T("ID_CUSTOM1"));
     FlexGridSizer5->Add(Brightness, 1, wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
     BitmapButton_BrightnessUp = new wxBitmapButton(Panel2, ID_BITMAPBUTTON11, wxNullBitmap, wxDefaultPosition, wxDLG_UNIT(Panel2,wxSize(16,16)), wxBU_AUTODRAW|wxBORDER_NONE, wxDefaultValidator, _T("ID_BITMAPBUTTON11"));
     FlexGridSizer5->Add(BitmapButton_BrightnessUp, 1, wxTOP|wxBOTTOM|wxRIGHT|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
     BitmapButton_VolumeDown = new wxBitmapButton(Panel2, ID_BITMAPBUTTON8, wxNullBitmap, wxDefaultPosition, wxDLG_UNIT(Panel2,wxSize(16,16)), wxBU_AUTODRAW|wxBORDER_NONE, wxDefaultValidator, _T("ID_BITMAPBUTTON8"));
     FlexGridSizer5->Add(BitmapButton_VolumeDown, 1, wxTOP|wxBOTTOM|wxLEFT|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
-    Custom_Volume = new VolumeDisplay(Panel2,ID_CUSTOM2,wxDefaultPosition,wxDLG_UNIT(Panel2,wxSize(16,16)),ZERO,wxDefaultValidator,_T("ID_CUSTOM2"));
+    Custom_Volume = new VolumeDisplay(Panel2,ID_CUSTOM2,wxDefaultPosition,wxDLG_UNIT(Panel2,wxSize(16,16)),wxBORDER_NONE,wxDefaultValidator,_T("ID_CUSTOM2"));
     FlexGridSizer5->Add(Custom_Volume, 1, wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
     BitmapButton_VolumeUp = new wxBitmapButton(Panel2, ID_BITMAPBUTTON9, wxNullBitmap, wxDefaultPosition, wxDLG_UNIT(Panel2,wxSize(16,16)), wxBU_AUTODRAW|wxBORDER_NONE, wxDefaultValidator, _T("ID_BITMAPBUTTON9"));
     FlexGridSizer5->Add(BitmapButton_VolumeUp, 1, wxTOP|wxBOTTOM|wxRIGHT|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
@@ -750,11 +750,11 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
 
     BitmapButton_BrightnessUp->SetToolTip("Increase Brightness");
     BitmapButton_BrightnessDown->SetToolTip("Decrease Brightness");
-    Brightness->SetToolTip("Brightness");
+    Brightness->SetToolTip("Brightness. Click to switch the lights off, click again to restore");
 
     BitmapButton_VolumeUp->SetToolTip("Increase Volume");
     BitmapButton_VolumeDown->SetToolTip("Decrease Volume");
-    Custom_Volume->SetToolTip("Volume");
+    Custom_Volume->SetToolTip("Volume. Click to mute, click again to unmute");
 
     CreateModernBitmaps();
     ApplyModernLayout();
@@ -984,6 +984,10 @@ void xScheduleFrame::RebuildPluginsMenu()
                 mi->Check(true);
             }
         }
+    }
+
+    if (Menu_Plugins->GetMenuItemCount() == 0) {
+        Menu_Plugins->Append(wxID_ANY, "No plugins found")->Enable(false);
     }
 }
 
@@ -2513,6 +2517,7 @@ void xScheduleFrame::PluginStateChanged()
     auto menuItems = Menu_Plugins->GetMenuItems();
 
     for (const auto& it : menuItems) {
+        if (!it->IsCheckable()) continue;
         auto label = it->GetItemLabelText();
         auto plugin = _pluginManager.GetPluginFromLabel(label);
 

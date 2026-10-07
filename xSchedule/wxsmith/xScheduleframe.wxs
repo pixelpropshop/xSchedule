@@ -97,7 +97,7 @@
 						<object class="sizeritem">
 							<object class="Custom" name="ID_CUSTOM1" subclass="BrightnessControl" variable="Brightness" member="yes">
 								<creating_code>$(THIS) = new $(CLASS)($(PARENT),$(ID),$(POS),$(SIZE),$(STYLE),wxDefaultValidator,$(NAME));</creating_code>
-								<style>ZERO</style>
+								<style>wxBORDER_NONE</style>
 								<size>16,16d</size>
 							</object>
 							<flag>wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL</flag>
@@ -127,7 +127,7 @@
 						<object class="sizeritem">
 							<object class="Custom" name="ID_CUSTOM2" subclass="VolumeDisplay" variable="Custom_Volume" member="yes">
 								<creating_code>$(THIS) = new $(CLASS)($(PARENT),$(ID),$(POS),$(SIZE),$(STYLE),wxDefaultValidator,$(NAME));</creating_code>
-								<style>ZERO</style>
+								<style>wxBORDER_NONE</style>
 								<size>16,16d</size>
 								<handler function="OnCustom_VolumeLeftDown" entry="EVT_LEFT_DOWN" />
 							</object>
