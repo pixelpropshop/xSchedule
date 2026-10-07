@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 /***************************************************************
  * This source files comes from the xLights project
  * https://www.xlights.org
@@ -23,6 +25,13 @@ class FSEQFile;
 #define FSEQFILES "FSEQ files|*.fseq|All files (*.*)|*.*"
 
 class PlayListItemFSEQ : public PlayListItem {
+    std::vector<uint8_t> _frameBuffer;
+    // the sequence clock when there is no audio to follow: real time since the last frame, so ticks a busy PC
+    // drops don't slow the sequence down
+    wxLongLong _lastTick = 0;
+    long _clockRemainder = 0;
+    void ResetClock() { _lastTick = 0; _clockRemainder = 0; }
+
 protected:
 #pragma region Member Variables
     APPLYMETHOD _applyMethod;

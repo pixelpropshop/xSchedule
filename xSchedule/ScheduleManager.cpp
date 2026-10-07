@@ -744,7 +744,7 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
     }
 
     if (IsTest()) {
-        long msec = wxGetUTCTimeMillis().GetLo() - _startTime;
+        long msec = OutputTimeMS();
 
         if (outputframe) {
             memset(_buffer, 0x00, totalChannels); // clear out any prior frame data
@@ -789,7 +789,7 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
                 rate = running->GetFrameMS();
             }
 
-            long msec = wxGetUTCTimeMillis().GetLo() - _startTime;
+            long msec = OutputTimeMS();
 
             if (outputframe) {
                 memset(_buffer, 0x00, totalChannels); // clear out any prior frame data
@@ -1160,6 +1160,13 @@ PlaybackState ScheduleManager::GetPlaybackSnapshot() const {
         state.stepMS += since;
     }
     return state;
+}
+
+// Milliseconds since start, for the outputs' frame timing. long is 32 bits on Windows, so the plain difference went
+// negative after about 24.8 days and LOR outputs then sent a heartbeat every frame. It now wraps back to 0 instead,
+// which the LOR heartbeat already treats as time moving backwards.
+long ScheduleManager::OutputTimeMS() const {
+    return (long)((wxUint32)(wxGetUTCTimeMillis().GetLo() - _startTime) & 0x7FFFFFFF);
 }
 
 bool compare_runningschedules(const RunningSchedule* first, const RunningSchedule* second) {

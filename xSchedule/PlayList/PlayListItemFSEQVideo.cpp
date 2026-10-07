@@ -520,7 +520,9 @@ void PlayListItemFSEQVideo::Frame(uint8_t* buffer, size_t size, size_t ms, size_
                 if (data != nullptr) {
                     // getMaxChannel() is a channel count, not the last channel
                     const size_t fseqChannels = _fseqFile->getMaxChannel();
-                    std::vector<uint8_t> buf(fseqChannels);
+                    // one buffer kept for the item, rather than a full-size one allocated every frame
+                    std::vector<uint8_t>& buf = _frameBuffer;
+                    buf.assign(fseqChannels, 0);
                     if (!buf.empty()) {
                         data->readFrame(&buf[0], buf.size());
                         if (_channels > 0) {

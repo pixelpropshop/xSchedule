@@ -283,6 +283,7 @@ public:
     // by the time since then.
     PlaybackState GetPlaybackSnapshot() const;
     bool ReleaseFinishedImmediatePlay();
+    long OutputTimeMS() const;
     bool StoreData(const wxString& key, const wxString& data, wxString& msg) const;
     bool RetrieveData(const wxString& key, wxString& data, wxString& msg) const;
     bool ToggleOutputToLights(xScheduleFrame* frame, wxString& msg, bool interactive);
