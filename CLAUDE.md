@@ -68,8 +68,7 @@ When adding new `.cpp`/`.h` files, the following project files must be updated m
   - `xlights/dependencies/vamp-hostsdk/` — Vamp host (only needed because AudioManager references it)
   - `xlights/common/` — base application framework (xlBaseApp)
   - `xlights/include/` — shared headers, icons
-  - `xlights/resources/controllers/` — upstream `.xcontroller` definitions
-- **`controllers/`** — local copies of the `.xcontroller` hardware-definition XML files, bundled by the Windows installer into `{app}/controllers` so a standalone xSchedule install works without xLights also being installed (see note below). Runtime code that reads this folder (`ControllerCaps::LoadControllers()`) lives in `xlights/src-core/controllers/ControllerCaps.cpp`; it looks in `FileUtils::GetResourcesDir() + "/controllers"`, which xSchedule sets at startup.
+  - `xlights/resources/controllers/` — the `.xcontroller` hardware definitions. The Windows installer and `make install` copy them into `controllers/` beside the program, so a standalone xSchedule finds them without xLights installed (xSchedule issue #13). `ControllerCaps::LoadControllers()` (`xlights/src-core/controllers/ControllerCaps.cpp`) reads `FileUtils::GetResourcesDir() + "/controllers"`, which xSchedule sets at startup.
 - **`bin/`** — xScheduleWeb directory, desktop files
 - **`images/icons/`** — application icons for Linux
 
@@ -109,8 +108,8 @@ Plain jQuery + Bootstrap 3 pages, served as-is (no build step, no CDN; shows oft
 
 ## Key Dependencies
 
-wxWidgets 3.3 (custom fork `xLightsSequencer/wxWidgets`, tag `xlights_2026.19`, matching the dependency bundle), spdlog, libcurl, pugixml, FFmpeg (8 on Windows via the bundle, the system version on Linux), SDL2, PortMIDI, libltc, zstd, nlohmann/json.
+wxWidgets 3.3 (custom fork `xLightsSequencer/wxWidgets`, the tag named in `xlights/ci_scripts/deps_version.txt`, matching the dependency bundle; the Makefile and CI read it from there), spdlog, libcurl, pugixml, FFmpeg (8 on Windows via the bundle, the system version on Linux), SDL2, PortMIDI, libltc, zstd, nlohmann/json.
 
 ## Maintenance Notes
 
-- **`controllers/` is a hand-maintained duplicate of `xlights/controllers/`.** It was added (2026-08) to fix a standalone-install bug (xSchedule issue #13: installer never packaged a `controllers` folder, so `ControllerCaps::LoadControllers()` logged "Controllers folder not found" and every controller showed disconnected). Deliberately NOT sourced from the `xlights` submodule at install/build time, to avoid depending on upstream xLights changes/PRs for an xSchedule-only bug fix. Consequence: when upstream xLights adds a new controller vendor or edits an existing `.xcontroller` file, this copy will NOT pick it up automatically — periodically diff `controllers/` against `xlights/resources/controllers/` (where upstream moved them) and re-copy as needed, especially before cutting an xSchedule release or moving the submodule. Last synced 2026-10-07 with xLights `d79a9ead3`.
+- **Following xLights:** the `xlights` submodule is pinned to one xLights commit, normally a release. Moving it is the only step needed to follow xLights: the Windows dependency bundle, the Linux wxWidgets tag and the bundled controller definitions all come from the submodule. A scheduled workflow opens a pull request when xLights tags a new release; merge it once its build passes.
