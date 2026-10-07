@@ -16,6 +16,11 @@
 #include "sha1.h"
 
 #include <wx/buffer.h>
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <string>
 #include <wx/base64.h>
 #include <wx/filename.h>
 
@@ -36,6 +41,38 @@ HttpConnection::~HttpConnection()
     wxLogMessage(_("connection closed (socket %d)"), (int) _socket->GetSocket());
 }
 
+#define MAX_REQUEST_SIZE (64 * 1024 * 1024)
+
+// The length of the first complete request in the buffer, or 0 while more of it is still to arrive. A POST body
+// (the web UI's saved settings, for one) is often split over several packets, and used to be cut off and the rest
+// read as a new request. A request with a body but no Content-Length is taken as everything received, as before.
+static size_t CompleteRequestLength(const wxMemoryBuffer &buffer)
+{
+	std::string data((const char *)buffer.GetData(), buffer.GetDataLen());
+
+	size_t headerEnd = data.find("\r\n\r\n");
+	size_t separator = 4;
+	if (headerEnd == std::string::npos)
+	{
+		headerEnd = data.find("\n\n");
+		separator = 2;
+	}
+	if (headerEnd == std::string::npos)
+		return 0;
+	size_t bodyStart = headerEnd + separator;
+
+	std::string headers = data.substr(0, headerEnd);
+	std::transform(headers.begin(), headers.end(), headers.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+	size_t field = headers.find("\ncontent-length:");
+	if (field == std::string::npos)
+		return data.size();
+
+	size_t contentLength = std::strtoul(headers.c_str() + field + 16, nullptr, 10);
+	if (data.size() < bodyStart + contentLength)
+		return 0;
+	return bodyStart + contentLength;
+}
+
 bool HttpConnection::HandleRequest()
 {
 	_socket->SetFlags(wxSOCKET_NOWAIT);
@@ -53,9 +90,47 @@ bool HttpConnection::HandleRequest()
 	{
 		return ParseFrame(input);
 	}
-	else
+
+	_pending.AppendData(input.GetData(), input.GetDataLen());
+
+	bool result = false;
+	while (_pending.GetDataLen() > 0 && !_isWebSocket)
 	{
-		HttpRequest request(*this, wxString((char *)input.GetData(), input.GetDataLen()));
+		size_t length = CompleteRequestLength(_pending);
+		if (length == 0)
+		{
+			if (_pending.GetDataLen() > MAX_REQUEST_SIZE)
+			{
+				wxLogMessage(_("request over %d bytes dropped"), (int)MAX_REQUEST_SIZE);
+				_pending.Clear();
+			}
+			// wait for the rest
+			return result;
+		}
+
+		wxString content((char *)_pending.GetData(), length);
+		wxMemoryBuffer rest;
+		rest.AppendData((char *)_pending.GetData() + length, _pending.GetDataLen() - length);
+		_pending = rest;
+
+		result = HandleHttpRequest(content);
+	}
+
+	if (_isWebSocket && _pending.GetDataLen() > 0)
+	{
+		// frames sent straight after the handshake
+		wxMemoryBuffer frames = _pending;
+		_pending.Clear();
+		result = ParseFrame(frames);
+	}
+
+	return result;
+}
+
+bool HttpConnection::HandleHttpRequest(const wxString &content)
+{
+	{
+		HttpRequest request(*this, content);
 
 		if (request.Method() == "GET")
 		{

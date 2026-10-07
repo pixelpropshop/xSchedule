@@ -216,6 +216,7 @@ public:
 protected:
 	void ParseRequest(const wxString &content);
 	bool ParseFrame(wxMemoryBuffer &buffer);
+	bool HandleHttpRequest(const wxString &content);
 	bool WebSocketHandshake(HttpRequest &request);
 
 protected:
@@ -224,6 +225,8 @@ protected:
 	IPaddress         _address;
 	bool              _isWebSocket;
 	WebSocketMessage *_message;
+	// received but not yet handled: a request can arrive over several reads
+	wxMemoryBuffer    _pending;
 };
 
 //WX_DECLARE_EXPORTED_HASH_MAP(wxSocketBase *, HttpConnection *, wxPointerHash, wxPointerEqual, ConnectionMap);
