@@ -1,0 +1,150 @@
+name: JBD Build
+
+# Builds and tests every push to develop. A tag like 2026.06.1-jbd also publishes a pre-release
+# labeled "JBD Build" that installs alongside the official xSchedule.
+
+on:
+  push:
+    branches: [ develop ]
+    tags: [ '*-jbd' ]
+  pull_request:
+    branches: [ develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LABEL: JBD Build
+  WXTAG: xlights_2026.17c
+
+jobs:
+  windows:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build info
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          @(
+            '#pragma once'
+            "#define XSCHEDULE_BUILD_LABEL `"$env:LABEL`""
+            "#define XSCHEDULE_BUILD_VERSION `"$env:GITHUB_REF_NAME`""
+            "#define XSCHEDULE_RELEASES_REPO `"$env:GITHUB_REPOSITORY`""
+          ) | Set-Content xSchedule\xschedule_build_info.h
+
+      - name: Build
+        shell: cmd
+        run: call build_scripts\msw\build_xSchedule_x64.cmd < NUL
+
+      - name: Unit tests
+        shell: cmd
+        run: call xSchedule\tests\build_tests_msw.cmd < NUL
+
+      - name: Installer
+        shell: pwsh
+        working-directory: build_scripts\msw
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "dev-$($env:GITHUB_SHA.Substring(0,7))" }
+          & $iscc "/DOther= ($env:LABEL)" "/DFileTag=_JBD_Build_$tag" xSchedule_64bit.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: build_scripts/msw/output/*.exe
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ build-essential pkg-config cbp2make \
+            libgtk-3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev freeglut3-dev libglu1-mesa-dev \
+            libavcodec-dev libavformat-dev libavfilter-dev libswscale-dev libswresample-dev libavutil-dev \
+            libsdl2-dev libzstd-dev libwebp-dev libcurl4-openssl-dev libexpat1-dev libsecret-1-dev \
+            libltc-dev libportmidi-dev
+
+      - name: Cache wxWidgets
+        id: wx
+        uses: actions/cache@v4
+        with:
+          path: ~/wx
+          key: wx-${{ env.WXTAG }}-static-ubuntu24.04
+
+      # built static so the package does not need the xLights wxWidgets fork installed
+      - name: Build wxWidgets
+        if: steps.wx.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --shallow-submodules --recurse-submodules -b "$WXTAG" https://github.com/xLightsSequencer/wxWidgets /tmp/wxsrc
+          cd /tmp/wxsrc
+          ./configure --disable-shared --enable-cxx11 --with-cxx=17 --enable-std_containers --enable-std_string_conv_in_wxstring \
+            --enable-backtrace --enable-exceptions --enable-mediactrl --enable-graphics_ctx --enable-monolithic --disable-sdltest \
+            --with-gtk=3 --disable-pcx --disable-iff --without-libtiff --enable-utf8 --enable-utf8only --prefix="$HOME/wx"
+          make -j"$(nproc)" -s
+          make install
+
+      - run: echo "$HOME/wx/bin" >> "$GITHUB_PATH"
+
+      - name: Build info
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          printf '#pragma once\n#define XSCHEDULE_BUILD_LABEL "%s"\n#define XSCHEDULE_BUILD_VERSION "%s"\n#define XSCHEDULE_RELEASES_REPO "%s"\n' \
+            "$LABEL" "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" > xSchedule/xschedule_build_info.h
+
+      - name: Build
+        run: make -j"$(nproc)"
+
+      - name: Unit tests
+        run: make -C xSchedule/tests test
+
+      - name: Package
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          [ "$GITHUB_REF_TYPE" = tag ] || tag="dev-${GITHUB_SHA::7}"
+          make install DESTDIR="$PWD/stage" PREFIX=/usr
+          tar -C stage -czf "xSchedule_JBD_Build_${tag}_linux_x64.tar.gz" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: '*.tar.gz'
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [ windows, linux ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<EOF
+          Test build of xSchedule from ${GITHUB_REPOSITORY}. Not an official xSchedule release.
+
+          - Windows: run the installer. It installs as "xSchedule (JBD Build)" next to the official
+            xSchedule and uses the same settings, so don't run both at once.
+          - Linux (Ubuntu 24.04+): \`sudo tar -xzf <file> -C /\` installs to /usr.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "xSchedule $GITHUB_REF_NAME (JBD Build)" --notes-file notes.md --generate-notes

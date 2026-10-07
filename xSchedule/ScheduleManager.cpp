@@ -3061,6 +3061,7 @@ bool ScheduleManager::Query(const wxString& command, const wxString& parameters,
                    "\",\"brightness\":\"" + wxString::Format(wxT("%i"), GetBrightness()) +
                    "\",\"ip\":\"" + ip +
                    "\",\"version\":\"" + xschedule_version_string +
+                   (xschedule_build_label.empty() ? std::string() : "\",\"build\":\"" + JSONSafe(xschedule_build_label)) +
                    "\",\"reference\":\"" + reference +
                    "\",\"passwordset\":\"" + (_scheduleOptions->GetPassword() == "" ? "false" : "true") +
                    "\",\"time\":\"" + wxDateTime::Now().Format("%Y-%m-%d %H:%M:%S") +
@@ -3114,6 +3115,7 @@ bool ScheduleManager::Query(const wxString& command, const wxString& parameters,
                    "\",\"nextstep\":\"" + JSONSafe(nextsong) +
                    "\",\"nextstepid\":\"" + nextsongid +
                    "\",\"version\":\"" + xschedule_version_string +
+                   (xschedule_build_label.empty() ? std::string() : "\",\"build\":\"" + JSONSafe(xschedule_build_label)) +
                    "\",\"queuelength\":\"" + wxString::Format(wxT("%ld"), (long)_queuedSongs->GetSteps().size()) +
                    "\",\"volume\":\"" + wxString::Format(wxT("%i"), GetVolume()) +
                    "\",\"brightness\":\"" + wxString::Format(wxT("%i"), GetBrightness()) +
