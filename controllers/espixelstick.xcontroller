@@ -8,6 +8,7 @@
 			<MaxSerialPort>0</MaxSerialPort>
 			<MaxSerialPortChannels>512</MaxSerialPortChannels>
 			<MaxPixelPortChannels>4080</MaxPixelPortChannels>
+			<MaxPacing>30</MaxPacing>
 			<AllInputUniversesMustBeSameSize/>
 			<UniversesMustBeSequential/>
 			<SupportsAutoLayout/>
@@ -43,6 +44,7 @@
         <!--SupportsPixelPortCommonSettings/-->
 		<SupportsPixelPortZigZag/>
             <MaxZigZag>250</MaxZigZag>
+        <MaxPacing>30</MaxPacing>
         <SupportsUpload/>
         <SupportsInputOnlyUpload/>
         <SupportsAutoUpload/>
@@ -65,7 +67,7 @@
             <MaxPixelPort>1</MaxPixelPort>
             <MaxSerialPort>1</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>ws2811</Protocol>
                 <Protocol>gece</Protocol>
@@ -82,7 +84,7 @@
             <MaxPixelPort>8</MaxPixelPort>
             <MaxSerialPort>1</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>apa102</Protocol>
                 <Protocol>gs8208</Protocol>
@@ -91,6 +93,7 @@
                 <Protocol>ucs8903</Protocol>
                 <Protocol>ws2801</Protocol>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gece</Protocol>
             </PixelProtocols>
             <SerialProtocols>
@@ -104,13 +107,14 @@
             <MaxPixelPort>8</MaxPixelPort>
             <MaxSerialPort>1</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>gs8208</Protocol>
                 <Protocol>tm1814</Protocol>
                 <Protocol>ucs1903</Protocol>
                 <Protocol>ucs8903</Protocol>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gece</Protocol>
             </PixelProtocols>
             <SerialProtocols>
@@ -124,9 +128,10 @@
             <MaxPixelPort>4</MaxPixelPort>
             <MaxSerialPort>1</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -144,10 +149,11 @@
             <MaxPixelPort>5</MaxPixelPort>
             <MaxSerialPort>5</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>apa102</Protocol>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -166,10 +172,11 @@
             <MaxPixelPort>6</MaxPixelPort>
             <MaxSerialPort>6</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>apa102</Protocol>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -188,10 +195,11 @@
             <MaxPixelPort>6</MaxPixelPort>
             <MaxSerialPort>6</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>apa102</Protocol>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -205,15 +213,85 @@
                 <Protocol>GenericSerial</Protocol>
             </SerialProtocols>
         </Variant>
+        <Variant Name="ESP32_KA_4" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>5</MaxPixelPort>
+            <MaxSerialPort>5</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <!--Protocol>apa102</Protocol-->
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <!--Protocol>gs8208</Protocol-->
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <!--Protocol>ws2801</Protocol-->
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32_KA" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>8</MaxPixelPort>
+            <MaxSerialPort>8</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <!--Protocol>apa102</Protocol-->
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <!--Protocol>gs8208</Protocol-->
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <!--Protocol>ws2801</Protocol-->
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32_KR_LIGHTS" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>5</MaxPixelPort>
+            <MaxSerialPort>6</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <!--Protocol>apa102</Protocol-->
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <!--Protocol>gs8208</Protocol-->
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <!--Protocol>ws2801</Protocol-->
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
         <Variant Name="ESP32_M3STACK_ATOM" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
             <MaxInputUniverses>12</MaxInputUniverses>
             <MaxPixelPort>6</MaxPixelPort>
             <MaxSerialPort>6</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -232,10 +310,34 @@
             <MaxPixelPort>8</MaxPixelPort>
             <MaxSerialPort>8</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>apa102</Protocol>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <Protocol>gs8208</Protocol>
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <Protocol>ws2801</Protocol>
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32_OCTA2GO" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>8</MaxPixelPort>
+            <MaxSerialPort>8</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <Protocol>apa102</Protocol>
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -254,10 +356,11 @@
             <MaxPixelPort>5</MaxPixelPort>
             <MaxSerialPort>5</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -276,10 +379,11 @@
             <MaxPixelPort>9</MaxPixelPort>
             <MaxSerialPort>0</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <!--Protocol>gece</Protocol-->
                 <Protocol>tm1814</Protocol>
@@ -298,10 +402,11 @@
             <MaxPixelPort>4</MaxPixelPort>
             <MaxSerialPort>4</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -320,10 +425,11 @@
             <MaxPixelPort>8</MaxPixelPort>
             <MaxSerialPort>8</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <!--Protocol>tm1814</Protocol-->
@@ -342,10 +448,11 @@
             <MaxPixelPort>2</MaxPixelPort>
             <MaxSerialPort>2</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -364,10 +471,11 @@
             <MaxPixelPort>5</MaxPixelPort>
             <MaxSerialPort>5</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -386,10 +494,11 @@
             <MaxPixelPort>1</MaxPixelPort>
             <MaxSerialPort>1</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -403,15 +512,84 @@
                 <Protocol>GenericSerial</Protocol>
             </SerialProtocols>
         </Variant>
+        <Variant Name="ESP32_RELAY_BOARD" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>0</MaxPixelPort>
+            <MaxSerialPort>8</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <!--Protocol>apa102</Protocol-->
+                <!--Protocol>ws2811</Protocol-->
+                <!--Protocol>gs8208</Protocol-->
+                <!--Protocol>gece</Protocol-->
+                <!--Protocol>tm1814</Protocol-->
+                <!--Protocol>ucs1903</Protocol-->
+                <!--Protocol>ucs8903</Protocol-->
+                <!--Protocol>ws2801</Protocol-->
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32_SOLO2GO" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>1</MaxPixelPort>
+            <MaxSerialPort>2</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <Protocol>apa102</Protocol>
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <Protocol>gs8208</Protocol>
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <Protocol>ws2801</Protocol>
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32_TETRA2GO" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>8</MaxPixelPort>
+            <MaxSerialPort>8</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <Protocol>apa102</Protocol>
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <Protocol>gs8208</Protocol>
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <Protocol>ws2801</Protocol>
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
         <Variant Name="ESP32_TTGO_T8" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
             <MaxInputUniverses>12</MaxInputUniverses>
             <MaxPixelPort>6</MaxPixelPort>
             <MaxSerialPort>6</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -430,10 +608,11 @@
             <MaxPixelPort>7</MaxPixelPort>
             <MaxSerialPort>7</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <!--Protocol>apa102</Protocol-->
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gs8208</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
@@ -452,13 +631,14 @@
             <MaxPixelPort>8</MaxPixelPort>
             <MaxSerialPort>1</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>gs8208</Protocol>
                 <Protocol>tm1814</Protocol>
                 <Protocol>ucs1903</Protocol>
                 <Protocol>ucs8903</Protocol>
                 <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
                 <Protocol>gece</Protocol>
             </PixelProtocols>
             <SerialProtocols>
@@ -472,11 +652,80 @@
             <MaxPixelPort>1</MaxPixelPort>
             <MaxSerialPort>1</MaxSerialPort>
             <MaxSerialPortChannels>512</MaxSerialPortChannels>
-            <MaxPixelPortChannels>3072</MaxPixelPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
             <PixelProtocols>
                 <Protocol>ws2811</Protocol>
                 <Protocol>gece</Protocol>
                 <Protocol>tm1814</Protocol>
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32S3_DEVKITC" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>4</MaxPixelPort>
+            <MaxSerialPort>4</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <Protocol>apa102</Protocol>
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <Protocol>gs8208</Protocol>
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <Protocol>ws2801</Protocol>
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32S3_FH4R2" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>4</MaxPixelPort>
+            <MaxSerialPort>4</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <Protocol>apa102</Protocol>
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <Protocol>gs8208</Protocol>
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <Protocol>ws2801</Protocol>
+            </PixelProtocols>
+            <SerialProtocols>
+                <Protocol>dmx</Protocol>
+                <Protocol>renard</Protocol>
+                <Protocol>GenericSerial</Protocol>
+            </SerialProtocols>
+        </Variant>
+        <Variant Name="ESP32S3_SEEED_XAIO" ID="ESP32" Base="ESPixelStick:BaseESPixelStickV4Settings">
+            <MaxInputUniverses>12</MaxInputUniverses>
+            <MaxPixelPort>4</MaxPixelPort>
+            <MaxSerialPort>4</MaxSerialPort>
+            <MaxSerialPortChannels>512</MaxSerialPortChannels>
+            <MaxPixelPortChannels>3000</MaxPixelPortChannels>
+            <PixelProtocols>
+                <Protocol>apa102</Protocol>
+                <Protocol>ws2811</Protocol>
+                <Protocol>tls3001</Protocol>
+                <Protocol>gs8208</Protocol>
+                <Protocol>gece</Protocol>
+                <Protocol>tm1814</Protocol>
+                <Protocol>ucs1903</Protocol>
+                <Protocol>ucs8903</Protocol>
+                <Protocol>ws2801</Protocol>
             </PixelProtocols>
             <SerialProtocols>
                 <Protocol>dmx</Protocol>
