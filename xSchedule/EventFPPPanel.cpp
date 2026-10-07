@@ -53,8 +53,8 @@ EventFPPPanel::EventFPPPanel(wxWindow* parent,wxWindowID id,const wxPoint& pos,c
 	//*)
 
     // a note above the wxSmith layout, added here so the generated code stays as generated
-    auto* note = new wxStaticText(this, wxID_ANY, _("Only FPP 4 and older send these events. FPP 5 and newer send commands instead: use FPPCommandPreset."));
-    note->Wrap(FromDIP(440));
+    auto* note = new wxStaticText(this, wxID_ANY, _("Only FPP 4 and older send these. For FPP 5 and newer, use FPPCommandPreset."));
+    note->Wrap(FromDIP(340));
     auto* outer = new wxBoxSizer(wxVERTICAL);
     outer->Add(note, 0, wxALL, 5);
     SetSizer(nullptr, false);
