@@ -177,6 +177,8 @@ public:
     wxString ProcessPluginRequest(const wxString& plugin, const wxString& command, const wxString& parameters, const wxString& data, const wxString& reference);
     void ManipulateBuffer(uint8_t* buffer, size_t bufferSize);
     void PluginStateChanged();
+    // stops a plugin and records it as off, so it stays off at the next start
+    void StopPluginAndRemember(const std::string& label);
     std::string GetShowDir() const {
         return _showDir;
     }

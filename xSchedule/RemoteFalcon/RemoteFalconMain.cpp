@@ -924,6 +924,17 @@ void RemoteFalconFrame::OnClose(wxCloseEvent& event)
     spdlog::debug("RemoteFalconFrame::OnClose");
     if (event.CanVeto()) {
         event.Veto();
+        // turning the plugin off by accident would stop requests mid-show, so ask; xSchedule shuts it down once
+        // this handler has returned
+        wxMessageDialog dlg(this, "It stops taking requests until you turn it on again in xSchedule's Plugins menu.",
+                            "Turn off Remote Falcon?", wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+        dlg.SetYesNoLabels("Turn off", "Keep running");
+        if (dlg.ShowModal() == wxID_YES) {
+            Hide();
+            xSchedule::StopPlugin("Remote Falcon");
+        } else {
+            Iconize(true);
+        }
     } else{
         event.Skip();
     }

@@ -2524,6 +2524,15 @@ void xScheduleFrame::ManipulateBuffer(uint8_t* buffer, size_t bufferSize)
     _pluginManager.ManipulateBuffer(buffer, bufferSize);
 }
 
+void xScheduleFrame::StopPluginAndRemember(const std::string& label)
+{
+    std::string plugin = _pluginManager.GetPluginFromLabel(label);
+    if (plugin == "") return;
+    _pluginManager.StopPlugin(plugin);
+    wxConfigBase::Get()->Write(_("Plugin") + plugin, false);
+    PluginStateChanged();
+}
+
 void xScheduleFrame::PluginStateChanged()
 {
     auto menuItems = Menu_Plugins->GetMenuItems();

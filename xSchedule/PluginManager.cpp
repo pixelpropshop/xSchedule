@@ -458,6 +458,17 @@ bool Action(const char* command, const wchar_t* parameters, const char* data, ch
     memset(buffer, 0x00, bufferSize);
     std::string c(command);
     std::wstring p(parameters);
+
+    if (c == "Stop plugin") {
+        // A plugin closing its own window asks to be stopped. Stopping it shuts down its copy of wxWidgets, which
+        // can't happen while its close handler is still running, so it is done once that has returned, and saved
+        // like unticking the plugin in the Plugins menu.
+        std::string label = wxString(p).ToStdString();
+        wxTheApp->CallAfter([label]() {
+            ((xScheduleFrame*)wxTheApp->GetTopWindow())->StopPluginAndRemember(label);
+        });
+        return true;
+    }
     std::string d(data);
     wxString dd(data);
     size_t rate = 0;
