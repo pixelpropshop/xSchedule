@@ -12,7 +12,7 @@ DEL_FILE        = rm -f
 ICON_SIZES      = 16x16 32x32 64x64 128x128 256x256
 SUDO            = `which sudo`
 
-WXWIDGETS_TAG=xlights_2026.17c
+WXWIDGETS_TAG=xlights_2026.19
 
 .NOTPARALLEL:
 
