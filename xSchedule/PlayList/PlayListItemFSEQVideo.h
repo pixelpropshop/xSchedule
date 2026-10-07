@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 /***************************************************************
  * This source files comes from the xLights project
  * https://www.xlights.org
@@ -27,6 +29,8 @@ class FSEQFile;
 class ScheduleOptions;
 
 class PlayListItemFSEQVideo : public PlayListItem {
+    std::vector<uint8_t> _frameBuffer;
+
 protected:
 #pragma region Member Variables
     APPLYMETHOD _applyMethod;
