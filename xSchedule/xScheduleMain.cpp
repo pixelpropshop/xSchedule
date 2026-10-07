@@ -35,6 +35,7 @@
 #include "PlayList/PlayList.h"
 #include "MyTreeItemData.h"
 #include "ScheduleManager.h"
+#include "ScheduleConfig.h"
 #include "Schedule.h"
 #include "ScheduleOptions.h"
 #include "OptionsDialog.h"
@@ -684,15 +685,9 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
 
     ListView_Ping->Connect(wxEVT_MOTION, (wxObjectEventFunction)&xScheduleFrame::OnListView_PingMouseMove, nullptr, this);
 
-    wxString userEmail;
-    wxConfig* xlconfig = new wxConfig(_("xLights"));
-    if (xlconfig != nullptr)     {
-        xlconfig->Read("xLightsUserEmail", &userEmail, "");
-        if (userEmail != "noone@nowhere.xlights.org" && userEmail != "")
-            spdlog::debug("User email address: <email>{}</email>", userEmail.ToStdString());
-        delete xlconfig;
-        xlconfig = nullptr;
-    }
+    std::string userEmail = ScheduleConfig::GetXLightsSetting("xLightsUserEmail");
+    if (userEmail != "noone@nowhere.xlights.org" && userEmail != "")
+        spdlog::debug("User email address: <email>{}</email>", userEmail);
 
     _timer.SetName("xSchedule frame timer");
     _timerSchedule.SetName("xSchedule schedule timer");
@@ -4268,7 +4263,12 @@ void xScheduleFrame::OnMenuItem_CrashSelected(wxCommandEvent& event)
 
 void xScheduleFrame::OnMenuItem_UsexLightsFolderSelected(wxCommandEvent& event)
 {
-    _showDir = ScheduleManager::xLightsShowDir();
+    std::string xlightsDir = ScheduleManager::xLightsShowDir();
+    if (xlightsDir.empty() || !wxDir::Exists(xlightsDir)) {
+        wxMessageBox("xLights' show folder could not be found.", "Use xLights folder", wxOK | wxICON_WARNING, this);
+        return;
+    }
+    _showDir = xlightsDir;
     SaveShowDir();
     _timerSchedule.Stop();
     _timer.Stop();

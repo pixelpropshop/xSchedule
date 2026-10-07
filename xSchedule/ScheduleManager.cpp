@@ -34,6 +34,7 @@
 #include "../xlights/src-core/utils/Parallel.h"
 #include "../xlights/src-core/utils/UtilFunctions.h"
 #include "ScheduleConfig.h"
+#include "../xlights/src-core/utils/FileUtils.h"
 #include "../xlights/src-core/utils/ip_utils.h"
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "../xlights/src-core/media/VideoReader.h"
@@ -65,6 +66,8 @@ ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showD
 
     // prime fix file with our show directory for any filename fixups
     SetFixFileShowDir(showDir);
+    // and the media folders set up in xLights, for audio a moved show no longer finds at its saved path
+    FileUtils::SetFixFileDirectories(ScheduleConfig::GetXLightsMediaDirs());
 
     _syncManager = std::make_unique<SyncManager>(this);
     _testMode = false;
@@ -3650,7 +3653,7 @@ bool ScheduleManager::ShowDirectoriesMatch() const {
     std::string xlsd = xLightsShowDir();
     std::string xssd = xScheduleShowDir();
 
-    if (xlsd != "" && xssd != "" && xlsd != xssd) {
+    if (xlsd != "" && xssd != "" && !ScheduleConfig::IsSameFolder(xlsd, xssd)) {
         return false;
     }
 
@@ -3741,7 +3744,7 @@ void ScheduleManager::CheckScheduleIntegrity(bool display) {
     std::string xlsd = xLightsShowDir();
     std::string xssd = xScheduleShowDir();
 
-    if (xlsd != "" && xssd != "" && xlsd != xssd) {
+    if (xlsd != "" && xssd != "" && !ScheduleConfig::IsSameFolder(xlsd, xssd)) {
         wxString msg = wxString::Format("    ERR: xLights show directory %s does not match xSchedule show directory %s.", xlsd.c_str(), xssd.c_str());
         LogAndWrite(f, msg.ToStdString());
         errcount++;
@@ -4766,15 +4769,7 @@ std::string ScheduleManager::DecodeButton(const std::string& buttonlabelparamete
 }
 
 std::string ScheduleManager::xLightsShowDir() {
-    wxString showDir = "";
-
-    wxConfig* xlconfig = new wxConfig(_("xLights"));
-    if (xlconfig != nullptr) {
-        xlconfig->Read(_("LastDir"), &showDir);
-        delete xlconfig;
-    }
-
-    return showDir.ToStdString();
+    return ScheduleConfig::GetXLightsSetting("LastDir");
 }
 
 std::string ScheduleManager::xScheduleShowDir() {
