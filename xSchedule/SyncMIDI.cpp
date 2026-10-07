@@ -68,14 +68,10 @@ public:
 
                 if (wxGetUTCTimeUSec() - last > interval) {
                     // get our absolute position
-                    PlayList* pl = _scheduleManager->GetRunningPlayList();
-                    if (pl != nullptr) {
+                    PlaybackState playing = _scheduleManager->GetPlaybackSnapshot();
+                    if (playing.playing) {
                         // sent a sync
-                        auto ms = pl->GetPosition();
-                        auto stepno = pl->GetRunningStepIndex();
-                        auto stepms = pl->GetRunningStep() == nullptr ? 0 : pl->GetRunningStep()->GetPosition();
-                        auto basesecs = pl->GetRunningStep() == nullptr ? -1 : pl->GetRunningStep()->GetBaseTimeCodeTime();
-                        _syncMidi->SendSync(0, 0, stepms, ms, "", "", "", "", stepno, basesecs);
+                        _syncMidi->SendSync(0, 0, playing.stepMS, playing.playlistMS, "", "", "", "", playing.stepNo, playing.baseTimeCodeSecs);
                         _toSendStop = true;
                     } else {
                         if (_toSendStop) {
@@ -148,8 +144,7 @@ public:
 
                 if (wxGetUTCTimeUSec() - last > interval) {
                     // get our absolute position
-                    PlayList* pl = _scheduleManager->GetRunningPlayList();
-                    if (pl != nullptr) {
+                    if (_scheduleManager->GetPlaybackSnapshot().playing) {
                         // sent a sync
                         _syncMidi->SendClock();
                     }

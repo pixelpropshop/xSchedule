@@ -1030,6 +1030,8 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
         }
     }
 
+    UpdatePlaybackSnapshot();
+
     reentry = false;
     if (rate == 0)
         rate = 50;
@@ -1121,6 +1123,43 @@ bool ScheduleManager::ReleaseFinishedImmediatePlay() {
         return true;
     }
     return false;
+}
+
+struct ScheduleManager::PlaybackSnapshot {
+    PlaybackState state;
+    bool paused = false;
+    wxLongLong taken = 0;
+};
+
+void ScheduleManager::UpdatePlaybackSnapshot() {
+    PlaybackSnapshot snapshot;
+    PlayList* pl = GetRunningPlayList();
+    if (pl != nullptr && !IsTest()) {
+        PlayListStep* step = pl->GetRunningStep();
+        snapshot.state.playing = true;
+        snapshot.state.playlistMS = (uint32_t)pl->GetPosition();
+        snapshot.state.stepNo = pl->GetRunningStepIndex();
+        snapshot.state.stepMS = step == nullptr ? 0 : (uint32_t)step->GetPosition();
+        snapshot.state.baseTimeCodeSecs = step == nullptr ? -1 : step->GetBaseTimeCodeTime();
+        snapshot.paused = pl->IsPaused() || pl->IsSuspended();
+    }
+    snapshot.taken = wxGetUTCTimeMillis();
+
+    std::lock_guard<std::mutex> lock(_snapshotLock);
+    if (_snapshot == nullptr) _snapshot = std::make_unique<PlaybackSnapshot>();
+    *_snapshot = snapshot;
+}
+
+PlaybackState ScheduleManager::GetPlaybackSnapshot() const {
+    std::lock_guard<std::mutex> lock(_snapshotLock);
+    if (_snapshot == nullptr) return PlaybackState();
+    PlaybackState state = _snapshot->state;
+    if (state.playing && !_snapshot->paused) {
+        uint32_t since = (uint32_t)(wxGetUTCTimeMillis() - _snapshot->taken).GetValue();
+        state.playlistMS += since;
+        state.stepMS += since;
+    }
+    return state;
 }
 
 bool compare_runningschedules(const RunningSchedule* first, const RunningSchedule* second) {

@@ -19,6 +19,8 @@
 #include <wx/thread.h>
 #include <wx/wx.h>
 #include <list>
+#include <memory>
+#include <mutex>
 #include <string>
 
 class PlayListItemText;
@@ -67,6 +69,14 @@ public:
     std::string _command;
     std::string _parameters;
     std::string _data;
+};
+
+struct PlaybackState {
+    bool playing = false;
+    uint32_t playlistMS = 0;
+    uint32_t stepMS = 0;
+    uint32_t stepNo = 0;
+    int baseTimeCodeSecs = -1;
 };
 
 class ScheduleManager {
@@ -120,6 +130,12 @@ class ScheduleManager {
     void StartTiming(const std::string timgingName);
     PlayListItem* FindRunProcessNamed(const std::string& item) const;
     void TestFrame(uint8_t* buffer, long totalChannels, long msec);
+
+    // what the timecode threads read; see GetPlaybackSnapshot
+    mutable std::mutex _snapshotLock;
+    struct PlaybackSnapshot;
+    std::unique_ptr<PlaybackSnapshot> _snapshot;
+    void UpdatePlaybackSnapshot();
 
 public:
     // true while output to lights is starting; the core's error dialogs are logged instead of shown then
@@ -262,6 +278,10 @@ public:
     bool IsQuery(const wxString& command);
     PlayList* GetPlayList(const std::string& playlist) const;
     void StopPlayList(PlayList* playlist, bool atendofcurrentstep, bool sustain = false, bool stopSchedules = false);
+    // The running playlist's position for the Art-Net and MIDI timecode threads. They must not read playlists
+    // directly: the main thread deletes and replaces those while the threads run. Taken every frame, and moved on
+    // by the time since then.
+    PlaybackState GetPlaybackSnapshot() const;
     bool ReleaseFinishedImmediatePlay();
     bool StoreData(const wxString& key, const wxString& data, wxString& msg) const;
     bool RetrieveData(const wxString& key, wxString& data, wxString& msg) const;
