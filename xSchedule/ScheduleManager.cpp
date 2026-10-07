@@ -42,6 +42,7 @@
 #include "../xlights/src-core/outputs/IPOutput.h"
 #include "../xlights/src-core/outputs/Output.h"
 #include "../xlights/src-core/outputs/OutputManager.h"
+#include <atomic>
 #include "xScheduleVersion.h"
 #include "PlayList/PlayList.h"
 #include "PlayList/PlayListItemAudio.h"
@@ -165,7 +166,7 @@ ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showD
                 spdlog::warn("Warning: Lights output is already open in another process. This will cause issues.");
             }
             DisableRemoteOutputs();
-            if (_outputManager->StartOutput()) ScheduleConfig::SetBool("OutputActive", true);
+            if (StartOutputToLights()) ScheduleConfig::SetBool("OutputActive", true);
 #ifdef __WXMSW__
             ::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 #endif
@@ -3136,6 +3137,27 @@ bool ScheduleManager::Query(const wxString& command, const wxString& parameters,
     return result;
 }
 
+static std::atomic<bool> __startingOutputToLights = false;
+
+bool ScheduleManager::IsStartingOutputToLights() {
+    return __startingOutputToLights;
+}
+
+// xSchedule runs unattended: an output that will not open is skipped and logged, and the others keep
+// going. The xLights core only asks "continue?" when interactive; otherwise it closes every output.
+bool ScheduleManager::StartOutputToLights() {
+    OutputManager::SetConfirmCallback([](const std::string& message, const std::string& title) {
+        spdlog::warn("{} Continuing with the other outputs.", message);
+        return true;
+    });
+
+    struct Starting {
+        Starting() { __startingOutputToLights = true; OutputManager::SetInteractive(true); }
+        ~Starting() { OutputManager::SetInteractive(false); __startingOutputToLights = false; }
+    } starting;
+    return _outputManager->StartOutput();
+}
+
 void ScheduleManager::DisableRemoteOutputs() {
     // The only way to undo this disable is to restart xSchedule
     // That is not ideal but solving it would require adding amybe a session disable in output
@@ -3356,7 +3378,7 @@ void ScheduleManager::SetOutputToLights(xScheduleFrame* frame, bool otl, bool in
                     wxMessageBox("Warning: Lights output is already open in another process. This will cause issues.", "WARNING", 4 | wxCENTRE, frame);
                 }
                 DisableRemoteOutputs();
-                bool success = _outputManager->StartOutput();
+                bool success = StartOutputToLights();
                 if (success) ScheduleConfig::SetBool("OutputActive", true);
 #ifdef __WXMSW__
                 ::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
@@ -3396,7 +3418,7 @@ void ScheduleManager::ManualOutputToLightsClick(xScheduleFrame* frame) {
             wxMessageBox("Warning: Lights output is already open in another process. This will cause issues.", "WARNING", 4 | wxCENTRE, frame);
         }
         DisableRemoteOutputs();
-        if (_outputManager->StartOutput()) ScheduleConfig::SetBool("OutputActive", true);
+        if (StartOutputToLights()) ScheduleConfig::SetBool("OutputActive", true);
 #ifdef __WXMSW__
         ::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 #endif
@@ -4853,7 +4875,7 @@ void ScheduleManager::SetForceLocalIP(const std::string& forceLocalIP) {
         }
         _outputManager->Load(_showDir);
         if (outputting) {
-            if (_outputManager->StartOutput()) ScheduleConfig::SetBool("OutputActive", true);
+            if (StartOutputToLights()) ScheduleConfig::SetBool("OutputActive", true);
         }
     }
 }

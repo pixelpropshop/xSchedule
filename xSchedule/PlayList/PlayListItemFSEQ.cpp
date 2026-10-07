@@ -417,16 +417,20 @@ void PlayListItemFSEQ::Frame(uint8_t* buffer, size_t size, size_t ms, size_t fra
                 int frame = ms / framems;
                 FSEQFile::FrameData* data = _fseqFile->getFrame(frame);
                 if (data != nullptr) {
-                    std::vector<uint8_t> buf(_fseqFile->getMaxChannel() + 1);
-                    data->readFrame(&buf[0], buf.size());
-                    size_t channelsPerFrame = (size_t)_fseqFile->getMaxChannel() + 1;
-                    if (_channels > 0)
-                        channelsPerFrame = std::min(_channels, (size_t)_fseqFile->getMaxChannel() + 1);
-                    if (_channels > 0) {
-                        long offset = GetStartChannelAsNumber() - 1;
-                        Blend(buffer, size, &buf[offset], channelsPerFrame, _applyMethod, offset);
-                    } else {
-                        Blend(buffer, size, &buf[0], channelsPerFrame, _applyMethod, 0);
+                    // getMaxChannel() is a channel count, not the last channel
+                    const size_t fseqChannels = _fseqFile->getMaxChannel();
+                    std::vector<uint8_t> buf(fseqChannels);
+                    if (!buf.empty()) {
+                        data->readFrame(&buf[0], buf.size());
+                        if (_channels > 0) {
+                            // never read past the end of the sequence's data
+                            const size_t offset = (size_t)(GetStartChannelAsNumber() - 1);
+                            if (offset < fseqChannels) {
+                                Blend(buffer, size, &buf[offset], std::min(_channels, fseqChannels - offset), _applyMethod, offset);
+                            }
+                        } else {
+                            Blend(buffer, size, &buf[0], fseqChannels, _applyMethod, 0);
+                        }
                     }
                     delete data;
                 } else {
@@ -459,7 +463,7 @@ void PlayListItemFSEQ::Start(long stepLengthMS) {
     LoadFiles();
 
     if (_fseqFile != nullptr) {
-        _fseqFile->prepareRead({ { 0, _fseqFile->getMaxChannel() + 1 } });
+        _fseqFile->prepareRead({ { 0, _fseqFile->getMaxChannel() } });
     }
 
     if (ControlsTiming() && _audioManager != nullptr) {

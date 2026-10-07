@@ -108,6 +108,7 @@ class ScheduleManager {
     std::unique_ptr<SyncManager> _syncManager = nullptr;
 
     void DisableRemoteOutputs();
+    bool StartOutputToLights();
     std::string GetPingStatus();
     std::string FormatTime(size_t timems);
     void CreateBrightnessArray();
@@ -121,6 +122,8 @@ class ScheduleManager {
     void TestFrame(uint8_t* buffer, long totalChannels, long msec);
 
 public:
+    // true while output to lights is starting; the core's error dialogs are logged instead of shown then
+    static bool IsStartingOutputToLights();
     void SetPinger(Pinger* pinger) {
         _pinger = pinger;
     }

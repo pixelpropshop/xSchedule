@@ -58,7 +58,6 @@
         #pragma comment(lib, "wxwebpd.lib")
         #pragma comment(lib, "wxmsw" WXWIDGETS_VERSION "ud_qa.lib")
         #pragma comment(lib, "wxexpatd.lib")
-        #pragma comment(lib, "portmidid.lib")
         #pragma comment(lib, "msvcprtd.lib")
         #pragma comment(lib, "libzstdd_static_VS.lib")
 
@@ -78,7 +77,6 @@
         #pragma comment(lib, "wxmsw" WXWIDGETS_VERSION "u_qa.lib")
         #pragma comment(lib, "wxexpat.lib")
         #pragma comment(lib, "libzstd_static_VS.lib")
-        #pragma comment(lib, "portmidi.lib")
         #pragma comment(lib, "msvcprt.lib")
     #endif
 
@@ -304,6 +302,8 @@ bool xScheduleApp::OnInit()
         xlCrashHandler::SetupCrashHandlerForNonWxThread();
     });
     AppCallbacks::SetDisplayMessageCallback([](AppCallbacks::DisplayMessageLevel level, const std::string& msg) {
+        // already logged by the core; see ScheduleManager::StartOutputToLights
+        if (ScheduleManager::IsStartingOutputToLights()) return;
         auto showBox = [level, msg]() {
             switch (level) {
             case AppCallbacks::DisplayMessageLevel::Error:
