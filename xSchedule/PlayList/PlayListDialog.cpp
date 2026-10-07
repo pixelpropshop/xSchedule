@@ -391,6 +391,7 @@ void PlayListDialog::OnTreeCtrl_PlayListSelectionChanged(wxTreeEvent& event)
     ModernUI::GrowFilePickers(Notebook1);
     ModernUI::FitToContents(this);
     BalanceSplitter();
+    CallAfter([this]() { ModernUI::LogClippedControls(this); });
     ValidateWindow();
 }
 

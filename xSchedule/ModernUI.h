@@ -98,6 +98,9 @@ void FitToContents(wxTopLevelWindow* win);
 void FitListHeaders(wxWindow* root);
 // Lets the text box of file pickers take the spare width instead of staying a fixed share.
 void GrowFilePickers(wxWindow* root);
+// Logs every button, check box and label in the window that is narrower than its text (a layout check for
+// development; enabled with the XSCHEDULE_LAYOUT_CHECK environment variable).
+void LogClippedControls(wxWindow* root);
 // Places a side by side splitter's sash at the given fraction, but never so either pane gets less than it needs.
 void BalanceSplitter(wxSplitterWindow* splitter, double fraction);
 // Tab titles treat "&" as a shortcut marker ("FSEQ & Video" shows as "FSEQ _Video"); escape them.

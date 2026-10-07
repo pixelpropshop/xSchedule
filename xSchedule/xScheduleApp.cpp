@@ -286,6 +286,7 @@ int xScheduleApp::FilterEvent(wxEvent& event)
             ModernUI::FitListHeaders(dlg);
             ModernUI::GrowFilePickers(dlg);
             ModernUI::FitToContents(dlg);
+            dlg->CallAfter([dlg]() { ModernUI::LogClippedControls(dlg); });
         }
     }
     return xlBaseApp::FilterEvent(event);

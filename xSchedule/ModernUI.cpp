@@ -15,6 +15,10 @@
 #include <wx/dcmemory.h>
 #include <wx/graphics.h>
 #include <wx/bookctrl.h>
+#include <wx/button.h>
+#include <wx/checkbox.h>
+#include <wx/stattext.h>
+#include <wx/utils.h>
 #include <wx/display.h>
 #include <wx/filepicker.h>
 #include <wx/image.h>
@@ -25,6 +29,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <functional>
 #include <memory>
 
 #include <log.h>
@@ -652,6 +657,25 @@ void FitListHeaders(wxWindow* root) {
     for (auto child : root->GetChildren()) {
         if (!child->IsTopLevel()) FitListHeaders(child);
     }
+}
+
+void LogClippedControls(wxWindow* root) {
+    static const bool enabled = wxGetEnv("XSCHEDULE_LAYOUT_CHECK", nullptr);
+    if (!enabled || root == nullptr) return;
+
+    std::function<void(wxWindow*)> walk = [&](wxWindow* w) {
+        if (!w->IsShownOnScreen()) return;
+        const bool text = dynamic_cast<wxButton*>(w) != nullptr || dynamic_cast<wxCheckBox*>(w) != nullptr ||
+                          (dynamic_cast<wxStaticText*>(w) != nullptr && !w->HasFlag(wxST_ELLIPSIZE_MIDDLE | wxST_ELLIPSIZE_END | wxST_ELLIPSIZE_START));
+        if (text && !w->GetLabel().empty() && w->GetSize().x + 1 < w->GetBestSize().x) {
+            spdlog::warn("Layout check: \"{}\" in \"{}\" is {} px wide but needs {}.", w->GetLabel().ToStdString(),
+                         wxGetTopLevelParent(w)->GetLabel().ToStdString(), w->GetSize().x, w->GetBestSize().x);
+        }
+        for (auto child : w->GetChildren()) {
+            if (!child->IsTopLevel()) walk(child);
+        }
+    };
+    walk(root);
 }
 
 void BalanceSplitter(wxSplitterWindow* splitter, double fraction) {

@@ -21,6 +21,7 @@
 
 #include <wx/msgdlg.h>
 #include <wx/config.h>
+#include <wx/display.h>
 #include <wx/file.h>
 #include <wx/dir.h>
 #include <wx/filename.h>
@@ -759,10 +760,21 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     CreateModernBitmaps();
     ApplyModernLayout();
 
+    // the window can't be narrower than the toolbar
+    {
+        const int display = wxDisplay::GetFromWindow(this);
+        const wxRect area = wxDisplay(display == wxNOT_FOUND ? 0 : display).GetClientArea();
+        const int minWidth = std::min(ClientToWindowSize(wxSize(Panel2->GetBestSize().x, 0)).x, area.width);
+        SetMinSize(wxSize(minWidth, std::min(FromDIP(480), area.height)));
+        if (GetSize().x < minWidth) SetSize(minWidth, GetSize().y);
+    }
+
     // a sash position saved at another display scale must not squeeze the playlist buttons
-    SplitterWindow1->SetMinimumPaneSize(Panel3->GetBestSize().x);
-    SplitterWindow1->SetSashPosition(std::max(SplitterWindow1->GetSashPosition(), SplitterWindow1->GetMinimumPaneSize()));
+    SplitterWindow1->SetMinimumPaneSize(Button_Add->GetContainingSizer()->CalcMin().x + FromDIP(24));
+    SplitterWindow1->SetSashPosition(std::max((int)wxConfigBase::Get()->ReadLong("xsSashPositionV", 500), SplitterWindow1->GetMinimumPaneSize()));
+
     ModernUI::FitListHeaders(this);
+    CallAfter([this]() { ModernUI::LogClippedControls(this); });
 
     spdlog::debug("Loading show folder.");
     if (showdir == "")     {
@@ -2796,21 +2808,12 @@ void xScheduleFrame::UpdateStatus(bool force)
             if (ListView_Running->GetToolTipText() != "") ListView_Running->UnsetToolTip();
         }
 
-        ListView_Running->SetColumnWidth(0, wxLIST_AUTOSIZE);
-        if (ListView_Running->GetColumnWidth(0) < 50)
-            ListView_Running->SetColumnWidth(0, 50);
-        ListView_Running->SetColumnWidth(1, wxLIST_AUTOSIZE);
-        if (ListView_Running->GetColumnWidth(1) < 80)
-            ListView_Running->SetColumnWidth(1, 80);
-        ListView_Running->SetColumnWidth(2, wxLIST_AUTOSIZE);
-        if (ListView_Running->GetColumnWidth(2) < 80)
-            ListView_Running->SetColumnWidth(2, 80);
-        ListView_Running->SetColumnWidth(3, wxLIST_AUTOSIZE);
-        if (ListView_Running->GetColumnWidth(3) < 80)
-            ListView_Running->SetColumnWidth(3, 80);
-        ListView_Running->SetColumnWidth(4, wxLIST_AUTOSIZE);
-        if (ListView_Running->GetColumnWidth(4) < 250)
-            ListView_Running->SetColumnWidth(4, 250);
+        const int minWidths[] = { 50, 80, 80, 80, 250 };
+        for (int c = 0; c < 5; ++c) {
+            ListView_Running->SetColumnWidth(c, wxLIST_AUTOSIZE);
+            if (ListView_Running->GetColumnWidth(c) < FromDIP(minWidths[c])) ListView_Running->SetColumnWidth(c, FromDIP(minWidths[c]));
+        }
+        ModernUI::FitListHeaders(ListView_Running);
     }
 
     ListView_Running->Thaw();
