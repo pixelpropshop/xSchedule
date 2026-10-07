@@ -14,12 +14,19 @@
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
 #include <wx/graphics.h>
+#include <wx/display.h>
+#include <wx/filepicker.h>
 #include <wx/image.h>
+#include <wx/listctrl.h>
+#include <wx/splitter.h>
+#include <wx/toplevel.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <memory>
+
+#include <log.h>
 
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 
@@ -587,6 +594,73 @@ void NowPlayingBar::OnPaint(wxPaintEvent&) {
             gc->SetBrush(wxBrush(_state == State::Paused ? t.waitText : t.accent));
             gc->DrawRoundedRectangle(left, midY - barH / 2, std::max(barH, width * frac), barH, barH / 2);
         }
+    }
+}
+
+// cached best sizes go stale when panels are swapped, and wxSmith gives splitters a token minimum size that
+// hides what their panes need
+static void RefreshSizeHints(wxWindow* w) {
+    if (auto sp = dynamic_cast<wxSplitterWindow*>(w); sp != nullptr) sp->SetMinSize(wxDefaultSize);
+    w->InvalidateBestSize();
+    for (auto child : w->GetChildren()) {
+        if (!child->IsTopLevel()) RefreshSizeHints(child);
+    }
+}
+
+void FitToContents(wxTopLevelWindow* win) {
+    if (win == nullptr || win->GetSizer() == nullptr || win->IsMaximized()) return;
+
+    RefreshSizeHints(win);
+    win->Layout();
+    wxSize need = win->ClientToWindowSize(win->GetSizer()->CalcMin());
+
+    int d = wxDisplay::GetFromWindow(win);
+    const wxRect area = wxDisplay(d == wxNOT_FOUND ? 0 : d).GetClientArea();
+    need.x = std::min(need.x, area.width);
+    need.y = std::min(need.y, area.height);
+
+    const wxSize min = win->GetMinSize();
+    win->SetMinSize(wxSize(std::max(need.x, min.x), std::max(need.y, min.y)));
+
+    wxRect r = win->GetRect();
+    if (r.width >= need.x && r.height >= need.y) return;
+    r.width = std::max(r.width, need.x);
+    r.height = std::max(r.height, need.y);
+    // keep the grown window on the screen
+    r.x = std::max(area.x, std::min(r.x, area.GetRight() + 1 - r.width));
+    r.y = std::max(area.y, std::min(r.y, area.GetBottom() + 1 - r.height));
+    win->SetSize(r);
+}
+
+void FitListHeaders(wxWindow* root) {
+    if (root == nullptr) return;
+    if (auto list = dynamic_cast<wxListCtrl*>(root); list != nullptr && list->InReportView()) {
+        for (int c = 0; c < list->GetColumnCount(); ++c) {
+            wxListItem col;
+            col.SetMask(wxLIST_MASK_TEXT);
+            list->GetColumn(c, col);
+            if (col.GetText().empty() || list->GetColumnWidth(c) == 0) continue;
+            const int need = list->GetTextExtent(col.GetText()).x + list->FromDIP(20);
+            if (list->GetColumnWidth(c) < need) list->SetColumnWidth(c, need);
+        }
+    }
+    for (auto child : root->GetChildren()) {
+        if (!child->IsTopLevel()) FitListHeaders(child);
+    }
+}
+
+void GrowFilePickers(wxWindow* root) {
+    if (root == nullptr) return;
+    if (auto picker = dynamic_cast<wxPickerBase*>(root); picker != nullptr && picker->HasTextCtrl()) {
+        picker->SetTextCtrlGrowable(true);
+        picker->SetTextCtrlProportion(4);
+        picker->SetPickerCtrlGrowable(false);
+        picker->GetTextCtrl()->SetMinSize(wxSize(picker->FromDIP(200), -1));
+        picker->InvalidateBestSize();
+        picker->Layout();
+    }
+    for (auto child : root->GetChildren()) {
+        if (!child->IsTopLevel()) GrowFilePickers(child);
     }
 }
 

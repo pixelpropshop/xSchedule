@@ -759,6 +759,11 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     CreateModernBitmaps();
     ApplyModernLayout();
 
+    // a sash position saved at another display scale must not squeeze the playlist buttons
+    SplitterWindow1->SetMinimumPaneSize(Panel3->GetBestSize().x);
+    SplitterWindow1->SetSashPosition(std::max(SplitterWindow1->GetSashPosition(), SplitterWindow1->GetMinimumPaneSize()));
+    ModernUI::FitListHeaders(this);
+
     spdlog::debug("Loading show folder.");
     if (showdir == "")     {
         LoadShowDir();

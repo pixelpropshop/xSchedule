@@ -26,6 +26,7 @@ class xScheduleApp : public xlBaseApp
         virtual bool OnInit() override;
         void WipeSettings();
         virtual int OnExit() override;
+        virtual int FilterEvent(wxEvent& event) override;
         xScheduleFrame* GetFrame() { return (xScheduleFrame*)GetTopWindow(); }
 };
 

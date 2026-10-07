@@ -20,6 +20,7 @@
 #include <string>
 
 class wxDC;
+class wxTopLevelWindow;
 
 namespace ModernUI {
 
@@ -87,6 +88,14 @@ wxBitmap MakeTreeIcon(wxWindow* win, Glyph glyph);
 wxBitmap MakeSwatch(wxWindow* win, const wxColour& color);
 
 void DrawLevel(wxDC& dc, wxWindow* win, const wxString& label, int value);
+
+// Grows a window to at least what its sizer needs at the current DPI (a size saved at another scale can be
+// too small), within the screen it is on. Never shrinks it.
+void FitToContents(wxTopLevelWindow* win);
+// Widens report list columns whose header text does not fit.
+void FitListHeaders(wxWindow* root);
+// Lets the text box of file pickers take the spare width instead of staying a fixed share.
+void GrowFilePickers(wxWindow* root);
 
 std::string FormatDuration(size_t ms);
 std::string FormatWhen(const wxDateTime& when);
