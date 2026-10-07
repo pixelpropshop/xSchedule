@@ -17,11 +17,19 @@ xSchedule is part of the [xLights](https://github.com/xLightsSequencer/xLights) 
 
 ## Building
 
+Clone with the submodules, or initialize them after cloning; the build takes the xLights code and the matching
+library versions from them:
+```bash
+git clone --recursive https://github.com/xLightsSequencer/xSchedule.git
+# or, in an existing clone
+git submodule update --init --recursive
+```
+
 ### Linux
 
 ```bash
 # Install dependencies (Ubuntu 24.04 or newer, the same minimum as current xLights)
-sudo apt-get install g++ build-essential libgtk-3-dev libgstreamer1.0-dev \
+sudo apt-get install g++ build-essential pkg-config libgtk-3-dev libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev freeglut3-dev libavcodec-dev \
     libavformat-dev libavfilter-dev libswscale-dev libswresample-dev libsdl2-dev libavutil-dev \
     libportmidi-dev libzstd-dev libwebp-dev libcurl4-openssl-dev libexpat1-dev \
@@ -52,11 +60,6 @@ then open `xSchedule/xSchedule.sln` and build Release x64.
 ## Repository Structure
 
 xSchedule's own source code lives in `xSchedule/`. Shared code from the xLights project (outputs, controllers, utilities, audio/video support) is provided via the `xlights/` git submodule.
-
-After cloning, initialize submodules:
-```bash
-git submodule update --init --recursive
-```
 
 ## License
 
