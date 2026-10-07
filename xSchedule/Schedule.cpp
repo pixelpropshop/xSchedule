@@ -470,6 +470,8 @@ bool Schedule::ShouldFire() const
     wxDateTime start = GetStartTime();
     wxTimeSpan gap = wxDateTime::Now() - _lastFired;
     wxTimeSpan sinceStart = wxDateTime::Now() - start;
+    // the first fire is at the start time itself; the interval checks below only cover the later ones
+    bool atStart = !sinceStart.IsNegative() && sinceStart < wxTimeSpan(0, 1, 0, 0);
 
     int minute = wxDateTime::Now().GetMinute();
 
@@ -477,7 +479,7 @@ bool Schedule::ShouldFire() const
         fire = false;
         if (minute == start.GetMinute() &&
             gap.IsLongerThan(wxTimeSpan(0, 59, 59, 0)) &&
-            gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0,59,59,0))) {
+            gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0,59,59,0)))) {
             fire = true;
         }
     } 
@@ -485,7 +487,7 @@ bool Schedule::ShouldFire() const
         fire = false;
         if ((minute == start.GetMinute() || minute == (start.GetMinute() + 90) % 60) &&
             gap.IsLongerThan(wxTimeSpan(0, 89, 59, 0)) &&
-            gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0, 89, 59, 0))) {
+            gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0, 89, 59, 0)))) {
             fire = true;
         }
     }
@@ -493,7 +495,7 @@ bool Schedule::ShouldFire() const
         fire = false;
         if ((minute == start.GetMinute() || minute == (start.GetMinute() + 30) % 60) &&
             gap.IsLongerThan(wxTimeSpan(0, 29, 59, 0)) &&
-            gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0, 29, 59, 0))) {
+            gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0, 29, 59, 0)))) {
             fire = true;
         }
     }
@@ -502,7 +504,7 @@ bool Schedule::ShouldFire() const
         if ((minute == start.GetMinute() || minute == (start.GetMinute() + 20) % 60 ||
             minute == (start.GetMinute() + 40) % 60) &&
             gap.IsLongerThan(wxTimeSpan(0, 19, 59, 0)) &&
-            gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0, 19, 59, 0))) {
+            gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0, 19, 59, 0)))) {
             fire = true;
         }
     }
@@ -511,7 +513,7 @@ bool Schedule::ShouldFire() const
         if ((minute == start.GetMinute() || minute == (start.GetMinute() + 15) % 60 ||
             minute == (start.GetMinute() + 30) % 60 || minute == (start.GetMinute() + 45) % 60) &&
             gap.IsLongerThan(wxTimeSpan(0, 14, 59, 0)) &&
-            gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0, 14, 59, 0))) {
+            gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0, 14, 59, 0)))) {
             fire = true;
         }
     }
@@ -521,7 +523,7 @@ bool Schedule::ShouldFire() const
             minute == (start.GetMinute() + 20) % 60 || minute == (start.GetMinute() + 30) % 60 ||
             minute == (start.GetMinute() + 40) % 60 || minute == (start.GetMinute() + 50) % 60) &&
             gap.IsLongerThan(wxTimeSpan(0, 9, 59, 0)) &&
-            gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0, 9, 59, 0))) {
+            gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0, 9, 59, 0)))) {
             fire = true;
         }
     }
@@ -534,13 +536,13 @@ bool Schedule::ShouldFire() const
             minute == (start.GetMinute() + 40) % 60 || minute == (start.GetMinute() + 45) % 60 ||
             minute == (start.GetMinute() + 50) % 60 || minute == (start.GetMinute() + 55) % 60) &&
             gap.IsLongerThan(wxTimeSpan(0, 4, 59, 0)) &&
-            gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0, 4, 59, 0))) {
+            gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0, 4, 59, 0)))) {
             fire = true;
         }
     }
     else if (_fireFrequency == "Fire every 2 minutes") {
         fire = false;
-        if (gap.GetMinutes() > 0 && sinceStart.IsLongerThan(wxTimeSpan(0, 1, 59, 0))) {
+        if (gap.GetMinutes() > 0 && (atStart || sinceStart.IsLongerThan(wxTimeSpan(0, 1, 59, 0)))) {
             for (int i = 0; i < 60; i += 2) {
                 if (minute == (start.GetMinute() + i) % 60 ||
                     gap.IsLongerThan(wxTimeSpan(0, 1, 59, 0))) {
@@ -760,18 +762,7 @@ bool Schedule::IsActiveAt(const wxDateTime& now) const
     spdlog::debug("   Checking {}.", (const char *)now.Format("%Y-%m-%d %H:%M").c_str());
 #endif
 
-    if (!_enabled || !IsOkDOW(now) || !IsOkNthDay(now))
-    {
-#ifdef LOGCALCNEXTTRIGGERTIME
-        spdlog::debug("       Disabled or wrong day of week.");
-#endif
-
-        return false;
-    }
-
-    wxDateTime start;
-    wxDateTime end;
-    GetDateRange(now, start, end);
+    if (!_enabled) return false;
 
     wxDateTime s = now;
     wxDateTime e = now;
@@ -779,9 +770,24 @@ bool Schedule::IsActiveAt(const wxDateTime& now) const
     SetTime(s, __city, _startTime, _startTimeString, _onOffsetMins);
     SetTime(e, __city, _endTime, _endTimeString, _offOffsetMins);
 
+    // a window that runs past midnight belongs to the night it started on, for the day of week too: a Friday and
+    // Saturday 17:00-00:30 show runs into early Sunday, not early Friday
     wxDateTime night = now;
     if (e < s && now < e) night -= wxDateSpan::Day();
+
+    if (!IsOkDOW(night) || !IsOkNthDay(night))
+    {
+#ifdef LOGCALCNEXTTRIGGERTIME
+        spdlog::debug("       Wrong day of week.");
+#endif
+
+        return false;
+    }
     if (IsSkipDate(night)) return false;
+
+    wxDateTime start;
+    wxDateTime end;
+    GetDateRange(now, start, end);
 
     start.SetHour(s.GetHour());
     start.SetMinute(s.GetMinute());

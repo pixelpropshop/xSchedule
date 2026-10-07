@@ -316,6 +316,36 @@ void TestReviewFindings() {
     }
 }
 
+void TestOvernightDays() {
+    // Friday and Saturday shows that run past midnight: the hours after midnight belong to the night before
+    Schedule s = Make({ { "DOW", "FriSat" }, { "StartDate", "2026-01-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "17:00" }, { "EndTime", "00:30" } });
+    CHECK(!s.IsActiveAt(D(2026, 10, 8, 23, 0)));   // Thursday night
+    CHECK(!s.IsActiveAt(D(2026, 10, 9, 0, 15)));   // still Thursday night
+    CHECK(s.IsActiveAt(D(2026, 10, 9, 18, 0)));    // Friday
+    CHECK(s.IsActiveAt(D(2026, 10, 10, 0, 15)));   // Friday night after midnight
+    CHECK(s.IsActiveAt(D(2026, 10, 11, 0, 15)));   // Saturday night after midnight
+    CHECK(!s.IsActiveAt(D(2026, 10, 11, 0, 45)));
+    CHECK(!s.IsActiveAt(D(2026, 10, 11, 18, 0)));  // Sunday
+
+    // the Upcoming tab agrees with what plays
+    auto w = s.GetUpcomingWindows(D(2026, 10, 8, 12, 0), 2);
+    CHECK(w.size() == 2);
+    if (w.size() == 2) {
+        CHECK(w[0].first == D(2026, 10, 9, 17, 0) && w[0].second == D(2026, 10, 10, 0, 30));
+        CHECK(w[1].first == D(2026, 10, 10, 17, 0) && w[1].second == D(2026, 10, 11, 0, 30));
+    }
+
+    // every other day counts the night too
+    Schedule n = Make({ { "NthDay", "2" }, { "NthDayOffset", "0" }, { "StartDate", "2026-01-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "20:00" }, { "EndTime", "01:00" } });
+    wxDateTime on = D(2026, 3, 1, 21, 0);
+    if (!n.IsActiveAt(on)) on += wxDateSpan::Day();
+    CHECK(n.IsActiveAt(on));
+    wxDateTime after = on + wxDateSpan::Day();
+    after.SetHour(0);
+    after.SetMinute(30);
+    CHECK(n.IsActiveAt(after));                    // the same night, after midnight
+}
+
 void TestJSONAndState() {
     // names with quotes or backslashes still produce valid JSON
     Schedule s = Make({ { "Name", R"(Kids "Request" Hour \ 2)" }, { "StartTime", "17:00" }, { "EndTime", "22:00" } });
@@ -343,6 +373,7 @@ int main(int argc, char** argv) {
     TestFireOnceIsNotShared();
     TestFileCompatibility();
     TestReviewFindings();
+    TestOvernightDays();
     TestJSONAndState();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
