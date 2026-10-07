@@ -1,6 +1,6 @@
 $(document).ready(function() {
   // fall back to polling whenever the web socket is not connected
-  window.setInterval(function() {
+  xsNativeSetInterval.call(window, function() {
     if (socket.readyState != 1) {
       updateStatus();
     }

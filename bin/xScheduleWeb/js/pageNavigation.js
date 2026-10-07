@@ -1,3 +1,13 @@
+// Pages and plugins are loaded into this same document, so a timer a page starts would keep running after the user
+// moves on (the SMS plugin polls every 5 seconds). Timers are tracked and stopped when another page is shown.
+var xsPageTimers = [];
+var xsNativeSetInterval = window.setInterval;
+window.setInterval = function() {
+  var id = xsNativeSetInterval.apply(window, arguments);
+  xsPageTimers.push(id);
+  return id;
+};
+
 $(document).ready(function() {
   //populate current page
   updateCurrentPage(true);
@@ -26,6 +36,8 @@ function updateCurrentPage(fromHistory) {
 // fromHistory: the URL already shows this page (first load, back/forward), so no new history entry is added
 function updatePage(type, pageName, args, fromHistory) {
   currentPage = pageName;
+  xsPageTimers.forEach(function(id) { clearInterval(id); });
+  xsPageTimers = [];
   $('.xs-tabs li, .xs-bottom a').removeClass('active');
   $('.dropdown.open').removeClass('open');
 
