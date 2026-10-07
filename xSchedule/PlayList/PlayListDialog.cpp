@@ -386,10 +386,7 @@ void PlayListDialog::OnTreeCtrl_PlayListSelectionChanged(wxTreeEvent& event)
         PlayListItem* pli = (PlayListItem*)((MyTreeItemData*)TreeCtrl_PlayList->GetItemData(treeitem))->GetData();
         SwapPage(nullptr);
         pli->Configure(Notebook1);
-        for (size_t i = 0; i < Notebook1->GetPageCount(); ++i) {
-            wxString title = Notebook1->GetPageText(i);
-            if (title.Replace("&&", "&") == 0 && title.Replace("&", "&&") > 0) Notebook1->SetPageText(i, title);
-        }
+        ModernUI::EscapePageTitles(Notebook1);
     }
     ModernUI::GrowFilePickers(Notebook1);
     ModernUI::FitToContents(this);
@@ -397,14 +394,9 @@ void PlayListDialog::OnTreeCtrl_PlayListSelectionChanged(wxTreeEvent& event)
     ValidateWindow();
 }
 
-// about half each, but never less than either side needs
 void PlayListDialog::BalanceSplitter()
 {
-    const int left = Panel1->GetBestSize().x;
-    const int right = Panel2->GetBestSize().x;
-    const int width = SplitterWindow1->GetClientSize().x - SplitterWindow1->GetSashSize();
-    SplitterWindow1->SetMinimumPaneSize(std::min(left, right));
-    SplitterWindow1->SetSashPosition(std::clamp(width * 48 / 100, left, std::max(left, width - right)));
+    ModernUI::BalanceSplitter(SplitterWindow1, 0.48);
 }
 
 void PlayListDialog::OnTreeMouseMove(wxMouseEvent& event)

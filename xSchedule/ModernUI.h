@@ -21,6 +21,8 @@
 
 class wxDC;
 class wxTopLevelWindow;
+class wxBookCtrlBase;
+class wxSplitterWindow;
 
 namespace ModernUI {
 
@@ -96,6 +98,10 @@ void FitToContents(wxTopLevelWindow* win);
 void FitListHeaders(wxWindow* root);
 // Lets the text box of file pickers take the spare width instead of staying a fixed share.
 void GrowFilePickers(wxWindow* root);
+// Places a side by side splitter's sash at the given fraction, but never so either pane gets less than it needs.
+void BalanceSplitter(wxSplitterWindow* splitter, double fraction);
+// Tab titles treat "&" as a shortcut marker ("FSEQ & Video" shows as "FSEQ _Video"); escape them.
+void EscapePageTitles(wxBookCtrlBase* book);
 
 std::string FormatDuration(size_t ms);
 std::string FormatWhen(const wxDateTime& when);

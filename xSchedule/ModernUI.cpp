@@ -14,6 +14,7 @@
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
 #include <wx/graphics.h>
+#include <wx/bookctrl.h>
 #include <wx/display.h>
 #include <wx/filepicker.h>
 #include <wx/image.h>
@@ -597,10 +598,14 @@ void NowPlayingBar::OnPaint(wxPaintEvent&) {
     }
 }
 
-// cached best sizes go stale when panels are swapped, and wxSmith gives splitters a token minimum size that
-// hides what their panes need
+// cached best sizes go stale when panels are swapped, and wxSmith gives splitters and their panes fixed
+// minimum sizes from when the dialog was designed, which hide what the panes need now
 static void RefreshSizeHints(wxWindow* w) {
-    if (auto sp = dynamic_cast<wxSplitterWindow*>(w); sp != nullptr) sp->SetMinSize(wxDefaultSize);
+    if (auto sp = dynamic_cast<wxSplitterWindow*>(w); sp != nullptr) {
+        sp->SetMinSize(wxDefaultSize);
+        if (sp->GetWindow1() != nullptr) sp->GetWindow1()->SetMinSize(wxDefaultSize);
+        if (sp->GetWindow2() != nullptr) sp->GetWindow2()->SetMinSize(wxDefaultSize);
+    }
     w->InvalidateBestSize();
     for (auto child : w->GetChildren()) {
         if (!child->IsTopLevel()) RefreshSizeHints(child);
@@ -646,6 +651,26 @@ void FitListHeaders(wxWindow* root) {
     }
     for (auto child : root->GetChildren()) {
         if (!child->IsTopLevel()) FitListHeaders(child);
+    }
+}
+
+void BalanceSplitter(wxSplitterWindow* splitter, double fraction) {
+    if (splitter == nullptr || !splitter->IsSplit() || splitter->GetSplitMode() != wxSPLIT_VERTICAL) return;
+    auto w1 = splitter->GetWindow1();
+    auto w2 = splitter->GetWindow2();
+    w1->InvalidateBestSize();
+    w2->InvalidateBestSize();
+    const int left = w1->GetBestSize().x;
+    const int right = w2->GetBestSize().x;
+    const int width = splitter->GetClientSize().x - splitter->GetSashSize();
+    splitter->SetMinimumPaneSize(std::min(left, right));
+    splitter->SetSashPosition(std::clamp((int)(width * fraction), left, std::max(left, width - right)));
+}
+
+void EscapePageTitles(wxBookCtrlBase* book) {
+    for (size_t i = 0; i < book->GetPageCount(); ++i) {
+        wxString title = book->GetPageText(i);
+        if (!title.Contains("&&") && title.Replace("&", "&&") > 0) book->SetPageText(i, title);
     }
 }
 
