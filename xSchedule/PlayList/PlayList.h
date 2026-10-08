@@ -50,6 +50,7 @@ protected:
     int _loops;
     bool _random;
     bool _suspendAtEndOfStep;
+    bool _restartStepOnResume = false;
     bool _jumpToEndStepsAtEndOfCurrentStep;
     std::string _forceNextStep;
     std::list<wxUint32> _played;
@@ -91,6 +92,10 @@ public:
     }
     void SetSuspendAtEndOfCurrentStep() {
         _suspendAtEndOfStep = true;
+    }
+    // when next unsuspended, start the current step again from the beginning rather than carrying on
+    void SetRestartStepOnResume(bool restart) {
+        _restartStepOnResume = restart;
     }
     void JumpToStepAtEndOfCurrentStep(const std::string& step) {
         _forceNextStep = step;

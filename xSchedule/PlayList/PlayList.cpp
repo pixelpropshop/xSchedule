@@ -589,6 +589,7 @@ void PlayList::Start(bool loop, bool random, int loops, const std::string& step)
         _stopAtEndOfCurrentStep = false;
         _jumpToEndStepsAtEndOfCurrentStep = false;
         _suspendAtEndOfStep = false;
+        _restartStepOnResume = false;
         _lastLoop = false;
         _stopAtEndOfCurrentStep = false;
 
@@ -803,7 +804,17 @@ int PlayList::Suspend(bool suspend) {
         return 50;
 
     if (!IsPaused()) {
-        if (!suspend && IsSuspended()) {
+        if (!suspend && IsSuspended() && _restartStepOnResume) {
+            spdlog::info("         Playlist {} unsuspending and restarting step {}.", (const char*)GetNameNoTime().c_str(), (const char*)_currentStep->GetNameNoTime().c_str());
+            _suspendTime = wxDateTime(static_cast<time_t>(0));
+            _restartStepOnResume = false;
+            int loops = _currentStep->GetLoopsLeft();
+            _currentStep->Stop();
+            StopEveryStep();
+            _currentStep->Start(loops);
+            StartEveryStep(-1);
+            return _currentStep->GetFrameMS();
+        } else if (!suspend && IsSuspended()) {
             // unsuspend
             spdlog::info("         Playlist {} unsuspending.", (const char*)GetNameNoTime().c_str());
             _currentStep->AdjustTime(wxDateTime::Now() - _suspendTime);
@@ -914,8 +925,10 @@ bool PlayList::MoveToNextStep(bool suppressNext) {
         spdlog::debug("Move to next step moved to {}.", (const char*)_currentStep->GetNameNoTime().c_str());
 
         if (_suspendAtEndOfStep) {
+            // the step has to be started to be suspended, so it starts again from the beginning when resumed
             Suspend(true);
             _suspendAtEndOfStep = false;
+            _restartStepOnResume = true;
             return false;
         }
     } else {

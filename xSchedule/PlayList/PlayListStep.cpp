@@ -596,6 +596,7 @@ void PlayListStep::Start(int loops)
     spdlog::info("         ######## Playlist step {} starting.", (const char*)GetNameNoTime().c_str());
 
     _loops = loops;
+    _suspend = 0;
     _startTime = wxGetUTCTimeMillis().GetLo();
     {
         ReentrancyCounter rec(_reentrancyCounter);

@@ -397,7 +397,13 @@ function xsPlaylistItem(playlist) {
     '<span class="tag">' + (playing ? '<span class="xs-pill p-acc">Playing</span>' : '') + '</span>' +
     '<span class="len">' + xsEscape(xsDuration(playlist.length)) + '</span>' +
     '<span class="acts"><button type="button" class="xs-btn xs-btn-sm" data-view-playlist="' + xsEscape(playlist.name) + '">View</button>' +
-    '<button type="button" class="xs-btn xs-btn-sm xs-btn-primary" data-play-playlist="' + xsEscape(playlist.id) + '">' + xsIcon('play', 12) + 'Play</button></span>' +
+    '<button type="button" class="xs-btn xs-btn-sm xs-btn-primary" data-play-playlist="' + xsEscape(playlist.id) + '">' + xsIcon('play', 12) + 'Play</button>' +
+    '<span class="dropdown"><button type="button" class="xs-btn xs-btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="More ways to play" aria-label="More ways to play">' + xsIcon('more', 12) + '</button>' +
+    '<ul class="dropdown-menu dropdown-menu-right">' +
+    '<li><a data-play-mode="Play specified playlist next" data-playlist-id="' + xsEscape(playlist.id) + '">Play next</a></li>' +
+    '<li><a data-play-mode="Play specified playlist now then resume" data-playlist-id="' + xsEscape(playlist.id) + '">Play now, then resume</a></li>' +
+    '<li><a data-play-mode="Play specified playlist now then restart interrupted step" data-playlist-id="' + xsEscape(playlist.id) + '">Play now, then restart the interrupted song</a></li>' +
+    '</ul></span></span>' +
     '</li>';
 }
 
@@ -406,6 +412,9 @@ $(document).on('click', '[data-press-button]', function() {
 });
 $(document).on('click', '[data-play-playlist]', function() {
   runCommand('Play specified playlist', 'id:' + $(this).attr('data-play-playlist'));
+});
+$(document).on('click', '[data-play-mode]', function() {
+  runCommand($(this).attr('data-play-mode'), 'id:' + $(this).attr('data-playlist-id'));
 });
 $(document).on('click', '[data-view-playlist]', function() {
   updatePage('page', 'playlists', $(this).attr('data-view-playlist'));
