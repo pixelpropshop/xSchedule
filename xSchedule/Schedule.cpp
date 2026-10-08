@@ -954,7 +954,15 @@ std::string Schedule::GetNextTriggerTime()
 
 void Schedule::AddMinsToEndTime(int mins)
 {
-    _endTime += wxTimeSpan(0, mins);
+    // a sun based end time is worked out again each time it is used, so its offset is what has to move
+    if (_endTimeString != "")
+    {
+        _offOffsetMins += mins;
+    }
+    else
+    {
+        _endTime += wxTimeSpan(0, mins);
+    }
 }
 
 std::string Schedule::GetNextEndTime()

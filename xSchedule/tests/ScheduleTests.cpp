@@ -427,6 +427,26 @@ void TestSunTimes() {
     Schedule::SetLocation(true, -33.861481, 151.205475);
 }
 
+void TestExtendEndTime() {
+    double localLon = LocalLongitude();
+    Schedule::SetLocation(true, 40.0, localLon);
+    wxDateTime sunset = City::GetSunTime(40.0, localLon, D(2026, 12, 21), City::SunEvent::Sunset);
+
+    Schedule s = Make({ { "StartDate", "2026-12-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "12:00" }, { "EndTime", "sunset" }, { "OffOffsetMins", "15" } });
+    wxDateTime after = sunset + wxTimeSpan(0, 25);
+    CHECK(!s.IsActiveAt(after));
+    s.AddMinsToEndTime(30);
+    CHECK(s.IsActiveAt(after));
+    CHECK(!s.IsActiveAt(sunset + wxTimeSpan(0, 50)));
+
+    Schedule fixed = Make({ { "StartDate", "2026-12-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "17:00" }, { "EndTime", "22:00" } });
+    CHECK(!fixed.IsActiveAt(D(2026, 12, 21, 22, 15)));
+    fixed.AddMinsToEndTime(30);
+    CHECK(fixed.IsActiveAt(D(2026, 12, 21, 22, 15)));
+
+    Schedule::SetLocation(true, -33.861481, 151.205475);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -447,6 +467,7 @@ int main(int argc, char** argv) {
     TestOvernightDays();
     TestJSONAndState();
     TestSunTimes();
+    TestExtendEndTime();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;
