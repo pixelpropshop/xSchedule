@@ -805,6 +805,21 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
                 done = running->Frame(_buffer, totalChannels, outputframe);
                 spdlog::debug("Frame: step frame done {}ms", sw.Time());
 
+                std::string call = running->TakePendingCall();
+                if (!call.empty() && !done) {
+                    PlayList* p = GetPlayList(call);
+                    if (p == nullptr || p->GetId() == running->GetId()) {
+                        spdlog::warn("Branch in playlist {} can't play playlist '{}'.", running->GetNameNoTime(), call);
+                    } else {
+                        // the step after the branch has just started; it starts again once the other playlist ends
+                        running->SetRestartStepOnResume(true);
+                        running->Suspend(true);
+                        _playNext = p->GetId();
+                        wxCommandEvent event(EVT_DOCHECKSCHEDULE);
+                        wxPostEvent(wxGetApp().GetTopWindow(), event);
+                    }
+                }
+
                 if (running->GetRunningStep() != nullptr) {
                     size_t fms;
                     std::string tsn = "";

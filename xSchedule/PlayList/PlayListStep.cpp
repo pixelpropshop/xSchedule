@@ -12,6 +12,7 @@
 
 #include "PlayList.h"
 #include "PlayListItemVideo.h"
+#include "PlayListItemBranch.h"
 #include "PlayListItemImage.h"
 #include "PlayListItemJukebox.h"
 #include "PlayListItemESEQ.h"
@@ -347,6 +348,10 @@ void PlayListStep::Load(OutputManager* outputManager, wxXmlNode* node)
         {
             _items.push_back(new PlayListItemOSC(n));
         }
+        else if (n->GetName() == "PLIBranch")
+        {
+            _items.push_back(new PlayListItemBranch(n));
+        }
         else if (n->GetName() == "PLIVirtualMatrix")
         {
             // ignore this node ... these are not supported here any more.
@@ -589,6 +594,14 @@ size_t PlayListStep::GetFrameMS()
     size_t ms = 0;
     GetTimeSource(ms);
     return ms;
+}
+
+PlayListItemBranch* PlayListStep::GetBranch() const
+{
+    for (auto it : _items) {
+        if (auto branch = dynamic_cast<PlayListItemBranch*>(it); branch != nullptr) return branch;
+    }
+    return nullptr;
 }
 
 void PlayListStep::Start(int loops)
