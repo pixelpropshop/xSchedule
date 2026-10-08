@@ -121,7 +121,7 @@ ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showD
                 _outputManager->SetParallelTransmission(_scheduleOptions->IsParallelTransmission());
                 OutputManager::SetRetryOpen(_scheduleOptions->IsRetryOpen());
                 _outputManager->SetSyncEnabled(_scheduleOptions->IsSync());
-                Schedule::SetCity(_scheduleOptions->GetCity());
+                _scheduleOptions->ApplyLocation();
             } else if (n->GetName() == "OutputProcesses") {
                 for (wxXmlNode* n1 = n->GetChildren(); n1 != nullptr; n1 = n1->GetNext()) {
                     OutputProcess* op = OutputProcess::CreateFromXml(_outputManager, n1);
@@ -144,7 +144,7 @@ ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showD
 
     if (_scheduleOptions == nullptr) {
         _scheduleOptions = new ScheduleOptions();
-        Schedule::SetCity(_scheduleOptions->GetCity());
+        _scheduleOptions->ApplyLocation();
         _outputManager->SetParallelTransmission(_scheduleOptions->IsParallelTransmission());
         _outputManager->SetSyncEnabled(_scheduleOptions->IsSync());
         OutputManager::SetRetryOpen(_scheduleOptions->IsRetryOpen());

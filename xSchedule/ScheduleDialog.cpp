@@ -408,6 +408,9 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
     TextCtrl_SkipDates->SetValue(schedule->GetSkipDatesAsString());
 
     Choice_FireFrequency->SetToolTip("Times are relative to schedule start time.");
+    const char* timeTip = "A time such as 19:30, or sunrise, sunset, dawn or dusk. Dawn and dusk are civil twilight, when the sun is 6 degrees below the horizon.";
+    TextCtrl_OnTime->SetToolTip(timeTip);
+    TextCtrl_OffTime->SetToolTip(timeTip);
 
     SetEscapeId(Button_Cancel->GetId());
 
@@ -553,7 +556,7 @@ void ScheduleDialog::ValidateWindow()
     }
 
 	auto st = TextCtrl_OnTime->GetValue().Lower();
-	if (st == "sunrise" || st == "sunup" || st == "sunset" || st == "sundown") 		{
+	if (Schedule::IsSunTime(st.ToStdString())) {
 		if (!StaticText_OnOffsetMins->IsShown()) {
 			StaticText_OnOffsetMins->Show();
 			SpinCtrl_OnOffsetMins->Show();
@@ -570,7 +573,7 @@ void ScheduleDialog::ValidateWindow()
 	}
 
 	auto et = TextCtrl_OffTime->GetValue().Lower();
-	if (et == "sunrise" || et == "sunup" || et == "sunset" || et == "sundown") {
+	if (Schedule::IsSunTime(et.ToStdString())) {
 		if (!StaticText_OffOffsetMins->IsShown()) {
 			StaticText_OffOffsetMins->Show();
 			SpinCtrl_OffOffsetMins->Show();

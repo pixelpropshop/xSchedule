@@ -23,6 +23,7 @@
 #include "../xlights/src-core/utils/ip_utils.h"
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "../xlights/src-core/outputs/IPOutput.h"
+#include "../xlights/src-core/utils/CurlManager.h"
 #include "xScheduleVersion.h"
 #include "PlayList/VideoWindowPositionDialog.h"
 #include <wx/file.h>
@@ -33,6 +34,52 @@
 #include <wx/string.h>
 //*)
 #include <wx/config.h>
+#include <wx/choicdlg.h>
+#include <wx/textdlg.h>
+#include <wx/utils.h>
+
+#include <nlohmann/json.hpp>
+
+namespace {
+const wxString OTHER_LOCATION = "Other location";
+
+struct Place {
+    std::string name;
+    double latitude = 0;
+    double longitude = 0;
+};
+
+std::string URLEncode(const std::string& text) {
+    std::string res;
+    for (unsigned char c : text) {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            res += (char)c;
+        } else {
+            res += wxString::Format("%%%02X", c).ToStdString();
+        }
+    }
+    return res;
+}
+
+// OpenStreetMap's geocoder; its usage policy asks for an identifying user agent and only occasional requests
+bool FindPlaces(const std::string& search, std::vector<Place>& places) {
+    int code = 0;
+    std::string response = CurlManager::HTTPSGet("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&q=" + URLEncode(search), "", "", 15,
+                                                 { { "User-Agent", "xSchedule/" + xschedule_version_string + " (https://github.com/xLightsSequencer/xSchedule)" } }, &code);
+    if (code != 200) return false;
+    auto json = nlohmann::json::parse(response, nullptr, false);
+    if (!json.is_array()) return false;
+    for (const auto& p : json) {
+        if (!p.contains("display_name") || !p.contains("lat") || !p.contains("lon")) continue;
+        Place place;
+        place.name = p["display_name"].get<std::string>();
+        if (wxString(p["lat"].get<std::string>()).ToCDouble(&place.latitude) && wxString(p["lon"].get<std::string>()).ToCDouble(&place.longitude)) {
+            places.push_back(place);
+        }
+    }
+    return true;
+}
+}
 
 //(*IdInit(OptionsDialog)
 const long OptionsDialog::ID_STATICTEXT_SECTIONGENERAL = wxNewId();
@@ -87,6 +134,9 @@ const long OptionsDialog::ID_STATICTEXT9 = wxNewId();
 const long OptionsDialog::ID_CHOICE4 = wxNewId();
 const long OptionsDialog::ID_STATICTEXT1 = wxNewId();
 const long OptionsDialog::ID_CHOICE3 = wxNewId();
+const long OptionsDialog::ID_STATICTEXT_COORDINATES = wxNewId();
+const long OptionsDialog::ID_TEXTCTRL_COORDINATES = wxNewId();
+const long OptionsDialog::ID_BUTTON_FINDLOCATION = wxNewId();
 const long OptionsDialog::ID_STATICTEXT10 = wxNewId();
 const long OptionsDialog::ID_CHOICE5 = wxNewId();
 const long OptionsDialog::ID_BUTTONDEFAULTWINODOWLOC = wxNewId();
@@ -106,6 +156,7 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
 
     //(*Initialize(OptionsDialog)
     wxBoxSizer* BoxSizer1;
+    wxBoxSizer* BoxSizer2;
     wxFlexGridSizer* FlexGridSizer1;
     wxFlexGridSizer* FlexGridSizer2;
     wxFlexGridSizer* FlexGridSizer3;
@@ -273,6 +324,16 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     FlexGridSizer3->Add(StaticText1, 1, wxALL | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
     Choice_Location = new wxChoice(this, ID_CHOICE3, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICE3"));
     FlexGridSizer3->Add(Choice_Location, 1, wxALL | wxEXPAND, 5);
+    StaticText_Coordinates = new wxStaticText(this, ID_STATICTEXT_COORDINATES, _("Latitude, Longitude:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_COORDINATES"));
+    FlexGridSizer3->Add(StaticText_Coordinates, 1, wxALL | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
+    TextCtrl_Coordinates = new wxTextCtrl(this, ID_TEXTCTRL_COORDINATES, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_TEXTCTRL_COORDINATES"));
+    TextCtrl_Coordinates->SetToolTip(_("Decimal degrees, as a map site shows them: north and east are positive, south and west negative. For example 40.7128, -74.0060."));
+    BoxSizer2 = new wxBoxSizer(wxHORIZONTAL);
+    BoxSizer2->Add(TextCtrl_Coordinates, 1, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+    Button_FindLocation = new wxButton(this, ID_BUTTON_FINDLOCATION, _("Find..."), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_BUTTON_FINDLOCATION"));
+    Button_FindLocation->SetToolTip(_("Look up a town, city or postcode on OpenStreetMap."));
+    BoxSizer2->Add(Button_FindLocation, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
+    FlexGridSizer3->Add(BoxSizer2, 1, wxEXPAND, 0);
     StaticText10 = new wxStaticText(this, ID_STATICTEXT10, _("Force Local IP:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT10"));
     FlexGridSizer3->Add(StaticText10, 1, wxALL | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
     Choice1 = new wxChoice(this, ID_CHOICE5, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICE5"));
@@ -304,6 +365,9 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     Connect(ID_BUTTON10, wxEVT_COMMAND_BUTTON_CLICKED, (wxObjectEventFunction)&OptionsDialog::OnButton_ExportClick);
     Connect(ID_BUTTON9, wxEVT_COMMAND_BUTTON_CLICKED, (wxObjectEventFunction)&OptionsDialog::OnButton_ImportClick);
     Connect(ID_TEXTCTRL1, wxEVT_COMMAND_TEXT_UPDATED, (wxObjectEventFunction)&OptionsDialog::OnTextCtrl_wwwRootText);
+    Connect(ID_CHOICE3, wxEVT_COMMAND_CHOICE_SELECTED, (wxObjectEventFunction)&OptionsDialog::OnChoice_LocationSelect);
+    Connect(ID_TEXTCTRL_COORDINATES, wxEVT_COMMAND_TEXT_UPDATED, (wxObjectEventFunction)&OptionsDialog::OnTextCtrl_CoordinatesText);
+    Connect(ID_BUTTON_FINDLOCATION, wxEVT_COMMAND_BUTTON_CLICKED, (wxObjectEventFunction)&OptionsDialog::OnButton_FindLocationClick);
     Connect(ID_BUTTONDEFAULTWINODOWLOC, wxEVT_COMMAND_BUTTON_CLICKED, (wxObjectEventFunction)&OptionsDialog::OnButton_DefaultWindowLocationClick);
     Connect(ID_BUTTON1, wxEVT_COMMAND_BUTTON_CLICKED, (wxObjectEventFunction)&OptionsDialog::OnButton_OkClick);
     Connect(ID_BUTTON2, wxEVT_COMMAND_BUTTON_CLICKED, (wxObjectEventFunction)&OptionsDialog::OnButton_CancelClick);
@@ -326,6 +390,7 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     for (auto it = cities.begin(); it != cities.end(); ++it) {
         Choice_Location->Append(*it);
     }
+    Choice_Location->Append(OTHER_LOCATION);
 
     ListView_Buttons->AppendColumn("Label");
     ListView_Buttons->AppendColumn("Command");
@@ -366,7 +431,12 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     TextCtrl_Password->SetValue(options->GetPassword());
     TextCtrl_DefaultPage->SetValue(options->GetDefaultPage());
     CheckBox_AlllowPageBypass->SetValue(options->GetAllowUnauth());
-    Choice_Location->SetStringSelection(options->GetCity());
+    Choice_Location->SetStringSelection(options->HasCustomLocation() ? wxString(OTHER_LOCATION) : wxString(options->GetCity()));
+    double latitude = 0;
+    double longitude = 0;
+    if (options->GetLocation(latitude, longitude)) {
+        TextCtrl_Coordinates->ChangeValue(ScheduleOptions::FormatLocation(latitude, longitude));
+    }
     Choice_AudioDevice->SetStringSelection(options->GetAudioDevice());
     if (Choice_AudioDevice->GetSelection() == -1) {
         Choice_AudioDevice->SetSelection(0);
@@ -460,7 +530,14 @@ void OptionsDialog::OnButton_OkClick(wxCommandEvent& event) {
     _options->SetPasswordTimeout(SpinCtrl_PasswordTimeout->GetValue());
     _options->SetAdvancedMode(CheckBox_SimpleMode->GetValue());
     _options->SetArtNetTimeCodeFormat(static_cast<TIMECODEFORMAT>(Choice_ARTNetTimeCodeFormat->GetSelection()));
-    _options->SetCity(Choice_Location->GetStringSelection().ToStdString());
+    double latitude = 0;
+    double longitude = 0;
+    if (Choice_Location->GetStringSelection() == OTHER_LOCATION && ScheduleOptions::ParseLocation(TextCtrl_Coordinates->GetValue().ToStdString(), latitude, longitude)) {
+        _options->SetCustomLocation(latitude, longitude);
+    } else {
+        _options->ClearCustomLocation();
+        _options->SetCity(Choice_Location->GetStringSelection().ToStdString());
+    }
     _options->SetCrashBehaviour(Choice_OnCrash->GetStringSelection().ToStdString());
     _options->SetRemoteAllOff(CheckBox_RemoteAllOff->GetValue());
     _options->SetKeepScreenOn(CheckBox_KeepScreenOn->GetValue());
@@ -588,11 +665,63 @@ void OptionsDialog::ValidateWindow() {
         Button_Export->Enable(false);
     }
 
-    if (TextCtrl_wwwRoot->GetValue() == "") {
+    bool otherLocation = Choice_Location->GetStringSelection() == OTHER_LOCATION;
+    TextCtrl_Coordinates->Enable(otherLocation);
+    double latitude = 0;
+    double longitude = 0;
+    bool locationOk = !otherLocation || ScheduleOptions::ParseLocation(TextCtrl_Coordinates->GetValue().ToStdString(), latitude, longitude);
+
+    if (TextCtrl_wwwRoot->GetValue() == "" || !locationOk) {
         Button_Ok->Enable(false);
     } else {
         Button_Ok->Enable();
     }
+}
+
+void OptionsDialog::OnChoice_LocationSelect(wxCommandEvent& event) {
+    City* city = City::GetCity(Choice_Location->GetStringSelection().ToStdString());
+    if (city != nullptr) {
+        TextCtrl_Coordinates->ChangeValue(ScheduleOptions::FormatLocation(city->_latitude, city->_longitude));
+    }
+    ValidateWindow();
+}
+
+void OptionsDialog::OnTextCtrl_CoordinatesText(wxCommandEvent& event) {
+    ValidateWindow();
+}
+
+void OptionsDialog::OnButton_FindLocationClick(wxCommandEvent& event) {
+    wxTextEntryDialog ask(this, "Town, city or postcode:", "Find Location");
+    if (ask.ShowModal() != wxID_OK) return;
+    wxString search = ask.GetValue().Trim().Trim(false);
+    if (search.empty()) return;
+
+    std::vector<Place> places;
+    bool ok;
+    {
+        wxBusyCursor busy;
+        ok = FindPlaces(search.ToUTF8().data(), places);
+    }
+    if (!ok) {
+        wxMessageBox("Couldn't reach OpenStreetMap. Check the internet connection, or enter the latitude and longitude yourself.", "Find Location", wxOK | wxICON_WARNING, this);
+        return;
+    }
+    if (places.empty()) {
+        wxMessageBox("No places found for \"" + search + "\".", "Find Location", wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+
+    wxArrayString names;
+    for (const auto& p : places) {
+        names.Add(wxString::FromUTF8(p.name));
+    }
+    wxSingleChoiceDialog choose(this, L"Choose your location.\nSearch results \u00A9 OpenStreetMap contributors", "Find Location", names);
+    if (choose.ShowModal() != wxID_OK) return;
+
+    const Place& place = places[choose.GetSelection()];
+    Choice_Location->SetStringSelection(OTHER_LOCATION);
+    TextCtrl_Coordinates->ChangeValue(ScheduleOptions::FormatLocation(place.latitude, place.longitude));
+    ValidateWindow();
 }
 
 void OptionsDialog::OnTextCtrl_wwwRootText(wxCommandEvent& event) {

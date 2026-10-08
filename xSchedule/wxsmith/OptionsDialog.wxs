@@ -503,9 +503,43 @@
 						<option>1</option>
 					</object>
 					<object class="sizeritem">
-						<object class="wxChoice" name="ID_CHOICE3" variable="Choice_Location" member="yes" />
+						<object class="wxChoice" name="ID_CHOICE3" variable="Choice_Location" member="yes">
+							<handler function="OnChoice_LocationSelect" entry="EVT_CHOICE" />
+						</object>
 						<flag>wxALL|wxEXPAND</flag>
 						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
+						<object class="wxStaticText" name="ID_STATICTEXT_COORDINATES" variable="StaticText_Coordinates" member="yes">
+							<label>Latitude, Longitude:</label>
+						</object>
+						<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
+						<object class="wxBoxSizer" variable="BoxSizer2" member="no">
+							<object class="sizeritem">
+								<object class="wxTextCtrl" name="ID_TEXTCTRL_COORDINATES" variable="TextCtrl_Coordinates" member="yes">
+									<tooltip>Decimal degrees, as a map site shows them: north and east are positive, south and west negative. For example 40.7128, -74.0060.</tooltip>
+									<handler function="OnTextCtrl_CoordinatesText" entry="EVT_TEXT" />
+								</object>
+								<flag>wxALL|wxALIGN_CENTER_VERTICAL</flag>
+								<border>5</border>
+								<option>1</option>
+							</object>
+							<object class="sizeritem">
+								<object class="wxButton" name="ID_BUTTON_FINDLOCATION" variable="Button_FindLocation" member="yes">
+									<label>Find...</label>
+									<tooltip>Look up a town, city or postcode on OpenStreetMap.</tooltip>
+									<handler function="OnButton_FindLocationClick" entry="EVT_BUTTON" />
+								</object>
+								<flag>wxALL|wxALIGN_CENTER_VERTICAL</flag>
+								<border>5</border>
+							</object>
+						</object>
+						<flag>wxEXPAND</flag>
 						<option>1</option>
 					</object>
 					<object class="sizeritem">

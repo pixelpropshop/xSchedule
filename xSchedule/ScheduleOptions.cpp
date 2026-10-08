@@ -11,13 +11,17 @@
 #include "ScheduleOptions.h"
 #include "../xlights/src-core/utils/UtilFunctions.h"
 
+#include <cmath>
+
 #include <wx/dir.h> // Linux needs this
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include <wx/wxcrt.h>
 #include <wx/xml/xml.h>
 
+#include "City.h"
 #include "CommandManager.h"
+#include "Schedule.h"
 #include "UserButton.h"
 #include "../xlights/src-core/media/AudioManager.h"
 #include "events/EventARTNet.h"
@@ -90,6 +94,14 @@ ScheduleOptions::ScheduleOptions(OutputManager* outputManager, wxXmlNode* node, 
 
     if (_city == "")
         _city = "Sydney"; // we always want to have a city and this is the best place to be :)
+    double latitude = 0;
+    double longitude = 0;
+    if (node->GetAttribute("Latitude", "").ToCDouble(&latitude) && node->GetAttribute("Longitude", "").ToCDouble(&longitude) &&
+        std::abs(latitude) <= 90 && std::abs(longitude) <= 180) {
+        _customLocation = true;
+        _latitude = latitude;
+        _longitude = longitude;
+    }
 
     for (auto n = node->GetChildren(); n != nullptr; n = n->GetNext()) {
         if (n->GetName() == "Button") {
@@ -171,6 +183,47 @@ void ScheduleOptions::AddButton(const std::string& label, const std::string& com
     b->SetHotkey(hotkey);
     b->SetColor(color);
     _buttons.push_back(b);
+}
+
+namespace {
+wxString FormatCoordinate(double degrees) {
+    wxString s = wxString::FromCDouble(degrees, 6);
+    while (s.EndsWith("0")) s.RemoveLast();
+    if (s.EndsWith(".")) s.RemoveLast();
+    return s;
+}
+}
+
+bool ScheduleOptions::GetLocation(double& latitude, double& longitude) const {
+    if (_customLocation) {
+        latitude = _latitude;
+        longitude = _longitude;
+        return true;
+    }
+    float lat = 0;
+    float lon = 0;
+    bool known = City::GetCityLocation(_city, lat, lon);
+    latitude = lat;
+    longitude = lon;
+    return known;
+}
+
+void ScheduleOptions::ApplyLocation() const {
+    double latitude = 0;
+    double longitude = 0;
+    bool known = GetLocation(latitude, longitude);
+    Schedule::SetLocation(known, latitude, longitude);
+}
+
+bool ScheduleOptions::ParseLocation(const std::string& text, double& latitude, double& longitude) {
+    wxArrayString parts = wxSplit(wxString(text).Trim().Trim(false), ',');
+    if (parts.size() != 2) return false;
+    return parts[0].Trim().Trim(false).ToCDouble(&latitude) && parts[1].Trim().Trim(false).ToCDouble(&longitude) &&
+           std::abs(latitude) <= 90 && std::abs(longitude) <= 180;
+}
+
+std::string ScheduleOptions::FormatLocation(double latitude, double longitude) {
+    return (FormatCoordinate(latitude) + ", " + FormatCoordinate(longitude)).ToStdString();
 }
 
 std::pair<int, int> ScheduleOptions::ParsePair(const std::string& value, const std::pair<int, int>& def) {
@@ -295,7 +348,14 @@ wxXmlNode* ScheduleOptions::Save() {
     res->AddAttribute("Password", _password);
     res->AddAttribute("DefaultPage", _defaultPage);
     res->AddAttribute("AllowUnauth", _allowUnauth ? _("TRUE") : _("FALSE"));
-    res->AddAttribute("City", _city);
+    if (_customLocation) {
+        // older versions only read the city, so give them the nearest one
+        res->AddAttribute("City", City::GetNearestCity(_latitude, _longitude));
+        res->AddAttribute("Latitude", FormatCoordinate(_latitude));
+        res->AddAttribute("Longitude", FormatCoordinate(_longitude));
+    } else {
+        res->AddAttribute("City", _city);
+    }
     res->AddAttribute("RemoteLatency", wxString::Format("%d", _remoteLatency));
     res->AddAttribute("RemoteAcceptableJitter", wxString::Format("%d", _remoteAcceptableJitter));
     res->AddAttribute("SMPTEMode", wxString::Format("%d", _SMPTEMode));
