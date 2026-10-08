@@ -449,6 +449,8 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClCompile Include="PlayList\PlayListItemAudioPanel.cpp" />
     <ClCompile Include="PlayList\PlayListItemCURL.cpp" />
     <ClCompile Include="PlayList\PlayListItemCURLPanel.cpp" />
+    <ClCompile Include="PlayList\PlayListItemBranch.cpp" />
+    <ClCompile Include="PlayList\PlayListItemBranchPanel.cpp" />
     <ClCompile Include="PlayList\PlayListItemDelay.cpp" />
     <ClCompile Include="PlayList\PlayListItemDelayPanel.cpp" />
     <ClCompile Include="PlayList\PlayListItemESEQ.cpp" />
@@ -699,6 +701,8 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClInclude Include="PlayList\PlayListItemAudioPanel.h" />
     <ClInclude Include="PlayList\PlayListItemCURL.h" />
     <ClInclude Include="PlayList\PlayListItemCURLPanel.h" />
+    <ClInclude Include="PlayList\PlayListItemBranch.h" />
+    <ClInclude Include="PlayList\PlayListItemBranchPanel.h" />
     <ClInclude Include="PlayList\PlayListItemDelay.h" />
     <ClInclude Include="PlayList\PlayListItemDelayPanel.h" />
     <ClInclude Include="PlayList\PlayListItemESEQ.h" />

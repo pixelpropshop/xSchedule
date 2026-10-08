@@ -50,6 +50,9 @@ protected:
     int _loops;
     bool _random;
     bool _suspendAtEndOfStep;
+    bool _restartStepOnResume = false;
+    int _loopNumber = 1;
+    std::string _pendingCall;
     bool _jumpToEndStepsAtEndOfCurrentStep;
     std::string _forceNextStep;
     std::list<wxUint32> _played;
@@ -92,12 +95,28 @@ public:
     void SetSuspendAtEndOfCurrentStep() {
         _suspendAtEndOfStep = true;
     }
+    // when next unsuspended, start the current step again from the beginning rather than carrying on
+    void SetRestartStepOnResume(bool restart) {
+        _restartStepOnResume = restart;
+    }
     void JumpToStepAtEndOfCurrentStep(const std::string& step) {
         _forceNextStep = step;
     }
     PlayListStep* GetNextStep(bool& didloop);
+    // the pass through the playlist, counting from 1
+    int GetLoopNumber() const {
+        return _loopNumber;
+    }
+    // a playlist a branch asked to play before this one carries on; taking it clears it
+    std::string TakePendingCall() {
+        std::string call = _pendingCall;
+        _pendingCall = "";
+        return call;
+    }
     // The step that plays after the current one, for display. Unlike GetNextStep it leaves the step loop count alone.
     PlayListStep* PeekNextStep();
+    PlayListStep* GetNextStepIgnoringBranches(bool& didloop);
+    PlayListStep* FollowBranches(PlayListStep* step, bool& didloop, bool peek);
     PlayListStep* GetRunningStep() const {
         return _currentStep;
     }
@@ -146,6 +165,7 @@ public:
         return _loops;
     }
     void DoLoop() {
+        ++_loopNumber;
         if (_loops <= 0) return; // no limit
         --_loops;
         if (_loops <= 1) {

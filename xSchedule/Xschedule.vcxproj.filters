@@ -360,6 +360,12 @@
     <ClCompile Include="PlayList\PlayListItemCURLPanel.cpp">
       <Filter>PlayList</Filter>
     </ClCompile>
+    <ClCompile Include="PlayList\PlayListItemBranch.cpp">
+      <Filter>PlayList</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayList\PlayListItemBranchPanel.cpp">
+      <Filter>PlayList</Filter>
+    </ClCompile>
     <ClCompile Include="PlayList\PlayListItemDelay.cpp">
       <Filter>PlayList</Filter>
     </ClCompile>
@@ -930,6 +936,12 @@
       <Filter>PlayList</Filter>
     </ClInclude>
     <ClInclude Include="PlayList\PlayListItemCURLPanel.h">
+      <Filter>PlayList</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayList\PlayListItemBranch.h">
+      <Filter>PlayList</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayList\PlayListItemBranchPanel.h">
       <Filter>PlayList</Filter>
     </ClInclude>
     <ClInclude Include="PlayList\PlayListItemDelay.h">

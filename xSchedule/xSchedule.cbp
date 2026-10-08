@@ -375,6 +375,10 @@
 		<Unit filename="PlayList/PlayListItemColourOrgan.h" />
 		<Unit filename="PlayList/PlayListItemColourOrganPanel.cpp" />
 		<Unit filename="PlayList/PlayListItemColourOrganPanel.h" />
+		<Unit filename="PlayList/PlayListItemBranch.cpp" />
+		<Unit filename="PlayList/PlayListItemBranch.h" />
+		<Unit filename="PlayList/PlayListItemBranchPanel.cpp" />
+		<Unit filename="PlayList/PlayListItemBranchPanel.h" />
 		<Unit filename="PlayList/PlayListItemDelay.cpp" />
 		<Unit filename="PlayList/PlayListItemDelay.h" />
 		<Unit filename="PlayList/PlayListItemDelayPanel.cpp" />
@@ -659,6 +663,7 @@
 		<Unit filename="wxsmith/PlayListItemAudioPanel.wxs" />
 		<Unit filename="wxsmith/PlayListItemCURLPanel.wxs" />
 		<Unit filename="wxsmith/PlayListItemColourOrganPanel.wxs" />
+		<Unit filename="wxsmith/PlayListItemBranchPanel.wxs" />
 		<Unit filename="wxsmith/PlayListItemDelayPanel.wxs" />
 		<Unit filename="wxsmith/PlayListItemDimPanel.wxs" />
 		<Unit filename="wxsmith/PlayListItemESEQPanel.wxs" />
@@ -716,6 +721,7 @@
 					<wxDialog wxs="wxsmith/PlayListSimpleDialog.wxs" src="PlayList/PlayListSimpleDialog.cpp" hdr="PlayList/PlayListSimpleDialog.h" fwddecl="0" i18n="1" name="PlayListSimpleDialog" language="CPP" />
 					<wxPanel wxs="wxsmith/PlayListItemAllOffPanel.wxs" src="PlayList/PlayListItemAllOffPanel.cpp" hdr="PlayList/PlayListItemAllOffPanel.h" fwddecl="0" i18n="1" name="PlayListItemAllOffPanel" language="CPP" />
 					<wxPanel wxs="wxsmith/PlayListItemSetColourPanel.wxs" src="PlayList/PlayListItemSetColourPanel.cpp" hdr="PlayList/PlayListItemSetColourPanel.h" fwddecl="0" i18n="1" name="PlayListItemSetColourPanel" language="CPP" />
+					<wxPanel wxs="wxsmith/PlayListItemBranchPanel.wxs" src="PlayList/PlayListItemBranchPanel.cpp" hdr="PlayList/PlayListItemBranchPanel.h" fwddecl="0" i18n="1" name="PlayListItemBranchPanel" language="CPP" />
 					<wxPanel wxs="wxsmith/PlayListItemDelayPanel.wxs" src="PlayList/PlayListItemDelayPanel.cpp" hdr="PlayList/PlayListItemDelayPanel.h" fwddecl="0" i18n="1" name="PlayListItemDelayPanel" language="CPP" />
 					<wxPanel wxs="wxsmith/PlayListItemDimPanel.wxs" src="PlayList/PlayListItemDimPanel.cpp" hdr="PlayList/PlayListItemDimPanel.h" fwddecl="0" i18n="1" name="PlayListItemDimPanel" language="CPP" />
 					<wxPanel wxs="wxsmith/PlayListItemImagePanel.wxs" src="PlayList/PlayListItemImagePanel.cpp" hdr="PlayList/PlayListItemImagePanel.h" fwddecl="0" i18n="1" name="PlayListItemImagePanel" language="CPP" />

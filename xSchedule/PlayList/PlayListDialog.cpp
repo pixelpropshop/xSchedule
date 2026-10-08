@@ -43,6 +43,7 @@
 #include "PlayListItemImage.h"
 #include "PlayListItemJukebox.h"
 #include "PlayListItemDelay.h"
+#include "PlayListItemBranch.h"
 #include "PlayListItemDim.h"
 #include "PlayListItemProjector.h"
 #include "PlayListItemARTNetTrigger.h"
@@ -100,6 +101,7 @@ const long PlayListDialog::ID_MNU_ADDSETCOLOUR = wxNewId();
 const long PlayListDialog::ID_MNU_ADDIMAGE = wxNewId();
 const long PlayListDialog::ID_MNU_ADDJUKEBOX = wxNewId();
 const long PlayListDialog::ID_MNU_ADDDELAY = wxNewId();
+const long PlayListDialog::ID_MNU_ADDBRANCH = wxNewId();
 const long PlayListDialog::ID_MNU_ADDDIM = wxNewId();
 const long PlayListDialog::ID_MNU_ADDCOMMAND = wxNewId();
 const long PlayListDialog::ID_MNU_ADDOSC = wxNewId();
@@ -635,6 +637,7 @@ void PlayListDialog::ShowItemMenu(wxTreeItemId treeitem)
     mnu.Append(ID_MNU_ADDALLOFF, "Add All Set");
     mnu.Append(ID_MNU_ADDARTNETTRIGGER, "Add ARTNet Trigger");
     mnu.Append(ID_MNU_ADDAUDIO, "Add Audio");
+    mnu.Append(ID_MNU_ADDBRANCH, "Add Branch");
     mnu.Append(ID_MNU_ADDCOLOURORGAN, "Add Colour Organ");
     mnu.Append(ID_MNU_ADDCOMMAND, "Add Command");
     mnu.Append(ID_MNU_ADDCURL, "Add CURL");
@@ -727,6 +730,11 @@ void PlayListDialog::OnTreeCtrlMenu(wxCommandEvent &event)
     else if (event.GetId() == ID_MNU_ADDSETCOLOUR)
     {
         PlayListItemSetColour* pli = new PlayListItemSetColour(_outputManager);
+        AddItem(_playlist, step, pli);
+    }
+    else if (event.GetId() == ID_MNU_ADDBRANCH)
+    {
+        PlayListItemBranch* pli = new PlayListItemBranch();
         AddItem(_playlist, step, pli);
     }
     else if (event.GetId() == ID_MNU_ADDDELAY)
@@ -1023,6 +1031,7 @@ int ItemImage(PlayListItem* item)
     if (title == "Run Command" || title == "Run Process" || title == "File" || title == "Plugin" || title == "Play xLights Jukebox Button") return 5;
     if (title == "CURL" || title == "MQTT" || title == "OSC" || title == "MIDI" || title == "Serial" || title == "ARTNet Trigger" || title == "FPP Event" || title == "RDS") return 6;
     if (title == "Delay") return 8;
+    if (title == "Branch") return 5;
     return 7; // All Set, Set Colour, Fade, Dim, Test
 }
 }

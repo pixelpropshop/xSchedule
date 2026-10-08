@@ -21,6 +21,7 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 class PlayListItemText;
@@ -93,6 +94,10 @@ class ScheduleManager {
     uint8_t* _buffer = nullptr;
     wxUint32 _startTime = 0;
     PlayList* _immediatePlay = nullptr;
+    // manual playlists interrupted by "play now then resume", resumed in reverse order
+    std::list<PlayList*> _interruptedPlays;
+    // the playlist "play next" starts once the running playlist reaches the end of its step
+    std::optional<wxUint32> _playNext;
     PlayList* _backgroundPlayList = nullptr;
     std::list<PlayList*> _eventPlayLists;
     int _overrideMS = 0;
@@ -263,6 +268,10 @@ public:
         return _showDir;
     }
     bool PlayPlayList(PlayList* playlist, size_t& rate, bool loop = false, const std::string& step = "", bool forcelast = false, int loops = -1, bool random = false, int steploops = -1);
+    // plays a playlist now and afterwards resumes whatever it interrupted, including another manual playlist
+    bool PlayPlayListThenResume(PlayList* playlist, size_t& rate, bool restartInterruptedStep);
+    // plays a playlist once the running playlist finishes its current step, then carries on with that playlist's next step
+    bool PlayPlayListNext(PlayList* playlist, size_t& rate);
     bool IsSomethingPlaying() const {
         return GetRunningPlayList() != nullptr;
     }
@@ -283,6 +292,9 @@ public:
     // by the time since then.
     PlaybackState GetPlaybackSnapshot() const;
     bool ReleaseFinishedImmediatePlay();
+    bool StartManualPlayList(PlayList* playlist, size_t& rate, bool loop = false, const std::string& step = "", bool forcelast = false, int loops = -1, bool random = false, int steploops = -1);
+    void ClearInterruptedPlays();
+    bool StartPlayNextIfReady(size_t& rate);
     long OutputTimeMS() const;
     bool StoreData(const wxString& key, const wxString& data, wxString& msg) const;
     bool RetrieveData(const wxString& key, wxString& data, wxString& msg) const;

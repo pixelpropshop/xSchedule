@@ -426,6 +426,7 @@ ScheduleManager::~ScheduleManager() {
         delete _immediatePlay;
         _immediatePlay = nullptr;
     }
+    ClearInterruptedPlays();
 
     if (_queuedSongs != nullptr) {
         delete _queuedSongs;
@@ -597,6 +598,8 @@ void ScheduleManager::StopAll(bool sustain) {
 
     _syncManager->SendStop();
 
+    _playNext.reset();
+    ClearInterruptedPlays();
     if (_immediatePlay != nullptr) {
         _immediatePlay->Stop();
         delete _immediatePlay;
@@ -801,6 +804,21 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
                 spdlog::debug("Frame: About to run step frame {}ms", sw.Time());
                 done = running->Frame(_buffer, totalChannels, outputframe);
                 spdlog::debug("Frame: step frame done {}ms", sw.Time());
+
+                std::string call = running->TakePendingCall();
+                if (!call.empty() && !done) {
+                    PlayList* p = GetPlayList(call);
+                    if (p == nullptr || p->GetId() == running->GetId()) {
+                        spdlog::warn("Branch in playlist {} can't play playlist '{}'.", running->GetNameNoTime(), call);
+                    } else {
+                        // the step after the branch has just started; it starts again once the other playlist ends
+                        running->SetRestartStepOnResume(true);
+                        running->Suspend(true);
+                        _playNext = p->GetId();
+                        wxCommandEvent event(EVT_DOCHECKSCHEDULE);
+                        wxPostEvent(wxGetApp().GetTopWindow(), event);
+                    }
+                }
 
                 if (running->GetRunningStep() != nullptr) {
                     size_t fms;
@@ -1066,6 +1084,69 @@ void ScheduleManager::CreateBrightnessArray() {
 }
 
 bool ScheduleManager::PlayPlayList(PlayList* playlist, size_t& rate, bool loop, const std::string& step, bool forcelast, int plloops, bool random, int steploops) {
+    // the original play commands replace any manual playlist, including ones waiting to resume
+    ClearInterruptedPlays();
+    return StartManualPlayList(playlist, rate, loop, step, forcelast, plloops, random, steploops);
+}
+
+void ScheduleManager::ClearInterruptedPlays() {
+    for (auto it : _interruptedPlays) {
+        it->Stop();
+        delete it;
+    }
+    _interruptedPlays.clear();
+}
+
+bool ScheduleManager::PlayPlayListThenResume(PlayList* playlist, size_t& rate, bool restartInterruptedStep) {
+    if (playlist == nullptr) return false;
+
+    if (_immediatePlay != nullptr && _immediatePlay->IsRunning()) {
+        spdlog::info("Manual playlist {} interrupted by {}.", _immediatePlay->GetNameNoTime(), playlist->GetNameNoTime());
+        if (restartInterruptedStep) _immediatePlay->SetRestartStepOnResume(true);
+        if (!_immediatePlay->IsSuspended()) _immediatePlay->Suspend(true);
+        _interruptedPlays.push_back(_immediatePlay);
+        _immediatePlay = nullptr;
+        if (_interruptedPlays.size() > 10) {
+            spdlog::info("Too many interrupted playlists, dropping {}.", _interruptedPlays.front()->GetNameNoTime());
+            _interruptedPlays.front()->Stop();
+            delete _interruptedPlays.front();
+            _interruptedPlays.pop_front();
+        }
+    } else if (restartInterruptedStep) {
+        PlayList* running = GetRunningPlayList();
+        if (running != nullptr) running->SetRestartStepOnResume(true);
+    }
+    return StartManualPlayList(playlist, rate);
+}
+
+bool ScheduleManager::PlayPlayListNext(PlayList* playlist, size_t& rate) {
+    if (playlist == nullptr) return false;
+
+    PlayList* running = GetRunningPlayList();
+    if (running == nullptr || running->IsSuspended()) {
+        _playNext.reset();
+        return PlayPlayListThenResume(playlist, rate, false);
+    }
+    spdlog::info("Playlist {} will play when {} finishes its current step.", playlist->GetNameNoTime(), running->GetNameNoTime());
+    _playNext = playlist->GetId();
+    running->SetSuspendAtEndOfCurrentStep();
+    return true;
+}
+
+// Runs before the schedule check resumes anything, as that would otherwise resume the playlist that just paused for it.
+bool ScheduleManager::StartPlayNextIfReady(size_t& rate) {
+    if (!_playNext.has_value()) return false;
+    PlayList* running = GetRunningPlayList();
+    if (running != nullptr && !running->IsSuspended()) return false;
+
+    PlayList* p = GetPlayList(*_playNext);
+    _playNext.reset();
+    if (p == nullptr) return false;
+    spdlog::info("Playing playlist {} next.", p->GetNameNoTime());
+    return PlayPlayListThenResume(p, rate, false);
+}
+
+bool ScheduleManager::StartManualPlayList(PlayList* playlist, size_t& rate, bool loop, const std::string& step, bool forcelast, int plloops, bool random, int steploops) {
     bool result = true;
 
     if (playlist == nullptr) {
@@ -1116,13 +1197,21 @@ bool ScheduleManager::PlayPlayList(PlayList* playlist, size_t& rate, bool loop, 
 // A manual playlist can end without going through StopPlayList (next step on the last step, a jump to a step that
 // doesn't exist, a timecode stop, an empty playlist). Left in place, it keeps every schedule suspended.
 bool ScheduleManager::ReleaseFinishedImmediatePlay() {
+    bool released = false;
     if (_immediatePlay != nullptr && !_immediatePlay->IsRunning()) {
         spdlog::info("Manual playlist {} has ended.", _immediatePlay->GetNameNoTime());
         delete _immediatePlay;
         _immediatePlay = nullptr;
-        return true;
+        released = true;
     }
-    return false;
+    if (_immediatePlay == nullptr && !_interruptedPlays.empty()) {
+        _immediatePlay = _interruptedPlays.back();
+        _interruptedPlays.pop_back();
+        spdlog::info("Resuming manual playlist {}.", _immediatePlay->GetNameNoTime());
+        _immediatePlay->Suspend(false);
+        released = true;
+    }
+    return released;
 }
 
 struct ScheduleManager::PlaybackSnapshot {
@@ -1178,6 +1267,8 @@ int ScheduleManager::CheckSchedule() {
         return 50;
 
     ReleaseFinishedImmediatePlay();
+    size_t playNextRate = 50;
+    StartPlayNextIfReady(playNextRate);
 
     spdlog::debug("Checking the schedule ...");
 
@@ -1577,6 +1668,20 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                             result = false;
                             msg = "Unable to start playlist.";
                         }
+                    }
+                    scheduleChanged = true;
+                } else if (command == "Play specified playlist next") {
+                    PlayList* p = GetPlayList(DecodePlayList(parameters));
+                    if (p == nullptr || !PlayPlayListNext(p, rate)) {
+                        result = false;
+                        msg = "Unable to start playlist.";
+                    }
+                    scheduleChanged = true;
+                } else if (command == "Play specified playlist now then resume" || command == "Play specified playlist now then restart interrupted step") {
+                    PlayList* p = GetPlayList(DecodePlayList(parameters));
+                    if (p == nullptr || !PlayPlayListThenResume(p, rate, command == "Play specified playlist now then restart interrupted step")) {
+                        result = false;
+                        msg = "Unable to start playlist.";
                     }
                     scheduleChanged = true;
                 } else if (command == "Play specified playlist if not running") {
@@ -2824,6 +2929,17 @@ bool ScheduleManager::Action(const wxString& label, PlayList* selplaylist, PlayL
 }
 
 void ScheduleManager::StopPlayList(PlayList* playlist, bool atendofcurrentstep, bool sustain, bool stopSchedules) {
+    if (!atendofcurrentstep) {
+        for (auto it = _interruptedPlays.begin(); it != _interruptedPlays.end();) {
+            if ((*it)->GetId() == playlist->GetId()) {
+                (*it)->Stop();
+                delete *it;
+                it = _interruptedPlays.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
     if (_immediatePlay != nullptr && _immediatePlay->GetId() == playlist->GetId()) {
         if (atendofcurrentstep) {
             _immediatePlay->StopAtEndOfCurrentStep();

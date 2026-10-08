@@ -10,6 +10,7 @@
 
 #include "PlayList.h"
 #include "PlayListDialog.h"
+#include "PlayListItemBranch.h"
 #include "PlayListItem.h"
 #include "PlayListStep.h"
 #include "../Schedule.h"
@@ -569,6 +570,8 @@ void PlayList::Start(bool loop, bool random, int loops, const std::string& step)
         ReentrancyCounter rec(_reentrancyCounter);
 
         _played.clear();
+        _loopNumber = 1;
+        _pendingCall = "";
         _loops = loops;
         _looping = loop;
         _random = random;
@@ -589,6 +592,7 @@ void PlayList::Start(bool loop, bool random, int loops, const std::string& step)
         _stopAtEndOfCurrentStep = false;
         _jumpToEndStepsAtEndOfCurrentStep = false;
         _suspendAtEndOfStep = false;
+        _restartStepOnResume = false;
         _lastLoop = false;
         _stopAtEndOfCurrentStep = false;
 
@@ -607,6 +611,11 @@ void PlayList::Start(bool loop, bool random, int loops, const std::string& step)
                     _currentStep = _steps.front();
                 }
             }
+        }
+
+        if (_currentStep != nullptr && _currentStep->GetBranch() != nullptr) {
+            bool didloop = false;
+            _currentStep = FollowBranches(_currentStep, didloop, false);
         }
 
         if (_currentStep == nullptr) {
@@ -633,6 +642,50 @@ void PlayList::Stop() {
 }
 
 PlayListStep* PlayList::GetNextStep(bool& didloop) {
+    PlayListStep* next = GetNextStepIgnoringBranches(didloop);
+    return FollowBranches(next, didloop, false);
+}
+
+// Branch steps never play: each one is replaced by the step it picks. A chain is cut short so branches that point at
+// each other can't hang the show.
+PlayListStep* PlayList::FollowBranches(PlayListStep* step, bool& didloop, bool peek) {
+    PlayListStep* current = _currentStep;
+    std::string forced = _forceNextStep;
+    _forceNextStep = "";
+
+    int hops = 0;
+    for (; step != nullptr && step->GetBranch() != nullptr && hops < 16; ++hops) {
+        PlayListItemBranch* branch = step->GetBranch();
+        bool result = branch->IsTrue(wxDateTime::Now(), _loopNumber + (didloop ? 1 : 0));
+        PlayListStep* target = nullptr;
+        if (result && !branch->GetTruePlayList().empty()) {
+            if (!peek) _pendingCall = branch->GetTruePlayList();
+        } else {
+            std::string name = result ? branch->GetTrueStep() : branch->GetFalseStep();
+            if (!name.empty()) target = GetStep(name);
+        }
+        if (!peek) spdlog::debug("Branch step {} is {}.", (const char*)step->GetNameNoTime().c_str(), result ? "true" : "false");
+        if (target == nullptr) {
+            // carry on with the step after the branch
+            _currentStep = step;
+            bool looped = false;
+            target = GetNextStepIgnoringBranches(looped);
+            didloop = didloop || looped;
+        }
+        step = target;
+    }
+
+    _currentStep = current;
+    _forceNextStep = forced;
+
+    if (step != nullptr && step->GetBranch() != nullptr) {
+        spdlog::warn("Playlist {} stopped after following {} branch steps in a row.", (const char*)GetNameNoTime().c_str(), hops);
+        return nullptr;
+    }
+    return step;
+}
+
+PlayListStep* PlayList::GetNextStepIgnoringBranches(bool& didloop) {
     didloop = false;
     if (_stopAtEndOfCurrentStep) {
         spdlog::debug("Get next step returning nothing because we have been asked to stop at the end of the current step.");
@@ -733,7 +786,7 @@ PlayListStep* PlayList::PeekNextStep() {
     PlayListStep* current = _currentStep;
     int loops = current->GetLoopsLeft();
     bool didloop;
-    PlayListStep* next = GetNextStep(didloop);
+    PlayListStep* next = FollowBranches(GetNextStepIgnoringBranches(didloop), didloop, true);
     current->SetLoops(loops);
     return next;
 }
@@ -803,7 +856,17 @@ int PlayList::Suspend(bool suspend) {
         return 50;
 
     if (!IsPaused()) {
-        if (!suspend && IsSuspended()) {
+        if (!suspend && IsSuspended() && _restartStepOnResume) {
+            spdlog::info("         Playlist {} unsuspending and restarting step {}.", (const char*)GetNameNoTime().c_str(), (const char*)_currentStep->GetNameNoTime().c_str());
+            _suspendTime = wxDateTime(static_cast<time_t>(0));
+            _restartStepOnResume = false;
+            int loops = _currentStep->GetLoopsLeft();
+            _currentStep->Stop();
+            StopEveryStep();
+            _currentStep->Start(loops);
+            StartEveryStep(-1);
+            return _currentStep->GetFrameMS();
+        } else if (!suspend && IsSuspended()) {
             // unsuspend
             spdlog::info("         Playlist {} unsuspending.", (const char*)GetNameNoTime().c_str());
             _currentStep->AdjustTime(wxDateTime::Now() - _suspendTime);
@@ -914,8 +977,10 @@ bool PlayList::MoveToNextStep(bool suppressNext) {
         spdlog::debug("Move to next step moved to {}.", (const char*)_currentStep->GetNameNoTime().c_str());
 
         if (_suspendAtEndOfStep) {
+            // the step has to be started to be suspended, so it starts again from the beginning when resumed
             Suspend(true);
             _suspendAtEndOfStep = false;
+            _restartStepOnResume = true;
             return false;
         }
     } else {
@@ -982,6 +1047,12 @@ bool PlayList::JumpToStep(PlayListStep* pls) {
     _lastLoop = false;
     _loopStep = false;
     _forceNextStep = "";
+
+    if (pls != nullptr && pls->GetBranch() != nullptr) {
+        bool didloop = false;
+        pls = FollowBranches(pls, didloop, false);
+        if (didloop) DoLoop();
+    }
 
     if (_currentStep != nullptr && _currentStep == pls) {
         _currentStep->Restart();
@@ -1075,7 +1146,7 @@ bool PlayList::SupportsRandom() {
             } else if (_steps.back()->GetId() == it->GetId() && _lastOnlyOnce) {
                 --count;
             } else {
-                if (it->GetExcludeFromRandom()) {
+                if (it->GetExcludeFromRandom() || it->GetBranch() != nullptr) {
                     --count;
                 }
             }
@@ -1111,7 +1182,7 @@ PlayListStep* PlayList::GetRandomStep() {
         if (_lastOnlyOnce)
             --actualsteps;
         for (const auto& it : _steps) {
-            if (it->GetExcludeFromRandom()) {
+            if (it->GetExcludeFromRandom() || it->GetBranch() != nullptr) {
                 --actualsteps;
             }
         }
@@ -1133,7 +1204,7 @@ PlayListStep* PlayList::GetRandomStep() {
             int i = -1;
 
             do {
-                bool eligible = !(*it)->GetExcludeFromRandom() &&
+                bool eligible = !(*it)->GetExcludeFromRandom() && (*it)->GetBranch() == nullptr &&
                                 !(_firstOnlyOnce && (*it)->GetId() == _steps.front()->GetId()) &&
                                 !(_lastOnlyOnce && (*it)->GetId() == _steps.back()->GetId()) &&
                                 std::find(_played.begin(), _played.end(), (*it)->GetId()) == _played.end();
