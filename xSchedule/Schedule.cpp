@@ -17,7 +17,44 @@
 #include "Holidays.h"
 
 int __scheduleid = 0;
-std::string Schedule::__city = "Sydney";
+bool Schedule::__locationKnown = true;
+double Schedule::__latitude = -33.861481; // Sydney, the default city
+double Schedule::__longitude = 151.205475;
+
+namespace {
+// dawn and dusk are saved as sunrise and sunset plus a twilight flag, so older versions read them as sunrise and sunset
+std::string LoadTime(wxXmlNode* node, const char* attribute, const char* defaultTime, const char* twilightAttribute, wxDateTime& time)
+{
+    std::string s = node->GetAttribute(attribute, defaultTime).Lower().ToStdString();
+    if (node->GetAttribute(twilightAttribute, "FALSE") == "TRUE") {
+        if (s == "sunrise" || s == "sunup") s = "dawn";
+        else if (s == "sunset" || s == "sundown") s = "dusk";
+    }
+    if (Schedule::IsSunTime(s)) {
+        time.ParseTime("0:00");
+        return s;
+    }
+    time.ParseTime(s);
+    return "";
+}
+
+void SaveTime(wxXmlNode* node, const char* attribute, const char* twilightAttribute, const std::string& sunTime, const wxDateTime& time)
+{
+    if (sunTime == "dawn" || sunTime == "dusk") {
+        node->AddAttribute(attribute, sunTime == "dawn" ? "sunrise" : "sunset");
+        node->AddAttribute(twilightAttribute, "TRUE");
+    } else if (sunTime != "") {
+        node->AddAttribute(attribute, sunTime);
+    } else {
+        node->AddAttribute(attribute, time.Format("%H:%M:%S"));
+    }
+}
+}
+
+bool Schedule::IsSunTime(const std::string& time)
+{
+    return time == "sunrise" || time == "sunset" || time == "sunup" || time == "sundown" || time == "dawn" || time == "dusk";
+}
 
 Schedule::Schedule(wxXmlNode* node)
 {
@@ -31,7 +68,7 @@ Schedule::Schedule(wxXmlNode* node)
 wxDateTime Schedule::GetStartTime() const
 {
     wxDateTime res = wxDateTime::Now();
-    SetTime(res, __city, _startTime, _startTimeString, _onOffsetMins);
+    SetTime(res, _startTime, _startTimeString, _onOffsetMins);
     return res;
 }
 
@@ -132,26 +169,8 @@ void Schedule::Load(wxXmlNode* node)
     _dow = node->GetAttribute("DOW", "MonTueWedThuFriSatSun");
     _startDate.ParseDate(node->GetAttribute("StartDate", "01/01/2017"));
     _endDate.ParseDate(node->GetAttribute("EndDate", "01/01/2099"));
-    _startTimeString = node->GetAttribute("StartTime", "19:00").Lower();
-    if (_startTimeString == "sunrise" || _startTimeString == "sunset" || _startTimeString == "sunup" || _startTimeString == "sundown")
-    {
-        _startTime.ParseTime("0:00");
-    }
-    else
-    {
-        _startTime.ParseTime(_startTimeString);
-        _startTimeString = "";
-    }
-    _endTimeString = node->GetAttribute("EndTime", "22:00").Lower();
-    if (_endTimeString == "sunrise" || _endTimeString == "sunset" || _endTimeString == "sunup" || _endTimeString == "sundown")
-    {
-        _endTime.ParseTime("0:00");
-    }
-    else
-    {
-        _endTime.ParseTime(_endTimeString);
-        _endTimeString = "";
-    }
+    _startTimeString = LoadTime(node, "StartTime", "19:00", "StartTwilight", _startTime);
+    _endTimeString = LoadTime(node, "EndTime", "22:00", "EndTwilight", _endTime);
     _loop = node->GetAttribute("Loop", "FALSE") == "TRUE";
     _random = node->GetAttribute("Random", "FALSE") == "TRUE";
     _everyYear = node->GetAttribute("EveryYear", "FALSE") == "TRUE";
@@ -182,18 +201,8 @@ wxXmlNode* Schedule::Save()
     node->AddAttribute("DOW", _dow);
     node->AddAttribute("StartDate", GetEffectiveStartDate().Format("%Y-%m-%d"));
     node->AddAttribute("EndDate", GetEffectiveEndDate().Format("%Y-%m-%d"));
-    if (_startTimeString != "") {
-        node->AddAttribute("StartTime", _startTimeString);
-    }
-    else {
-        node->AddAttribute("StartTime", _startTime.Format("%H:%M:%S"));
-    }
-    if (_endTimeString != "") {
-        node->AddAttribute("EndTime", _endTimeString);
-    }
-    else {
-        node->AddAttribute("EndTime", _endTime.Format("%H:%M:%S"));
-    }
+    SaveTime(node, "StartTime", "StartTwilight", _startTimeString, _startTime);
+    SaveTime(node, "EndTime", "EndTwilight", _endTimeString, _endTime);
     node->AddAttribute("Priority", wxString::Format(wxT("%i"), _priority));
     node->AddAttribute("NthDay", wxString::Format(wxT("%i"), _nthDay));
     node->AddAttribute("NthDayOffset", wxString::Format(wxT("%i"), _nthDayOffset));
@@ -360,37 +369,26 @@ void Schedule::SetDOW(bool mon, bool tue, bool wed, bool thu, bool fri, bool sat
     if (sun) _dow += "Sun";
 }
 
-void Schedule::SetTime(wxDateTime& toset, std::string city, wxDateTime time, std::string timeString, int offset) const
+void Schedule::SetTime(wxDateTime& toset, wxDateTime time, std::string timeString, int offset) const
 {
-    if (timeString == "sunrise" || timeString == "sunup")
+    if (IsSunTime(timeString))
     {
-        City* c = City::GetCity(city);
-        if (c != nullptr)
+        City::SunEvent event = City::SunEvent::Sunset;
+        if (timeString == "sunrise" || timeString == "sunup") event = City::SunEvent::Sunrise;
+        else if (timeString == "dawn") event = City::SunEvent::Dawn;
+        else if (timeString == "dusk") event = City::SunEvent::Dusk;
+
+        if (__locationKnown)
         {
-            wxDateTime sunrise = c->GetSunrise(toset);
-            sunrise += wxTimeSpan(0, offset);
-            toset.SetHour(sunrise.GetHour());
-            toset.SetMinute(sunrise.GetMinute());
+            wxDateTime sun = City::GetSunTime(__latitude, __longitude, toset, event);
+            sun += wxTimeSpan(0, offset);
+            toset.SetHour(sun.GetHour());
+            toset.SetMinute(sun.GetMinute());
         }
         else
         {
-            toset.SetHour(6);
-            toset.SetMinute(0);
-        }
-    }
-    else if (timeString == "sunset" || timeString == "sundown")
-    {
-        City* c = City::GetCity(city);
-        if (c != nullptr)
-        {
-            wxDateTime sunset = c->GetSunset(toset);
-            sunset += wxTimeSpan(0, offset);
-            toset.SetHour(sunset.GetHour());
-            toset.SetMinute(sunset.GetMinute());
-        }
-        else
-        {
-            toset.SetHour(20);
+            bool morning = event == City::SunEvent::Sunrise || event == City::SunEvent::Dawn;
+            toset.SetHour(morning ? 6 : 20);
             toset.SetMinute(0);
         }
     }
@@ -719,7 +717,7 @@ void Schedule::SetStartTime(const std::string& start)
 
     if (s != GetStartTimeAsString())
     {
-        if (s == "sunrise" || s == "sunset" || s == "sunup" || s == "sundown")
+        if (IsSunTime(s.ToStdString()))
         {
             _startTimeString = s;
         }
@@ -741,7 +739,7 @@ void Schedule::SetEndTime(const std::string& end)
 
     if (e != GetEndTimeAsString())
     {
-        if (e == "sunrise" || e == "sunset" || e == "sunup" || e == "sundown")
+        if (IsSunTime(e.ToStdString()))
         {
             _endTimeString = e;
         }
@@ -767,8 +765,8 @@ bool Schedule::IsActiveAt(const wxDateTime& now) const
     wxDateTime s = now;
     wxDateTime e = now;
 
-    SetTime(s, __city, _startTime, _startTimeString, _onOffsetMins);
-    SetTime(e, __city, _endTime, _endTimeString, _offOffsetMins);
+    SetTime(s, _startTime, _startTimeString, _onOffsetMins);
+    SetTime(e, _endTime, _endTimeString, _offOffsetMins);
 
     // a window that runs past midnight belongs to the night it started on, for the day of week too: a Friday and
     // Saturday 17:00-00:30 show runs into early Sunday, not early Friday
@@ -878,19 +876,19 @@ std::vector<std::pair<wxDateTime, wxDateTime>> Schedule::GetUpcomingWindows(cons
     }
     for (; day <= last && res.size() < count; day += wxDateSpan::Day()) {
         wxDateTime start = day;
-        SetTime(start, __city, _startTime, _startTimeString, _onOffsetMins);
+        SetTime(start, _startTime, _startTimeString, _onOffsetMins);
         start.SetSecond(0);
         if (start <= from || !IsActiveAt(start)) continue;
 
         wxDateTime end = day;
-        SetTime(end, __city, _endTime, _endTimeString, _offOffsetMins);
+        SetTime(end, _endTime, _endTimeString, _offOffsetMins);
         end.SetSecond(0);
         if (end.FormatISOTime() == start.FormatISOTime()) {
             // 24 hours a day: one window that runs to the end of the date range
             wxDateTime rangeStart;
             wxDateTime rangeEnd;
             GetDateRange(start, rangeStart, rangeEnd);
-            SetTime(rangeEnd, __city, _endTime, _endTimeString, _offOffsetMins);
+            SetTime(rangeEnd, _endTime, _endTimeString, _offOffsetMins);
             rangeEnd.SetSecond(0);
             res.push_back({ start, rangeEnd });
             break;
@@ -964,9 +962,9 @@ std::string Schedule::GetNextEndTime()
     if (!_active) return "N/A";
 
     wxDateTime e1 = wxDateTime::Now();
-    SetTime(e1, __city, _endTime, _endTimeString, _offOffsetMins);
+    SetTime(e1, _endTime, _endTimeString, _offOffsetMins);
     wxDateTime s1 = wxDateTime::Now();
-    SetTime(s1, __city, _startTime, _startTimeString, _onOffsetMins);
+    SetTime(s1, _startTime, _startTimeString, _onOffsetMins);
 
     // when end and start are the same we play 24 hours a day
     if (s1 == e1)
@@ -975,7 +973,7 @@ std::string Schedule::GetNextEndTime()
         wxDateTime end;
         GetDateRange(wxDateTime::Now(), rangeStart, end);
 
-        SetTime(end, __city, _endTime, _endTimeString, _offOffsetMins);
+        SetTime(end, _endTime, _endTimeString, _offOffsetMins);
         end.SetSecond(0);
 
         return end.Format("%Y-%m-%d %H:%M").ToStdString();
@@ -983,16 +981,16 @@ std::string Schedule::GetNextEndTime()
     else
     {
         wxDateTime end = wxDateTime::Now();
-        SetTime(end, __city, _endTime, _endTimeString, _offOffsetMins);
+        SetTime(end, _endTime, _endTimeString, _offOffsetMins);
         wxDateTime start = wxDateTime::Now();
-        SetTime(start, __city, _startTime, _startTimeString, _onOffsetMins);
+        SetTime(start, _startTime, _startTimeString, _onOffsetMins);
 
         if (end < start)
         {
             end += wxDateSpan::Day();
         }
 
-        SetTime(end, __city, _endTime, _endTimeString, _offOffsetMins);
+        SetTime(end, _endTime, _endTimeString, _offOffsetMins);
         end.SetSecond(0);
 
         return end.Format("%Y-%m-%d %H:%M").ToStdString();

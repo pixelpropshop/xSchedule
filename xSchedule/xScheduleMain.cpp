@@ -1948,7 +1948,7 @@ void xScheduleFrame::OnMenuItem_OptionsSelected(wxCommandEvent& event)
 
         __schedule->GetSyncManager()->ReloadOptions();
 
-        Schedule::SetCity(__schedule->GetOptions()->GetCity());
+        __schedule->GetOptions()->ApplyLocation();
         __schedule->GetOutputManager()->SetParallelTransmission(__schedule->GetOptions()->IsParallelTransmission());
         OutputManager::SetRetryOpen(__schedule->GetOptions()->IsRetryOpen());
         __schedule->GetOutputManager()->SetSyncEnabled(__schedule->GetOptions()->IsSync());

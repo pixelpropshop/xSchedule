@@ -14,11 +14,13 @@
 #include <wx/init.h>
 #include <wx/xml/xml.h>
 
+#include <cmath>
 #include <cstdio>
 #include <initializer_list>
 #include <string>
 #include <utility>
 
+#include "../City.h"
 #include "../Holidays.h"
 #include "../Schedule.h"
 
@@ -356,6 +358,75 @@ void TestJSONAndState() {
     CHECK(json.find("\"reference\":\"ref\\\"1\"") != std::string::npos);
 }
 
+// minutes past midnight UTC of a local time of day on the given date
+int UtcMinutes(const wxDateTime& local) {
+    wxDateTime noon = local.GetDateOnly();
+    noon.SetHour(12);
+    int offset = (noon.FromUTC() - noon).GetMinutes();
+    return ((local.GetHour() * 60 + local.GetMinute() - offset) % 1440 + 1440) % 1440;
+}
+
+// a longitude where the sun keeps this computer's clock time, so sun times land in the evening whatever its time zone
+double LocalLongitude() {
+    wxDateTime noon = D(2026, 12, 21, 12, 0);
+    return (noon.FromUTC() - noon).GetMinutes() / 4.0;
+}
+
+void TestSunTimes() {
+    // New York on 21 December 2026 (NOAA): civil dawn 11:46, sunrise 12:17, sunset 21:32, civil dusk 22:01 UTC
+    const double lat = 40.7128;
+    const double lon = -74.0060;
+    wxDateTime day = D(2026, 12, 21);
+    auto closeTo = [](int actual, int expected) { return std::abs(actual - expected) <= 3; };
+    CHECK(closeTo(UtcMinutes(City::GetSunTime(lat, lon, day, City::SunEvent::Dawn)), 11 * 60 + 46));
+    CHECK(closeTo(UtcMinutes(City::GetSunTime(lat, lon, day, City::SunEvent::Sunrise)), 12 * 60 + 17));
+    CHECK(closeTo(UtcMinutes(City::GetSunTime(lat, lon, day, City::SunEvent::Sunset)), 21 * 60 + 32));
+    CHECK(closeTo(UtcMinutes(City::GetSunTime(lat, lon, day, City::SunEvent::Dusk)), 22 * 60 + 1));
+
+    // where it never gets dark enough for dusk there is still a time
+    wxDateTime tromso = City::GetSunTime(69.65, 18.96, D(2026, 6, 21), City::SunEvent::Dusk);
+    CHECK(tromso.IsValid());
+
+    CHECK(City::GetNearestCity(40.6, -73.9) == "New York");
+    CHECK(City::GetNearestCity(-33.0, 151.0) == "Sydney");
+
+    // a schedule from dusk to sunrise
+    double localLon = LocalLongitude();
+    Schedule::SetLocation(true, 40.0, localLon);
+    wxDateTime dusk = City::GetSunTime(40.0, localLon, day, City::SunEvent::Dusk);
+    Schedule s = Make({ { "StartDate", "2026-12-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "Dusk" }, { "EndTime", "sunrise" } });
+    CHECK(s.GetStartTimeAsString() == "dusk");
+    CHECK(!s.IsActiveAt(dusk - wxTimeSpan(0, 5)));
+    CHECK(s.IsActiveAt(dusk + wxTimeSpan(0, 5)));
+    auto w = s.GetUpcomingWindows(D(2026, 12, 21, 12, 0), 1);
+    CHECK(w.size() == 1 && w[0].first == dusk);
+
+    // saved as sunset plus a flag, which older versions read as sunset
+    wxXmlNode* n = s.Save();
+    CHECK(n->GetAttribute("StartTime") == "sunset");
+    CHECK(n->GetAttribute("StartTwilight") == "TRUE");
+    CHECK(n->GetAttribute("EndTime") == "sunrise");
+    CHECK(!HasAttribute(n, "EndTwilight"));
+    Schedule reloaded(n);
+    CHECK(reloaded.GetStartTimeAsString() == "dusk" && reloaded.GetEndTimeAsString() == "sunrise");
+    delete n;
+
+    Schedule dawn = Make({ { "StartTime", "sunup" }, { "EndTime", "SUNRISE" }, { "EndTwilight", "TRUE" } });
+    CHECK(dawn.GetStartTimeAsString() == "sunup" && dawn.GetEndTimeAsString() == "dawn");
+
+    Schedule plain = Make({ { "StartTime", "sunset" }, { "EndTime", "22:00" } });
+    n = plain.Save();
+    CHECK(!HasAttribute(n, "StartTwilight") && !HasAttribute(n, "EndTwilight"));
+    delete n;
+
+    // an unknown location falls back to fixed times
+    Schedule::SetLocation(false, 0, 0);
+    Schedule unknown = Make({ { "StartDate", "2026-12-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "dusk" }, { "EndTime", "23:00" } });
+    CHECK(!unknown.IsActiveAt(D(2026, 12, 21, 19, 55)));
+    CHECK(unknown.IsActiveAt(D(2026, 12, 21, 20, 5)));
+    Schedule::SetLocation(true, -33.861481, 151.205475);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -375,6 +446,7 @@ int main(int argc, char** argv) {
     TestReviewFindings();
     TestOvernightDays();
     TestJSONAndState();
+    TestSunTimes();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

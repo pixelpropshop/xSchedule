@@ -324,6 +324,9 @@ class ScheduleOptions {
     std::list<EventBase*> _events;
     TIMECODEFORMAT _artNetTimeCodeFormat;
     std::string _city;
+    bool _customLocation = false;
+    double _latitude = 0;
+    double _longitude = 0;
     std::string _MIDITimecodeDevice;
     TIMECODEFORMAT _MIDITimecodeFormat;
     size_t _MIDITimecodeOffset = 0;
@@ -654,6 +657,23 @@ public:
     std::string GetCity() const {
         return _city;
     }
+    // a latitude and longitude entered by the user, used instead of the city
+    bool HasCustomLocation() const {
+        return _customLocation;
+    }
+    double GetLatitude() const {
+        return _latitude;
+    }
+    double GetLongitude() const {
+        return _longitude;
+    }
+    // the custom location, or the city's; false if the city is not one we know
+    bool GetLocation(double& latitude, double& longitude) const;
+    // passes the location to the schedules, for sunrise, sunset, dawn and dusk
+    void ApplyLocation() const;
+    // "latitude, longitude" in decimal degrees, as map sites show it
+    static bool ParseLocation(const std::string& text, double& latitude, double& longitude);
+    static std::string FormatLocation(double latitude, double longitude);
     int GetPasswordTimeout() const {
         return _passwordTimeout;
     }
@@ -702,6 +722,20 @@ public:
     void SetCity(const std::string& city) {
         if (_city != city) {
             _city = city;
+            _changeCount++;
+        }
+    }
+    void SetCustomLocation(double latitude, double longitude) {
+        if (!_customLocation || _latitude != latitude || _longitude != longitude) {
+            _customLocation = true;
+            _latitude = latitude;
+            _longitude = longitude;
+            _changeCount++;
+        }
+    }
+    void ClearCustomLocation() {
+        if (_customLocation) {
+            _customLocation = false;
             _changeCount++;
         }
     }

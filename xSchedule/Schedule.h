@@ -20,7 +20,9 @@ class wxXmlNode;
 
 class Schedule
 {
-    static std::string __city;
+    static bool __locationKnown;
+    static double __latitude;
+    static double __longitude;
     wxUint32 _id;
     std::string _name;
     std::string _dow;
@@ -56,7 +58,7 @@ class Schedule
     std::vector<wxDateTime> _skipDates;
     wxDateTime _lastFired;
 
-    void SetTime(wxDateTime& toset, std::string city, wxDateTime time, std::string timeString, int offset) const;
+    void SetTime(wxDateTime& toset, wxDateTime time, std::string timeString, int offset) const;
     bool IsOkDOW(const wxDateTime& date) const;
     bool IsOkNthDay(const wxDateTime& date) const;
     bool IsSkipDate(const wxDateTime& date) const;
@@ -73,7 +75,9 @@ class Schedule
 
         static void Test();
 
-        static void SetCity(std::string city) { __city = city; }
+        static void SetLocation(bool known, double latitude, double longitude) { __locationKnown = known; __latitude = latitude; __longitude = longitude; }
+        // sunrise, sunset, dawn or dusk (sunup and sundown are older names)
+        static bool IsSunTime(const std::string& time);
         wxUint32 GetId() const { return _id; }
         bool operator<(const Schedule& rhs) const { return _priority < rhs._priority; }
         bool operator==(const Schedule& rhs) const { return _id == rhs._id; }

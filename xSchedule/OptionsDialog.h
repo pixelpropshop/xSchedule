@@ -53,6 +53,7 @@ class OptionsDialog: public wxDialog
 		wxButton* Button_Cancel;
 		wxButton* Button_DefaultWindowLocation;
 		wxButton* Button_Export;
+		wxButton* Button_FindLocation;
 		wxButton* Button_Import;
 		wxButton* Button_Ok;
 		wxCheckBox* CheckBoxSuppressDarkMode;
@@ -90,6 +91,7 @@ class OptionsDialog: public wxDialog
 		wxStaticText* StaticText13;
 		wxStaticText* StaticText14;
 		wxStaticText* StaticText1;
+		wxStaticText* StaticText_Coordinates;
 		wxStaticText* StaticText2;
 		wxStaticText* StaticText3;
 		wxStaticText* StaticText4;
@@ -98,6 +100,7 @@ class OptionsDialog: public wxDialog
 		wxStaticText* StaticText7;
 		wxStaticText* StaticText8;
 		wxStaticText* StaticText9;
+		wxTextCtrl* TextCtrl_Coordinates;
 		wxTextCtrl* TextCtrl_DefaultPage;
 		wxTextCtrl* TextCtrl_Password;
 		wxTextCtrl* TextCtrl_wwwRoot;
@@ -158,6 +161,9 @@ class OptionsDialog: public wxDialog
 		static const long ID_CHOICE4;
 		static const long ID_STATICTEXT1;
 		static const long ID_CHOICE3;
+		static const long ID_STATICTEXT_COORDINATES;
+		static const long ID_TEXTCTRL_COORDINATES;
+		static const long ID_BUTTON_FINDLOCATION;
 		static const long ID_STATICTEXT10;
 		static const long ID_CHOICE5;
 		static const long ID_BUTTONDEFAULTWINODOWLOC;
@@ -182,6 +188,9 @@ class OptionsDialog: public wxDialog
 		void OnButton_ExportClick(wxCommandEvent& event);
 		void OnCheckBox1Click(wxCommandEvent& event);
 		void OnButton_DefaultWindowLocationClick(wxCommandEvent& event);
+		void OnChoice_LocationSelect(wxCommandEvent& event);
+		void OnTextCtrl_CoordinatesText(wxCommandEvent& event);
+		void OnButton_FindLocationClick(wxCommandEvent& event);
 		//*)
 
 		DECLARE_EVENT_TABLE()
