@@ -129,7 +129,7 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
 	FlexGridSizer1->Add(-1,-1,1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
 	StaticText1 = new wxStaticText(this, ID_STATICTEXT1, _("Start Date:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT1"));
 	FlexGridSizer1->Add(StaticText1, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
-	DatePickerCtrl_Start = new wxDatePickerCtrlGeneric(this,ID_DATEPICKERCTRL1,wxDefaultDateTime,wxDefaultPosition,wxDefaultSize,wxDP_DROPDOWN|wxDP_SHOWCENTURY,wxDefaultValidator,_T("ID_DATEPICKERCTRL1"));
+	DatePickerCtrl_Start = new wxDatePickerCtrl(this, ID_DATEPICKERCTRL1, wxDefaultDateTime, wxDefaultPosition, wxDefaultSize, wxDP_DROPDOWN|wxDP_SHOWCENTURY, wxDefaultValidator, _T("ID_DATEPICKERCTRL1"));
 	FlexGridSizer1->Add(DatePickerCtrl_Start, 1, wxALL|wxEXPAND, 5);
 	StaticText_StartHoliday = new wxStaticText(this, ID_STATICTEXT_STARTHOLIDAY, _("Or holiday:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_STARTHOLIDAY"));
 	FlexGridSizer1->Add(StaticText_StartHoliday, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
@@ -145,7 +145,7 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
 	FlexGridSizer1->Add(FlexGridSizer7, 1, wxALL|wxEXPAND, 5);
 	StaticText2 = new wxStaticText(this, ID_STATICTEXT2, _("End Date:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT2"));
 	FlexGridSizer1->Add(StaticText2, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
-	DatePickerCtrl_End = new wxDatePickerCtrlGeneric(this,ID_DATEPICKERCTRL2,wxDefaultDateTime,wxDefaultPosition,wxDefaultSize,wxDP_DROPDOWN|wxDP_SHOWCENTURY,wxDefaultValidator,_T("ID_DATEPICKERCTRL2"));
+	DatePickerCtrl_End = new wxDatePickerCtrl(this, ID_DATEPICKERCTRL2, wxDefaultDateTime, wxDefaultPosition, wxDefaultSize, wxDP_DROPDOWN|wxDP_SHOWCENTURY, wxDefaultValidator, _T("ID_DATEPICKERCTRL2"));
 	FlexGridSizer1->Add(DatePickerCtrl_End, 1, wxALL|wxEXPAND, 5);
 	StaticText_EndHoliday = new wxStaticText(this, ID_STATICTEXT_ENDHOLIDAY, _("Or holiday:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_ENDHOLIDAY"));
 	FlexGridSizer1->Add(StaticText_EndHoliday, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
