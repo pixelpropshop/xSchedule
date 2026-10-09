@@ -349,6 +349,8 @@
 		<Unit filename="OutputProcessingDialog.h" />
 		<Unit filename="Pinger.cpp" />
 		<Unit filename="Pinger.h" />
+		<Unit filename="DateField.cpp" />
+		<Unit filename="DateField.h" />
 		<Unit filename="PlayList/PlayList.cpp" />
 		<Unit filename="PlayList/PlayList.h" />
 		<Unit filename="PlayList/PlayListDialog.cpp" />

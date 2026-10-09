@@ -14,7 +14,7 @@
  #include <wx/button.h>
  #include <wx/checkbox.h>
  #include <wx/choice.h>
- #include <wx/datectrl.h>
+ #include "DateField.h"
  #include <wx/dateevt.h>
  #include <wx/dialog.h>
  #include <wx/sizer.h>
@@ -63,8 +63,8 @@ class ScheduleDialog: public wxDialog
 		wxChoice* Choice_EndAction;
 		wxChoice* Choice_EndHoliday;
 		wxChoice* Choice_StartHoliday;
-		wxDatePickerCtrl* DatePickerCtrl_End;
-		wxDatePickerCtrl* DatePickerCtrl_Start;
+		DateField* DatePickerCtrl_End;
+		DateField* DatePickerCtrl_Start;
 		wxSpinCtrl* SpinCtrl_EndHolidayOffset;
 		wxSpinCtrl* SpinCtrl_StartHolidayOffset;
 		wxStaticText* StaticText_EndAction;
