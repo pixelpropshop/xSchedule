@@ -61,8 +61,11 @@
 				<option>1</option>
 			</object>
 			<object class="sizeritem">
-				<object class="wxDatePickerCtrl" name="ID_DATEPICKERCTRL1" variable="DatePickerCtrl_Start" member="yes">
-					<style>wxDP_DROPDOWN|wxDP_SHOWCENTURY</style>
+				<object class="Custom" name="ID_DATEPICKERCTRL1" subclass="DateField" variable="DatePickerCtrl_Start" member="yes">
+					<creating_code>$(THIS) = new $(CLASS)($(PARENT),$(ID),wxDefaultDateTime,$(POS),$(SIZE),$(STYLE),wxDefaultValidator,$(NAME));</creating_code>
+					<include_file>DateField.h</include_file>
+					<local_include>1</local_include>
+					<style>0</style>
 				</object>
 				<flag>wxALL|wxEXPAND</flag>
 				<border>5</border>
@@ -121,8 +124,11 @@
 				<option>1</option>
 			</object>
 			<object class="sizeritem">
-				<object class="wxDatePickerCtrl" name="ID_DATEPICKERCTRL2" variable="DatePickerCtrl_End" member="yes">
-					<style>wxDP_DROPDOWN|wxDP_SHOWCENTURY</style>
+				<object class="Custom" name="ID_DATEPICKERCTRL2" subclass="DateField" variable="DatePickerCtrl_End" member="yes">
+					<creating_code>$(THIS) = new $(CLASS)($(PARENT),$(ID),wxDefaultDateTime,$(POS),$(SIZE),$(STYLE),wxDefaultValidator,$(NAME));</creating_code>
+					<include_file>DateField.h</include_file>
+					<local_include>1</local_include>
+					<style>0</style>
 				</object>
 				<flag>wxALL|wxEXPAND</flag>
 				<border>5</border>

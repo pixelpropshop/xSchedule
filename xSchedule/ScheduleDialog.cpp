@@ -129,7 +129,7 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
 	FlexGridSizer1->Add(-1,-1,1, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
 	StaticText1 = new wxStaticText(this, ID_STATICTEXT1, _("Start Date:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT1"));
 	FlexGridSizer1->Add(StaticText1, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
-	DatePickerCtrl_Start = new wxDatePickerCtrl(this, ID_DATEPICKERCTRL1, wxDefaultDateTime, wxDefaultPosition, wxDefaultSize, wxDP_DROPDOWN|wxDP_SHOWCENTURY, wxDefaultValidator, _T("ID_DATEPICKERCTRL1"));
+	DatePickerCtrl_Start = new DateField(this,ID_DATEPICKERCTRL1,wxDefaultDateTime,wxDefaultPosition,wxDefaultSize,0,wxDefaultValidator,_T("ID_DATEPICKERCTRL1"));
 	FlexGridSizer1->Add(DatePickerCtrl_Start, 1, wxALL|wxEXPAND, 5);
 	StaticText_StartHoliday = new wxStaticText(this, ID_STATICTEXT_STARTHOLIDAY, _("Or holiday:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_STARTHOLIDAY"));
 	FlexGridSizer1->Add(StaticText_StartHoliday, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
@@ -145,7 +145,7 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
 	FlexGridSizer1->Add(FlexGridSizer7, 1, wxALL|wxEXPAND, 5);
 	StaticText2 = new wxStaticText(this, ID_STATICTEXT2, _("End Date:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT2"));
 	FlexGridSizer1->Add(StaticText2, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
-	DatePickerCtrl_End = new wxDatePickerCtrl(this, ID_DATEPICKERCTRL2, wxDefaultDateTime, wxDefaultPosition, wxDefaultSize, wxDP_DROPDOWN|wxDP_SHOWCENTURY, wxDefaultValidator, _T("ID_DATEPICKERCTRL2"));
+	DatePickerCtrl_End = new DateField(this,ID_DATEPICKERCTRL2,wxDefaultDateTime,wxDefaultPosition,wxDefaultSize,0,wxDefaultValidator,_T("ID_DATEPICKERCTRL2"));
 	FlexGridSizer1->Add(DatePickerCtrl_End, 1, wxALL|wxEXPAND, 5);
 	StaticText_EndHoliday = new wxStaticText(this, ID_STATICTEXT_ENDHOLIDAY, _("Or holiday:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_ENDHOLIDAY"));
 	FlexGridSizer1->Add(StaticText_EndHoliday, 1, wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL, 5);
@@ -361,8 +361,8 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
     TextCtrl_OffTime->SetValue(schedule->GetEndTimeAsString());
     SpinCtrl_Priority->SetValue(schedule->GetPriority());
     SpinCtrl_MaxLoops->SetValue(schedule->GetLoops());
-    DatePickerCtrl_Start->SetValue(schedule->GetStartDate());
-    DatePickerCtrl_End->SetValue(schedule->GetEndDate());
+    DatePickerCtrl_Start->SetDate(schedule->GetStartDate());
+    DatePickerCtrl_End->SetDate(schedule->GetEndDate());
     CheckBox_EveryYear->SetValue(schedule->GetEveryYear());
     CheckBox_Loop->SetValue(schedule->GetLoop());
     CheckBox_GracefullyInterrupt->SetValue(schedule->GetGracefullyInterrupt());
@@ -403,8 +403,8 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
     for (auto spin : { SpinCtrl_StartHolidayOffset, SpinCtrl_EndHolidayOffset }) {
         spin->SetToolTip("Days after (or, negative, before) the holiday");
     }
-    DatePickerCtrl_Start->SetValue(schedule->GetEffectiveStartDate());
-    DatePickerCtrl_End->SetValue(schedule->GetEffectiveEndDate());
+    DatePickerCtrl_Start->SetDate(schedule->GetEffectiveStartDate());
+    DatePickerCtrl_End->SetDate(schedule->GetEffectiveEndDate());
     TextCtrl_SkipDates->SetValue(schedule->GetSkipDatesAsString());
 
     Choice_FireFrequency->SetToolTip("Times are relative to schedule start time.");
@@ -439,8 +439,8 @@ void ScheduleDialog::ApplyTo(Schedule* schedule) const
     schedule->SetEndTime(TextCtrl_OffTime->GetValue().ToStdString());
     schedule->SetPriority(SpinCtrl_Priority->GetValue());
     schedule->SetLoops(SpinCtrl_MaxLoops->GetValue());
-    schedule->SetStartDate(DatePickerCtrl_Start->GetValue());
-    schedule->SetEndDate(DatePickerCtrl_End->GetValue());
+    schedule->SetStartDate(DatePickerCtrl_Start->GetDate());
+    schedule->SetEndDate(DatePickerCtrl_End->GetDate());
     schedule->SetGracefullyInterrupt(CheckBox_GracefullyInterrupt->GetValue());
     schedule->SetEveryYear(CheckBox_EveryYear->GetValue());
     schedule->SetLoop(CheckBox_Loop->GetValue());
@@ -513,10 +513,10 @@ void ScheduleDialog::ValidateWindow()
         spin->Enable(!id.empty());
         if (!id.empty()) {
             // the field shows the holiday plus the offset, so take the year from before the offset
-            wxDateTime d = Holidays::DateFor(id, (picker->GetValue() - wxDateSpan::Days(spin->GetValue())).GetYear());
+            wxDateTime d = Holidays::DateFor(id, (picker->GetDate() - wxDateSpan::Days(spin->GetValue())).GetYear());
             if (d.IsValid()) {
                 d += wxDateSpan::Days(spin->GetValue());
-                if (!picker->GetValue().IsSameDate(d)) picker->SetValue(d);
+                if (!picker->GetDate().IsSameDate(d)) picker->SetDate(d);
             }
         }
     }
@@ -527,7 +527,7 @@ void ScheduleDialog::ValidateWindow()
     TextCtrl_SkipDates->SetForegroundColour(skipOk ? wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT) : ModernUI::GetTheme().badText);
     TextCtrl_SkipDates->Refresh();
 
-    bool datesOk = DatePickerCtrl_Start->GetValue() <= DatePickerCtrl_End->GetValue();
+    bool datesOk = DatePickerCtrl_Start->GetDate() <= DatePickerCtrl_End->GetDate();
     if (holidays) {
         if (CheckBox_EveryYear->GetValue()) {
             datesOk = true; // resolved each year; a season may run past New Year
