@@ -226,7 +226,7 @@ void InitialiseLogging(bool fromMain)
 
         // wxStandardPaths::Get().Get()
 
-        auto rotating_file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logFilePath, 1024 * 1024 * 10, 10);
+        auto rotating_file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logFilePath, 1024 * 1024 * 10, 2);
 
         auto file_logger = std::make_shared<spdlog::logger>("xschedule", rotating_file_sink);
         auto curl_logger = std::make_shared<spdlog::logger>("curl", rotating_file_sink);

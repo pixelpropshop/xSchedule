@@ -17,7 +17,6 @@
  #include <wx/datectrl.h>
  #include <wx/dateevt.h>
  #include <wx/dialog.h>
- #include <wx/generic/datectrl.h>
  #include <wx/sizer.h>
  #include <wx/spinctrl.h>
  #include <wx/stattext.h>
@@ -64,8 +63,8 @@ class ScheduleDialog: public wxDialog
 		wxChoice* Choice_EndAction;
 		wxChoice* Choice_EndHoliday;
 		wxChoice* Choice_StartHoliday;
-		wxDatePickerCtrlGeneric* DatePickerCtrl_End;
-		wxDatePickerCtrlGeneric* DatePickerCtrl_Start;
+		wxDatePickerCtrl* DatePickerCtrl_End;
+		wxDatePickerCtrl* DatePickerCtrl_Start;
 		wxSpinCtrl* SpinCtrl_EndHolidayOffset;
 		wxSpinCtrl* SpinCtrl_StartHolidayOffset;
 		wxStaticText* StaticText_EndAction;

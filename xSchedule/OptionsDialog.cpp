@@ -139,6 +139,8 @@ const long OptionsDialog::ID_TEXTCTRL_COORDINATES = wxNewId();
 const long OptionsDialog::ID_BUTTON_FINDLOCATION = wxNewId();
 const long OptionsDialog::ID_STATICTEXT10 = wxNewId();
 const long OptionsDialog::ID_CHOICE5 = wxNewId();
+const long OptionsDialog::ID_STATICTEXT_LOGLEVEL = wxNewId();
+const long OptionsDialog::ID_CHOICE_LOGLEVEL = wxNewId();
 const long OptionsDialog::ID_BUTTONDEFAULTWINODOWLOC = wxNewId();
 const long OptionsDialog::ID_BUTTON1 = wxNewId();
 const long OptionsDialog::ID_BUTTON2 = wxNewId();
@@ -339,6 +341,14 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     Choice1 = new wxChoice(this, ID_CHOICE5, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICE5"));
     Choice1->SetToolTip(_("When set this will override any forced IP on all controllers. If you want to set individual controllers to specific network cards then you must do this in xLights."));
     FlexGridSizer3->Add(Choice1, 1, wxALL | wxEXPAND, 5);
+    StaticText_LogLevel = new wxStaticText(this, ID_STATICTEXT_LOGLEVEL, _("Log file:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_LOGLEVEL"));
+    FlexGridSizer3->Add(StaticText_LogLevel, 1, wxALL | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
+    Choice_LogLevel = new wxChoice(this, ID_CHOICE_LOGLEVEL, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICE_LOGLEVEL"));
+    Choice_LogLevel->SetSelection(Choice_LogLevel->Append(_("Normal")));
+    Choice_LogLevel->Append(_("Errors and warnings only"));
+    Choice_LogLevel->Append(_("Off"));
+    Choice_LogLevel->SetToolTip(_("What xSchedule writes to xschedule_spdlog.log. Without a log, problems are much harder to track down."));
+    FlexGridSizer3->Add(Choice_LogLevel, 1, wxALL | wxEXPAND, 5);
     FlexGridSizer3->Add(-1, -1, 1, wxALL | wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 5);
     Button_DefaultWindowLocation = new wxButton(this, ID_BUTTONDEFAULTWINODOWLOC, _("Set Default Video/Virtual Matrix Location"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_BUTTONDEFAULTWINODOWLOC"));
     FlexGridSizer3->Add(Button_DefaultWindowLocation, 1, wxALL | wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL, 5);
@@ -399,6 +409,7 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     ListView_Buttons->AppendColumn("Web Color");
 
     Choice_OnCrash->SetStringSelection(options->GetCrashBehaviour());
+    Choice_LogLevel->SetSelection(options->GetLogLevel() == "Errors" ? 1 : options->GetLogLevel() == "Off" ? 2 : 0);
     CheckBox_SendOffWhenNotRunning->SetValue(options->IsSendOffWhenNotRunning());
     CheckBox_MultithreadedTransmission->SetValue(options->IsParallelTransmission());
     Choice_ARTNetTimeCodeFormat->SetSelection(static_cast<int>(options->GetARTNetTimeCodeFormat()));
@@ -539,6 +550,7 @@ void OptionsDialog::OnButton_OkClick(wxCommandEvent& event) {
         _options->SetCity(Choice_Location->GetStringSelection().ToStdString());
     }
     _options->SetCrashBehaviour(Choice_OnCrash->GetStringSelection().ToStdString());
+    _options->SetLogLevel(Choice_LogLevel->GetSelection() == 1 ? "Errors" : Choice_LogLevel->GetSelection() == 2 ? "Off" : "Normal");
     _options->SetRemoteAllOff(CheckBox_RemoteAllOff->GetValue());
     _options->SetKeepScreenOn(CheckBox_KeepScreenOn->GetValue());
     _options->SetMinimiseUIUpdates(CheckBox_MinimiseUI->GetValue());

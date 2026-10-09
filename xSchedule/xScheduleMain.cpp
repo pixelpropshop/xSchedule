@@ -771,6 +771,17 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     ModernUI::FitListHeaders(this);
     CallAfter([this]() { ModernUI::LogClippedControls(this); });
 
+    // set once the window has its final size: the splitter splits later size changes between its panes, so a
+    // position set earlier moves a little on every start
+    CallAfter([this]() {
+        long pane = wxConfigBase::Get()->ReadLong("xsControllerPaneHeight", -1);
+        if (pane > 0) {
+            SplitterWindow2->SetSashPosition(SplitterWindow2->GetSize().y - pane);
+        } else {
+            SplitterWindow2->SetSashPosition(wxConfigBase::Get()->ReadLong("xsSashPositionH", 150));
+        }
+    });
+
     spdlog::debug("Loading show folder.");
     if (showdir == "")     {
         LoadShowDir();
@@ -862,6 +873,22 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
 #endif
 }
 
+// the level from Options, unless special.options sets one
+void xScheduleFrame::ApplyLogLevel()
+{
+    std::string level = "info";
+    if (__schedule != nullptr) {
+        std::string setting = __schedule->GetOptions()->GetLogLevel();
+        if (setting == "Errors") level = "warn";
+        else if (setting == "Off") level = "off";
+    }
+    spdlog::default_logger()->set_level(spdlog::level::from_str(SpecialOptions::GetOption("xschedule_logger", level)));
+    for (const std::string name : { "curl", "frame" }) {
+        auto logger = spdlog::get(name);
+        if (logger) logger->set_level(spdlog::level::from_str(SpecialOptions::GetOption(name + "_logger", level)));
+    }
+}
+
 void xScheduleFrame::LoadSchedule()
 {
     wxASSERT(wxThread::IsMain());
@@ -891,11 +918,7 @@ void xScheduleFrame::LoadSchedule()
 	}
 
     // Re-apply spdlog levels from special.options now that show dir is known
-    spdlog::default_logger()->set_level(spdlog::level::from_str(SpecialOptions::GetOption("xschedule_logger", "info")));
-    auto curl_log = spdlog::get("curl");
-    if (curl_log) curl_log->set_level(spdlog::level::from_str(SpecialOptions::GetOption("curl_logger", "info")));
-    auto frame_log = spdlog::get("frame");
-    if (frame_log) frame_log->set_level(spdlog::level::from_str(SpecialOptions::GetOption("frame_logger", "info")));
+    ApplyLogLevel();
 
     spdlog::debug("Loading schedule.");
 
@@ -923,6 +946,7 @@ void xScheduleFrame::LoadSchedule()
     spdlog::debug("LoadSchedule: constructing new ScheduleManager for '{}'.", _showDir);
     __schedule = new ScheduleManager(this, _showDir);
     spdlog::debug("LoadSchedule: new ScheduleManager constructed.");
+    ApplyLogLevel();
 
     _pinger = new Pinger(__schedule->GetListenerManager(), __schedule->GetOutputManager());
     __schedule->SetPinger(_pinger);
@@ -1073,6 +1097,7 @@ xScheduleFrame::~xScheduleFrame()
         config->Write(_("xsWindowPosH"), h);
         config->Write("xsSashPositionV", SplitterWindow1->GetSashPosition());
         config->Write("xsSashPositionH", SplitterWindow2->GetSashPosition());
+        config->Write("xsControllerPaneHeight", SplitterWindow2->GetSize().y - SplitterWindow2->GetSashPosition());
         config->Flush();
     }
 
@@ -1949,6 +1974,7 @@ void xScheduleFrame::OnMenuItem_OptionsSelected(wxCommandEvent& event)
         __schedule->GetSyncManager()->ReloadOptions();
 
         __schedule->GetOptions()->ApplyLocation();
+        ApplyLogLevel();
         __schedule->GetOutputManager()->SetParallelTransmission(__schedule->GetOptions()->IsParallelTransmission());
         OutputManager::SetRetryOpen(__schedule->GetOptions()->IsRetryOpen());
         __schedule->GetOutputManager()->SetSyncEnabled(__schedule->GetOptions()->IsSync());
@@ -4362,6 +4388,7 @@ void xScheduleFrame::OnMenuItem_ResetWindowLocationsSelected(wxCommandEvent& eve
     config->DeleteEntry(_("xsWindowPosW"));
     config->DeleteEntry(_("xsWindowPosH"));
     config->DeleteEntry("xsSashPositionH");
+    config->DeleteEntry("xsControllerPaneHeight");
     config->DeleteEntry("xsSashPositionV");
 }
 
