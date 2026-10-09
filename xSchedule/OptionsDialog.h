@@ -75,6 +75,7 @@ class OptionsDialog: public wxDialog
 		wxCheckBox* CheckBox_Sync;
 		wxCheckBox* CheckBox_TimecodeWaitForNextSong;
 		wxChoice* Choice1;
+		wxChoice* Choice_LogLevel;
 		wxChoice* Choice_ARTNetTimeCodeFormat;
 		wxChoice* Choice_AudioDevice;
 		wxChoice* Choice_InputAudioDevice;
@@ -86,6 +87,7 @@ class OptionsDialog: public wxDialog
 		wxSpinCtrl* SpinCtrl_PasswordTimeout;
 		wxSpinCtrl* SpinCtrl_WebServerPort;
 		wxStaticText* StaticText10;
+		wxStaticText* StaticText_LogLevel;
 		wxStaticText* StaticText11;
 		wxStaticText* StaticText12;
 		wxStaticText* StaticText13;
@@ -166,6 +168,8 @@ class OptionsDialog: public wxDialog
 		static const long ID_BUTTON_FINDLOCATION;
 		static const long ID_STATICTEXT10;
 		static const long ID_CHOICE5;
+		static const long ID_STATICTEXT_LOGLEVEL;
+		static const long ID_CHOICE_LOGLEVEL;
 		static const long ID_BUTTONDEFAULTWINODOWLOC;
 		static const long ID_BUTTON1;
 		static const long ID_BUTTON2;

@@ -78,6 +78,7 @@ ScheduleOptions::ScheduleOptions(OutputManager* outputManager, wxXmlNode* node, 
     _passwordTimeout = wxAtoi(node->GetAttribute("PasswordTimeout", "30"));
     _wwwRoot = node->GetAttribute("WWWRoot", "xScheduleWeb");
     _crashBehaviour = node->GetAttribute("CrashBehaviour", "Prompt user");
+    _logLevel = node->GetAttribute("LogLevel", "Normal").ToStdString();
     _artNetTimeCodeFormat = static_cast<TIMECODEFORMAT>(wxAtoi(node->GetAttribute("ARTNetTimeCodeFormat", "1")));
     _audioDevice = node->GetAttribute("AudioDevice", "").ToStdString();
     _inputAudioDevice = node->GetAttribute("InputAudioDevice", "").ToStdString();
@@ -342,6 +343,7 @@ wxXmlNode* ScheduleOptions::Save() {
     res->AddAttribute("InputAudioDevice", _inputAudioDevice);
     res->AddAttribute("WWWRoot", _wwwRoot);
     res->AddAttribute("CrashBehaviour", _crashBehaviour);
+    if (_logLevel != "Normal") res->AddAttribute("LogLevel", _logLevel);
     res->AddAttribute("MIDITimecodeDevice", _MIDITimecodeDevice);
     res->AddAttribute("MIDITimecodeFormat", wxString::Format("%d", _MIDITimecodeFormat));
     res->AddAttribute("MIDITimecodeOffset", wxString::Format("%ld", (long)_MIDITimecodeOffset));

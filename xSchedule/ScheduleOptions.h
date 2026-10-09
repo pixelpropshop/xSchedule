@@ -324,6 +324,7 @@ class ScheduleOptions {
     std::list<EventBase*> _events;
     TIMECODEFORMAT _artNetTimeCodeFormat;
     std::string _city;
+    std::string _logLevel = "Normal"; // Normal, Errors or Off
     bool _customLocation = false;
     double _latitude = 0;
     double _longitude = 0;
@@ -588,6 +589,15 @@ public:
     }
     std::string GetCrashBehaviour() const {
         return _crashBehaviour;
+    }
+    std::string GetLogLevel() const {
+        return _logLevel;
+    }
+    void SetLogLevel(const std::string& level) {
+        if (level != _logLevel) {
+            _logLevel = level;
+            _changeCount++;
+        }
     }
     void SetCrashBehaviour(std::string crashBehaviour) {
         if (crashBehaviour != _crashBehaviour) {

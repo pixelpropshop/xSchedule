@@ -873,6 +873,22 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
 #endif
 }
 
+// the level from Options, unless special.options sets one
+void xScheduleFrame::ApplyLogLevel()
+{
+    std::string level = "info";
+    if (__schedule != nullptr) {
+        std::string setting = __schedule->GetOptions()->GetLogLevel();
+        if (setting == "Errors") level = "warn";
+        else if (setting == "Off") level = "off";
+    }
+    spdlog::default_logger()->set_level(spdlog::level::from_str(SpecialOptions::GetOption("xschedule_logger", level)));
+    for (const std::string name : { "curl", "frame" }) {
+        auto logger = spdlog::get(name);
+        if (logger) logger->set_level(spdlog::level::from_str(SpecialOptions::GetOption(name + "_logger", level)));
+    }
+}
+
 void xScheduleFrame::LoadSchedule()
 {
     wxASSERT(wxThread::IsMain());
@@ -902,11 +918,7 @@ void xScheduleFrame::LoadSchedule()
 	}
 
     // Re-apply spdlog levels from special.options now that show dir is known
-    spdlog::default_logger()->set_level(spdlog::level::from_str(SpecialOptions::GetOption("xschedule_logger", "info")));
-    auto curl_log = spdlog::get("curl");
-    if (curl_log) curl_log->set_level(spdlog::level::from_str(SpecialOptions::GetOption("curl_logger", "info")));
-    auto frame_log = spdlog::get("frame");
-    if (frame_log) frame_log->set_level(spdlog::level::from_str(SpecialOptions::GetOption("frame_logger", "info")));
+    ApplyLogLevel();
 
     spdlog::debug("Loading schedule.");
 
@@ -934,6 +946,7 @@ void xScheduleFrame::LoadSchedule()
     spdlog::debug("LoadSchedule: constructing new ScheduleManager for '{}'.", _showDir);
     __schedule = new ScheduleManager(this, _showDir);
     spdlog::debug("LoadSchedule: new ScheduleManager constructed.");
+    ApplyLogLevel();
 
     _pinger = new Pinger(__schedule->GetListenerManager(), __schedule->GetOutputManager());
     __schedule->SetPinger(_pinger);
@@ -1961,6 +1974,7 @@ void xScheduleFrame::OnMenuItem_OptionsSelected(wxCommandEvent& event)
         __schedule->GetSyncManager()->ReloadOptions();
 
         __schedule->GetOptions()->ApplyLocation();
+        ApplyLogLevel();
         __schedule->GetOutputManager()->SetParallelTransmission(__schedule->GetOptions()->IsParallelTransmission());
         OutputManager::SetRetryOpen(__schedule->GetOptions()->IsRetryOpen());
         __schedule->GetOutputManager()->SetSyncEnabled(__schedule->GetOptions()->IsSync());

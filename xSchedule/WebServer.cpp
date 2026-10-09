@@ -246,7 +246,7 @@ wxString ProcessQuery(HttpConnection& connection, const wxString& query, const w
 #ifndef DETAILED_LOGGING
     if (query != "GetPlayingStatus")
 #endif
-        spdlog::info("xScheduleQuery received query = '{}' parameters = '{}'", query.ToStdString(), parameters.ToStdString());
+        spdlog::debug("xScheduleQuery received query = '{}' parameters = '{}'", query.ToStdString(), parameters.ToStdString());
 
     wxString result = "";
     wxString msg;
@@ -254,7 +254,7 @@ wxString ProcessQuery(HttpConnection& connection, const wxString& query, const w
 #ifndef DETAILED_LOGGING
         if (query != "GetPlayingStatus")
 #endif
-            spdlog::info("    data = '{}'. Time = {}.", result.ToStdString(), sw.Time());
+            spdlog::debug("    data = '{}'. Time = {}.", result.ToStdString(), sw.Time());
     }
     else {
         result = "{\"result\":\"failed\",\"query\":\"" +
@@ -339,11 +339,11 @@ wxString ProcessStash(HttpConnection& connection, const wxString& command, const
             connection.Address().IPAddress() + "\"}";
     }
 
-    spdlog::info("xScheduleStash received command = '{}' key = '{}'", command.ToStdString(), key.ToStdString());
+    spdlog::debug("xScheduleStash received command = '{}' key = '{}'", command.ToStdString(), key.ToStdString());
 
     wxString result;
     if (wxString(command).Lower() == "store") {
-        spdlog::info("    data = '{}'", data.ToStdString());
+        spdlog::debug("    data = '{}'", data.ToStdString());
 
         if (key == "GetModels") {
             result = "{\"result\":\"failed\",\"stash\":\"" +
@@ -372,7 +372,7 @@ wxString ProcessStash(HttpConnection& connection, const wxString& command, const
     else if (wxString(command).Lower() == "retrieve") {
         wxString msg = "";
         if (xScheduleFrame::GetScheduleManager()->RetrieveData(key, data, msg)) {
-            spdlog::info("    data = '{}'. Time = {}.", data.ToStdString(), sw.Time());
+            spdlog::debug("    data = '{}'. Time = {}.", data.ToStdString(), sw.Time());
             result = "";
         }
         else {
@@ -386,7 +386,7 @@ wxString ProcessStash(HttpConnection& connection, const wxString& command, const
     else if (wxString(command).Lower() == "retrievejson") {
         wxString msg = "";
         if (xScheduleFrame::GetScheduleManager()->RetrieveData(key, data, msg)) {
-            spdlog::info("    data = '{}'. Time = {}.", data.ToStdString(), sw.Time());
+            spdlog::debug("    data = '{}'. Time = {}.", data.ToStdString(), sw.Time());
             result = "{\"reference\":\"" + reference +
                 "\",\"key\":\"" + key + "\",\"value\":[" + data + "]}";
         }
