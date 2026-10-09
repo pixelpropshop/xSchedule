@@ -771,6 +771,17 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     ModernUI::FitListHeaders(this);
     CallAfter([this]() { ModernUI::LogClippedControls(this); });
 
+    // set once the window has its final size: the splitter splits later size changes between its panes, so a
+    // position set earlier moves a little on every start
+    CallAfter([this]() {
+        long pane = wxConfigBase::Get()->ReadLong("xsControllerPaneHeight", -1);
+        if (pane > 0) {
+            SplitterWindow2->SetSashPosition(SplitterWindow2->GetSize().y - pane);
+        } else {
+            SplitterWindow2->SetSashPosition(wxConfigBase::Get()->ReadLong("xsSashPositionH", 150));
+        }
+    });
+
     spdlog::debug("Loading show folder.");
     if (showdir == "")     {
         LoadShowDir();
@@ -1073,6 +1084,7 @@ xScheduleFrame::~xScheduleFrame()
         config->Write(_("xsWindowPosH"), h);
         config->Write("xsSashPositionV", SplitterWindow1->GetSashPosition());
         config->Write("xsSashPositionH", SplitterWindow2->GetSashPosition());
+        config->Write("xsControllerPaneHeight", SplitterWindow2->GetSize().y - SplitterWindow2->GetSashPosition());
         config->Flush();
     }
 
@@ -4362,6 +4374,7 @@ void xScheduleFrame::OnMenuItem_ResetWindowLocationsSelected(wxCommandEvent& eve
     config->DeleteEntry(_("xsWindowPosW"));
     config->DeleteEntry(_("xsWindowPosH"));
     config->DeleteEntry("xsSashPositionH");
+    config->DeleteEntry("xsControllerPaneHeight");
     config->DeleteEntry("xsSashPositionV");
 }
 
