@@ -159,7 +159,7 @@ void PlayListItemProjector::ExecuteSerialCommand()
             }
         }
 
-        delete dbuffer;
+        free(dbuffer);
     }
 }
 
@@ -419,6 +419,8 @@ void PlayListItemProjector::ExecuteTCPCommand()
         {
             spdlog::warn("Projector unable to connect.");
         }
+        PJLinkLogout();
+        free(dbuffer);
     }
     else
     {

@@ -843,7 +843,9 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
                 // for queued songs we must remove the queued song when it finishes
                 if (running == _queuedSongs) {
                     if (_queuedSongs->GetRunningStep() != _queuedSongs->GetSteps().front()) {
-                        _queuedSongs->RemoveStep(_queuedSongs->GetSteps().front());
+                        PlayListStep* finished = _queuedSongs->GetSteps().front();
+                        _queuedSongs->RemoveStep(finished);
+                        delete finished;
                         wxCommandEvent event(EVT_DOCHECKSCHEDULE);
                         wxPostEvent(wxGetApp().GetTopWindow(), event);
                         wxCommandEvent event2(EVT_SCHEDULECHANGED);
@@ -1912,7 +1914,9 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                     if (p != nullptr) {
                         if (_queuedSongs != nullptr && p->GetId() == _queuedSongs->GetId()) {
                             _queuedSongs->Stop();
-                            _queuedSongs->RemoveStep(_queuedSongs->GetSteps().front());
+                            PlayListStep* skipped = _queuedSongs->GetSteps().front();
+                            _queuedSongs->RemoveStep(skipped);
+                            delete skipped;
                             _queuedSongs->Start();
                         } else {
                             p->JumpToNextStep();
@@ -2813,6 +2817,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                             if (data.length() == 0) {
                                 spdlog::debug("Pixel overlay data removed.");
                                 _overlayData.remove(p);
+                                delete p;
                             } else {
                                 spdlog::debug("Pixel overlay data changed.");
                                 p->SetData(data, blendMode);
@@ -2840,33 +2845,33 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                         APPLYMETHOD blendMode = APPLYMETHOD::METHOD_OVERWRITE;
                         blendMode = EncodeBlendMode(split[3].ToStdString());
 
-                        PixelData* p = nullptr;
-                        for (const auto& it : _overlayData) {
-                            if (it->GetStartChannel() == sc) {
-                                if (ch == 0) {
-                                    p = it;
-                                    spdlog::debug("Pixel overlay data removed.");
-                                    _overlayData.remove(p);
-                                    break;
-                                } else if (it->GetSize() == ch) {
-                                    p = it;
+                        bool changed = false;
+                        for (auto it = _overlayData.begin(); it != _overlayData.end(); ++it) {
+                            if ((*it)->GetStartChannel() == sc) {
+                                if (ch != 0 && (*it)->GetSize() == ch) {
                                     spdlog::debug("Pixel overlay data changed.");
-                                    p->SetColor(c, blendMode);
-                                    break;
+                                    (*it)->SetColor(c, blendMode);
+                                    changed = true;
+                                } else {
+                                    // removed, or replaced below by one of the new size
+                                    spdlog::debug("Pixel overlay data removed.");
+                                    delete *it;
+                                    _overlayData.erase(it);
                                 }
+                                break;
                             }
                         }
 
-                        if (p == nullptr && ch != 0) {
+                        if (!changed && ch != 0) {
                             spdlog::debug("Pixel overlay data added.");
-                            p = new PixelData(sc, ch, c, blendMode);
-                            _overlayData.push_back(p);
+                            _overlayData.push_back(new PixelData(sc, ch, c, blendMode));
                         }
                     }
                 } else if (command == "Clear all overlays") {
                     std::list<PixelData*>::iterator i = _overlayData.begin();
                     while (i != _overlayData.end()) {
                         spdlog::debug("Pixel overlay data removed.");
+                        delete *i;
                         i = _overlayData.erase(i);
                     }
                 } else if (command == "Play specified playlist step n times") {
