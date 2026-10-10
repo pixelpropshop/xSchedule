@@ -59,34 +59,37 @@ public:
     }
 
     void* Entry() {
-        wxLongLong last = 0;
         double interval = _syncMidi->GetInterval() * 1000.0; // quarter frame messages
         _running = true;
+        // the time of the next send; sending only when it is due and sleeping until then keeps the thread idle
+        wxLongLong next = 0;
         while (!_stop) {
-            if (!_suspend) {
-                long long sleepfor = 0;
+            if (_suspend) {
+                wxMilliSleep(10);
+                continue;
+            }
 
-                if (wxGetUTCTimeUSec() - last > interval) {
-                    // get our absolute position
-                    PlaybackState playing = _scheduleManager->GetPlaybackSnapshot();
-                    if (playing.playing) {
-                        // sent a sync
-                        _syncMidi->SendSync(0, 0, playing.stepMS, playing.playlistMS, "", "", "", "", playing.stepNo, playing.baseTimeCodeSecs);
-                        _toSendStop = true;
-                    } else {
-                        if (_toSendStop) {
-                            _syncMidi->SendStop();
-                            _toSendStop = false;
-                        }
+            wxLongLong now = wxGetUTCTimeUSec();
+            if (now >= next) {
+                // get our absolute position
+                PlaybackState playing = _scheduleManager->GetPlaybackSnapshot();
+                if (playing.playing) {
+                    // sent a sync
+                    _syncMidi->SendSync(0, 0, playing.stepMS, playing.playlistMS, "", "", "", "", playing.stepNo, playing.baseTimeCodeSecs);
+                    _toSendStop = true;
+                } else {
+                    if (_toSendStop) {
+                        _syncMidi->SendStop();
+                        _toSendStop = false;
                     }
-
-                    sleepfor = (int64_t)((last.GetValue()) + interval - wxGetUTCTimeUSec().GetValue());
-                    last = wxGetUTCTimeUSec().GetValue();
                 }
+                // a long way behind (a stall, or the first send) starts again from now rather than catching up in a burst
+                next = (next == 0 || (now - next).GetValue() > (long long)interval) ? now + (long long)interval : next + (long long)interval;
+            }
 
-                if (sleepfor > 0) {
-                    wxMicroSleep(sleepfor);
-                }
+            long long sleepfor = (next - wxGetUTCTimeUSec()).GetValue();
+            if (sleepfor > 0) {
+                wxMicroSleep(sleepfor);
             }
         }
         _running = false;

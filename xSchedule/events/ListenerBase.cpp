@@ -47,7 +47,7 @@ void* ListenerThread::Entry() {
 
     _listener->StartProcess(_localIP);
 
-    if (_listener->IsOk()) {
+    if (_listener->IsOk() || _listener->PollsWhenNotOk()) {
         while (!_stop) {
             _listener->Poll();
         }

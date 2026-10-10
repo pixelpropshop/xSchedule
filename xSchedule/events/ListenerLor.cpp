@@ -46,7 +46,6 @@ void ListenerLor::Poll() {
     int inputs2 = 0;
     size_t idx = 0;
     uint8_t d[8];
-    bool done = false;
 
     if (_serial == nullptr)
         return;
@@ -89,8 +88,12 @@ void ListenerLor::Poll() {
             rcv_state = WAITING_FOR_FE;
 
             sw3.Start(0);
-            while (!done && !_stop && (sw3.Time() < 50)) {
+            // reads don't wait for data, so stop once the reply is complete and pause while nothing has arrived
+            while (rcv_state != PROCESS_DATA && !_stop && (sw3.Time() < 50)) {
                 int bytes_read = _serial->Read((char*)(_buffer), 128);
+                if (bytes_read <= 0) {
+                    wxMilliSleep(1);
+                }
 
                 int i = 0;
                 while (i < bytes_read) {
