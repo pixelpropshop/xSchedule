@@ -579,14 +579,13 @@ bool PlayListStep::Frame(uint8_t* buffer, size_t size, bool outputframe)
 
     //logger_base.debug("    Step %s frame %ld done in %ld.", (const char *)GetNameNoTime().c_str(), (long)frameMS, (long)sw.Time());
 
-    if (timesource != nullptr)
-    {
-        return timesource->Done();
+    bool done = timesource != nullptr ? timesource->Done() : frameMS >= GetLengthMS() - GetFrameMS();
+    if (done) {
+        for (const auto& it : _items) {
+            if (it->IsBusy()) return false;
+        }
     }
-    else
-    {
-        return frameMS >= GetLengthMS() - GetFrameMS();
-    }
+    return done;
 }
 
 size_t PlayListStep::GetFrameMS()

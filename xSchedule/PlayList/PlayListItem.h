@@ -144,6 +144,10 @@ public:
             _changeCount++;
         }
     }
+    // the step doesn't end while an item is busy
+    virtual bool IsBusy() const {
+        return false;
+    }
     virtual bool Done() const {
         return false;
     }
