@@ -623,6 +623,7 @@ void PlayList::Start(bool loop, bool random, int loops, const std::string& step)
         } else {
             _currentStep->Start(-1);
             StartEveryStep(-1);
+            PreloadNextStep();
         }
     }
 }
@@ -780,6 +781,12 @@ PlayListStep* PlayList::GetNextStepIgnoringBranches(bool& didloop) {
     return nullptr;
 }
 
+void PlayList::PreloadNextStep() {
+    if (_currentStep == nullptr || IsRandom()) return;
+    PlayListStep* next = PeekNextStep();
+    if (next != nullptr && next != _currentStep) next->PreloadAudio();
+}
+
 PlayListStep* PlayList::PeekNextStep() {
     if (_currentStep == nullptr) return nullptr;
 
@@ -900,6 +907,7 @@ bool PlayList::JumpToPriorStep() {
 
     _currentStep->Start(-1);
     StartEveryStep(-1);
+    PreloadNextStep();
 
     return success;
 }
@@ -930,6 +938,7 @@ bool PlayList::JumpToNextStep() {
     // a step repeating for "play n times" keeps the count of plays it has left
     _currentStep->Start(_currentStep == previous ? _currentStep->GetLoopsLeft() : -1);
     StartEveryStep(-1);
+    PreloadNextStep();
     return success;
 }
 
@@ -973,6 +982,7 @@ bool PlayList::MoveToNextStep(bool suppressNext) {
         // a step repeating for "play n times" keeps the count of plays it has left
         _currentStep->Start(_currentStep == previous ? _currentStep->GetLoopsLeft() : -1);
         StartEveryStep(-1);
+        PreloadNextStep();
 
         spdlog::debug("Move to next step moved to {}.", (const char*)_currentStep->GetNameNoTime().c_str());
 
@@ -1072,6 +1082,7 @@ bool PlayList::JumpToStep(PlayListStep* pls) {
 
     _currentStep->Start(-1);
     StartEveryStep(-1);
+    PreloadNextStep();
 
     return success;
 }

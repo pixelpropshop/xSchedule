@@ -596,6 +596,14 @@ size_t PlayListStep::GetFrameMS()
     return ms;
 }
 
+void PlayListStep::PreloadAudio()
+{
+    ReentrancyCounter rec(_reentrancyCounter);
+    for (auto it : _items) {
+        it->PreloadAudio();
+    }
+}
+
 PlayListItemBranch* PlayListStep::GetBranch() const
 {
     for (auto it : _items) {

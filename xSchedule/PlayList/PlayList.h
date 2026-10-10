@@ -117,6 +117,8 @@ public:
     PlayListStep* PeekNextStep();
     PlayListStep* GetNextStepIgnoringBranches(bool& didloop);
     PlayListStep* FollowBranches(PlayListStep* step, bool& didloop, bool peek);
+    // decodes the next step's audio while this one plays (not when shuffling: the next step isn't known yet)
+    void PreloadNextStep();
     PlayListStep* GetRunningStep() const {
         return _currentStep;
     }

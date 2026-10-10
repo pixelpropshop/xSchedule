@@ -78,6 +78,7 @@ public:
     std::string GetStatus(bool ms = false);
     bool GetExcludeFromRandom() const { return _excludeFromRandom; }
     PlayListItemBranch* GetBranch() const;
+    void PreloadAudio();
     void SetExcludeFromRandom(bool efr) { if (_excludeFromRandom != efr) { _excludeFromRandom = efr; ++_changeCount; } }
     std::string GetStartTime(PlayList* pl);
     std::string GetRemoteStartTime(PlayList* pl);

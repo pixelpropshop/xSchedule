@@ -182,6 +182,9 @@ public:
     }
     virtual void Pause(bool pause) {
     }
+    // starts decoding the audio this item plays, so starting it later doesn't wait
+    virtual void PreloadAudio() {
+    }
     virtual void Suspend(bool suspend) {
     }
     virtual bool Advance(int seconds) {

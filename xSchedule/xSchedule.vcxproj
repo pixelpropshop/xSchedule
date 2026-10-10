@@ -703,6 +703,7 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClInclude Include="PlayList\PlayListItemAudioPanel.h" />
     <ClInclude Include="PlayList\PlayListItemCURL.h" />
     <ClInclude Include="PlayList\PlayListItemCURLPanel.h" />
+    <ClInclude Include="PlayList\AudioPreload.h" />
     <ClInclude Include="PlayList\PlayListItemBranch.h" />
     <ClInclude Include="PlayList\PlayListItemBranchPanel.h" />
     <ClInclude Include="PlayList\PlayListItemDelay.h" />

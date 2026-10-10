@@ -939,6 +939,9 @@
     <ClInclude Include="PlayList\PlayListItemCURLPanel.h">
       <Filter>PlayList</Filter>
     </ClInclude>
+    <ClInclude Include="PlayList\AudioPreload.h">
+      <Filter>PlayList</Filter>
+    </ClInclude>
     <ClInclude Include="PlayList\PlayListItemBranch.h">
       <Filter>PlayList</Filter>
     </ClInclude>

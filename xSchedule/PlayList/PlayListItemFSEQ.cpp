@@ -108,7 +108,7 @@ void PlayListItemFSEQ::LoadAudio() {
     if (IsInSlaveMode() && IsSuppressAudioOnSlaves()) {
     } else if (wxFile::Exists(af)) {
         spdlog::debug("FSEQ: Loading audio file '{}'.", (const char*)af.c_str());
-        _audioManager = new AudioManager(af, -1, _audioDevice);
+        _audioManager = _preload.TakeOrCreate(af, _audioDevice);
 
         if (!_audioManager->IsOk()) {
             spdlog::error("FSEQ: Audio file '{}' has a problem opening.", (const char*)af.c_str());
@@ -209,13 +209,19 @@ PlayListItem* PlayListItemFSEQ::Copy(const bool isClone) const {
     res->_channels = _channels;
     res->_startChannel = _startChannel;
     res->_fastStartAudio = _fastStartAudio;
-    res->SetAudioFile(_audioFile); // this will trigger file loading
+    res->_audioFile = _audioFile;
 
     if (_fastStartAudio) {
-        res->LoadFiles();
+        res->PreloadAudio();
     }
 
     return res;
+}
+
+void PlayListItemFSEQ::PreloadAudio() {
+    if (_audioManager == nullptr && !(IsInSlaveMode() && IsSuppressAudioOnSlaves())) {
+        _preload.Start(GetAudioFilename(), _audioDevice);
+    }
 }
 
 wxXmlNode* PlayListItemFSEQ::Save() {
