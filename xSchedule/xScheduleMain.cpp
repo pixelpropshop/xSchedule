@@ -938,6 +938,7 @@ void xScheduleFrame::LoadSchedule()
     if (__schedule != nullptr)
     {
         spdlog::debug("LoadSchedule: deleting existing ScheduleManager.");
+        _serialPings.clear(); // waits for checks still running on its controllers
         delete __schedule;
         __schedule = nullptr;
         spdlog::debug("LoadSchedule: existing ScheduleManager deleted.");
@@ -1114,6 +1115,7 @@ xScheduleFrame::~xScheduleFrame()
 
     if (__schedule != nullptr)
     {
+        _serialPings.clear();
         delete __schedule;
         __schedule = nullptr;
     }
@@ -4059,8 +4061,19 @@ void xScheduleFrame::UpdateUI(bool force)
                         ListView_Ping->SetItemBackgroundColour(item, wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX));
                     }
                     else {
-                        auto pr = serial->Ping();
-                        bool ok = __schedule->IsOutputToLights() ? pr == Output::PINGSTATE::PING_OPEN : pr == Output::PINGSTATE::PING_OPENED;
+                        auto& check = _serialPings[serial->GetName()];
+                        if (check.pending.valid() && check.pending.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                            check.state = check.pending.get();
+                        }
+                        // while output is on this only asks whether the port is open; otherwise it opens the port
+                        wxLongLong now = wxGetUTCTimeMillis();
+                        if (!check.pending.valid() && (check.checked == 0 || now - check.checked > (__schedule->IsOutputToLights() ? 1000 : 30000))) {
+                            check.checked = now;
+                            check.pending = std::async(std::launch::async, [serial]() { return serial->Ping(); });
+                        }
+                        auto pr = check.state;
+                        bool ok = pr == Output::PINGSTATE::PING_OK || pr == Output::PINGSTATE::PING_WEBOK ||
+                                  (__schedule->IsOutputToLights() ? pr == Output::PINGSTATE::PING_OPEN : pr == Output::PINGSTATE::PING_OPENED);
                         ListView_Ping->SetItemBackgroundColour(item, ok ? theme.okBg : theme.badBg);
                         ListView_Ping->SetItemTextColour(item, ok ? theme.okText : theme.badText);
                     }

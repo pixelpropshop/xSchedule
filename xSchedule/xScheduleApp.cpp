@@ -12,6 +12,7 @@
 
 //(*AppHeaders
 #include "xScheduleMain.h"
+#include <map>
 #include <wx/image.h>
 //*)
 
@@ -320,7 +321,17 @@ bool xScheduleApp::OnInit()
     AppCallbacks::SetDisplayMessageCallback([](AppCallbacks::DisplayMessageLevel level, const std::string& msg) {
         // already logged by the core; see ScheduleManager::StartOutputToLights
         if (ScheduleManager::IsStartingOutputToLights()) return;
+        // Shown after the caller returns: a box opened inside a frame tick stops that timer until someone clicks
+        // OK, and an unattended machine would collect boxes inside boxes. One at a time, and not the same one again
+        // for 10 minutes; the core has logged them all.
         auto showBox = [level, msg]() {
+            static bool showing = false;
+            static std::map<std::string, time_t> shown;
+            if (showing) return;
+            auto last = shown.find(msg);
+            if (last != shown.end() && time(nullptr) - last->second < 600) return;
+            shown[msg] = time(nullptr);
+            showing = true;
             switch (level) {
             case AppCallbacks::DisplayMessageLevel::Error:
                 wxMessageBox(msg, "Error", wxICON_ERROR | wxOK);
@@ -332,12 +343,9 @@ bool xScheduleApp::OnInit()
                 wxMessageBox(msg, "Information", wxICON_INFORMATION | wxOK);
                 break;
             }
+            showing = false;
         };
-        if (wxThread::IsMain()) {
-            showBox();
-        } else {
-            AppCallbacks::PostToMainThread(showBox);
-        }
+        AppCallbacks::PostToMainThread(showBox);
     });
 
     // the core finds the controller definitions here
