@@ -18,6 +18,7 @@
 #include <wx/filename.h>
 #include "Control.h"
 #include "../xlights/src-core/outputs/IPOutput.h"
+#include "../xlights/src-core/utils/ip_utils.h"
 #include "xScheduleVersion.h"
 
 #define FPP_MEDIA_SYNC_INTERVAL_MS 500
@@ -34,7 +35,16 @@ void SyncFPP::Ping(bool remote, const std::string& localIP)
     wxIPV4address localaddr;
     if (localIP == "")
     {
-        localaddr.Hostname(wxGetFullHostName());
+        // this runs on the UI thread every minute, and looking up our own name can wait on DNS
+        static wxString ownAddress;
+        static time_t lookedUp = 0;
+        if (ownAddress.empty() || time(nullptr) - lookedUp > 600) {
+            wxIPV4address own;
+            own.Hostname(wxGetFullHostName());
+            ownAddress = own.IPAddress();
+            lookedUp = time(nullptr);
+        }
+        localaddr.Hostname(ownAddress);
     }
     else
     {
@@ -192,33 +202,49 @@ void SyncUnicastFPP::SendFPPSync(const std::string& item, uint8_t pktType, uint3
     auto packet = MakeSyncPacket(item, pktType, positionMS, frameMS);
     for (const auto& it : _remotes) {
         wxIPV4address address;
-        if (Resolve(it, address)) {
+        if (_lookup->Get(it, FPP_CTRL_PORT, address)) {
             _fppUnicastSocket->SendTo(address, packet.data(), packet.size());
         }
     }
 }
 
-bool SyncUnicastFPP::Resolve(const std::string& host, wxIPV4address& address) const
+bool HostLookup::Get(const std::string& host, unsigned short port, wxIPV4address& address)
 {
-    auto found = _addresses.find(host);
-    if (found != _addresses.end()) {
-        address = found->second;
-        return true;
+    std::string ip;
+    if (ip_utils::IsIPValid(host)) {
+        ip = host;
+    } else {
+        std::lock_guard<std::mutex> lock(_lock);
+        auto found = _found.find(host);
+        if (found != _found.end()) {
+            ip = found->second;
+        } else {
+            auto pending = _pending.find(host);
+            if (pending != _pending.end()) {
+                if (pending->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return false;
+                ip = pending->second.get();
+                _pending.erase(pending);
+                if (ip.empty()) {
+                    spdlog::warn("FPP remote {} could not be found; trying again in 30 seconds.", host);
+                    _failed[host] = time(nullptr);
+                    return false;
+                }
+                _found[host] = ip;
+                _failed.erase(host);
+            } else {
+                auto failed = _failed.find(host);
+                if (failed != _failed.end() && time(nullptr) - failed->second < 30) return false;
+                _pending[host] = std::async(std::launch::async, [host]() {
+                    wxIPV4address a;
+                    return a.Hostname(host) ? a.IPAddress().ToStdString() : std::string();
+                });
+                return false;
+            }
+        }
     }
-    auto failed = _failedLookups.find(host);
-    if (failed != _failedLookups.end() && time(nullptr) - failed->second < 30) {
-        return false;
-    }
-    wxIPV4address a;
-    if (!a.Hostname(host)) {
-        spdlog::warn("FPP remote {} could not be found; trying again in 30 seconds.", host);
-        _failedLookups[host] = time(nullptr);
-        return false;
-    }
-    a.Service(FPP_CTRL_PORT);
-    _addresses[host] = a;
-    _failedLookups.erase(host);
-    address = a;
+    // a numeric address needs no lookup, so this doesn't block
+    address.Hostname(ip);
+    address.Service(port);
     return true;
 }
 
@@ -252,6 +278,7 @@ SyncUnicastFPP::SyncUnicastFPP(SyncUnicastFPP&& from) noexcept : SyncFPP(from)
     _fppUnicastSocket = from._fppUnicastSocket;
     from._fppUnicastSocket = nullptr; // this is a transfer of ownership
     _remotes = from._remotes;
+    _lookup = from._lookup;
 }
 
 SyncUnicastCSVFPP::SyncUnicastCSVFPP(SyncUnicastCSVFPP&& from) noexcept : SyncFPP(from)
@@ -259,6 +286,7 @@ SyncUnicastCSVFPP::SyncUnicastCSVFPP(SyncUnicastCSVFPP&& from) noexcept : SyncFP
     _fppUnicastSocket = from._fppUnicastSocket;
     from._fppUnicastSocket = nullptr; // this is a transfer of ownership
     _remotes = from._remotes;
+    _lookup = from._lookup;
 }
 
 SyncMulticastFPP::SyncMulticastFPP(SyncMulticastFPP&& from) noexcept : SyncFPP(from)
@@ -367,6 +395,11 @@ SyncUnicastFPP::SyncUnicastFPP(SYNCMODE sm, REMOTEMODE rm, const ScheduleOptions
         }
 
         _remotes = options.GetFPPRemotes();
+        // start looking the remotes up now, so their addresses are known before a show starts
+        for (const auto& it : _remotes) {
+            wxIPV4address unused;
+            _lookup->Get(it, FPP_CTRL_PORT, unused);
+        }
         if (_remotes.size() > 0)
         {
             _fppUnicastSocket = new wxDatagramSocket(localaddr, wxSOCKET_NOWAIT);
@@ -414,6 +447,11 @@ SyncUnicastCSVFPP::SyncUnicastCSVFPP(SYNCMODE sm, REMOTEMODE rm, const ScheduleO
         }
 
         _remotes = options.GetFPPRemotes();
+        // start looking the remotes up now, so their addresses are known before a show starts
+        for (const auto& it : _remotes) {
+            wxIPV4address unused;
+            _lookup->Get(it, FPP_CTRL_PORT, unused);
+        }
         if (_remotes.size() > 0)
         {
             _fppUnicastSocket = new wxDatagramSocket(localaddr, wxSOCKET_NOWAIT);
@@ -495,9 +533,7 @@ SyncMulticastFPP::SyncMulticastFPP(SYNCMODE sm, REMOTEMODE rm, const ScheduleOpt
 void SyncUnicastCSVFPP::SendUnicastSync(const std::string& ip, const std::string& item, size_t msec, size_t frameMS, int action) const
 {
     wxIPV4address remoteAddr;
-    remoteAddr.Hostname(ip);
-
-    remoteAddr.Service(FPP_CTRL_CSV_PORT);
+    if (!_lookup->Get(ip, FPP_CTRL_CSV_PORT, remoteAddr)) return;
 
     std::string buffer;
 

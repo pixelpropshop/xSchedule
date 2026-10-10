@@ -94,6 +94,13 @@ class ScheduleManager {
     uint8_t* _buffer = nullptr;
     wxUint32 _startTime = 0;
     PlayList* _immediatePlay = nullptr;
+    // GetNextScheduledPlayList searches up to 400 days per schedule and the idle window asks every second, so the
+    // answer is kept until a schedule changes, its time passes, or 30 s go by
+    PlayList* _nextPlayList = nullptr;
+    Schedule* _nextSchedule = nullptr;
+    wxDateTime _nextAt;
+    time_t _nextWorkedOut = 0;
+    size_t _nextSignature = 0;
     // manual playlists interrupted by "play now then resume", resumed in reverse order
     std::list<PlayList*> _interruptedPlays;
     // the playlist "play next" starts once the running playlist reaches the end of its step

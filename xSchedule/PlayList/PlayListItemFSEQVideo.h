@@ -15,6 +15,7 @@
 #include <string>
 
 #include "PlayListItem.h"
+#include "AudioPreload.h"
 #include "../Blend.h"
 
 class wxXmlNode;
@@ -41,6 +42,7 @@ protected:
     bool _suppressVirtualMatrix = false;
     FSEQFile* _fseqFile = nullptr;
     AudioManager* _audioManager = nullptr;
+    AudioPreload _preload;
     size_t _durationMS = 0;
     size_t _videoLength = 0;
     bool _controlsTimingCache = false;
@@ -244,6 +246,7 @@ public:
 #pragma region Playing
     virtual void Frame(uint8_t* buffer, size_t size, size_t ms, size_t framems, bool outputframe) override;
     virtual void Start(long stepLengthMS) override;
+    virtual void PreloadAudio() override;
     virtual void Stop() override;
     virtual void Restart() override;
     virtual void Pause(bool pause) override;

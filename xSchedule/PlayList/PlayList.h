@@ -71,6 +71,8 @@ public:
 #pragma region Constructors and Destructors
     PlayList(OutputManager* outputManager, wxXmlNode* node);
     PlayList(PlayList& playlist, bool newid = false);
+    // a copy with just one step, and the steps run with every step, for an event to play
+    PlayList(PlayList& playlist, const std::string& onlyStep);
     PlayList();
     virtual ~PlayList();
 #pragma endregion Constructors and Destructors
@@ -117,6 +119,8 @@ public:
     PlayListStep* PeekNextStep();
     PlayListStep* GetNextStepIgnoringBranches(bool& didloop);
     PlayListStep* FollowBranches(PlayListStep* step, bool& didloop, bool peek);
+    // decodes the next step's audio while this one plays (not when shuffling: the next step isn't known yet)
+    void PreloadNextStep();
     PlayListStep* GetRunningStep() const {
         return _currentStep;
     }

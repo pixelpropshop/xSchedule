@@ -15,8 +15,23 @@
 #include <wx/socket.h>
 
 #include <ctime>
+#include <future>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <vector>
+
+// Remotes can be host names. Sync packets go out from the frame loop, so names are looked up on another thread: a
+// slow or failing DNS lookup held up the show. Packets to a remote are skipped until its address is known.
+class HostLookup {
+    std::mutex _lock;
+    std::map<std::string, std::string> _found;
+    std::map<std::string, time_t> _failed;
+    std::map<std::string, std::future<std::string>> _pending;
+
+public:
+    bool Get(const std::string& host, unsigned short port, wxIPV4address& address);
+};
 
 class ListenerManager;
 
@@ -66,11 +81,8 @@ public:
 class SyncUnicastFPP : public SyncFPP {
     wxDatagramSocket* _fppUnicastSocket = nullptr;
     std::list<std::string> _remotes;
-    // remotes can be host names; look each up once rather than on every packet, retrying failures now and then
-    mutable std::map<std::string, wxIPV4address> _addresses;
-    mutable std::map<std::string, time_t> _failedLookups;
+    std::shared_ptr<HostLookup> _lookup = std::make_shared<HostLookup>();
 
-    bool Resolve(const std::string& host, wxIPV4address& address) const;
     virtual void SendFPPSync(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS) const override;
 
 public:
@@ -85,6 +97,7 @@ public:
 class SyncUnicastCSVFPP : public SyncFPP {
     wxDatagramSocket* _fppUnicastSocket = nullptr;
     std::list<std::string> _remotes;
+    std::shared_ptr<HostLookup> _lookup = std::make_shared<HostLookup>();
 
     void SendUnicastSync(const std::string& ip, const std::string& item, size_t msec, size_t frameMS, int action) const;
     virtual void SendFPPSync(const std::string& item, uint8_t pktType, uint32_t positionMS, uint32_t frameMS) const override;

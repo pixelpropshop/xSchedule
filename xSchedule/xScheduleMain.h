@@ -28,6 +28,11 @@ class BrightnessControl;
 #include <wx/statusbr.h>
 #include <wx/timer.h>
 #include <wx/treectrl.h>
+
+#include <future>
+#include <map>
+
+#include "../xlights/src-core/outputs/Output.h"
 //*)
 
 #include "PluginManager.h"
@@ -73,6 +78,14 @@ class xScheduleFrame : public xlFrame {
     bool _timerOutputFrame = false;
     bool _suspendOTL = false;
     Pinger* _pinger = nullptr;
+    // Serial controllers aren't covered by the pinger, so the status list checks them. A check can open the port or,
+    // for an FPP model, ping it, so it runs off the UI thread; the list shows the last result.
+    struct SerialPing {
+        Output::PINGSTATE state = Output::PINGSTATE::PING_UNKNOWN;
+        wxLongLong checked = 0;
+        std::future<Output::PINGSTATE> pending;
+    };
+    std::map<std::string, SerialPing> _serialPings;
     wxBitmap _nowebicon;
     wxBitmap _webicon;
     wxBitmap _slowicon;

@@ -15,6 +15,7 @@
 // #define WEBOVERLOAD
 
 //(*InternalHeaders(xScheduleFrame)
+#include <chrono>
 #include <wx/intl.h>
 #include <wx/string.h>
 //*)
@@ -938,6 +939,7 @@ void xScheduleFrame::LoadSchedule()
     if (__schedule != nullptr)
     {
         spdlog::debug("LoadSchedule: deleting existing ScheduleManager.");
+        _serialPings.clear(); // waits for checks still running on its controllers
         delete __schedule;
         __schedule = nullptr;
         spdlog::debug("LoadSchedule: existing ScheduleManager deleted.");
@@ -1114,6 +1116,7 @@ xScheduleFrame::~xScheduleFrame()
 
     if (__schedule != nullptr)
     {
+        _serialPings.clear();
         delete __schedule;
         __schedule = nullptr;
     }
@@ -1713,8 +1716,10 @@ void xScheduleFrame::On_timerTrigger(wxTimerEvent& event)
 
     if (__schedule == nullptr) return;
 
-    static long long lastms = wxGetLocalTimeMillis().GetValue() - 25;
-    long long now = wxGetLocalTimeMillis().GetValue();
+    // a steady clock: local time jumps back an hour when daylight saving ends, and every tick would look premature
+    auto steadyMS = []() { return (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); };
+    static long long lastms = steadyMS() - 25;
+    long long now = steadyMS();
     long long elapsed = (now - lastms);
 
     auto logger_frame = spdlog::get("frame");
@@ -2756,6 +2761,12 @@ void xScheduleFrame::UpdateStatus(bool force)
 
     logger_frame->debug("            Got selected playlist {}ms", sw.Time());
 
+    // the rows are colored and the columns sized again only when the list or the current or next step changes;
+    // doing it every second measured every row of a long playlist
+    static wxUIntPtr lastStep = 0;
+    static wxUIntPtr lastNext = 0;
+    bool rebuilt = false;
+
     if (p == nullptr) {
         ListView_Running->DeleteAllItems();
         lastcc = -1;
@@ -2773,6 +2784,7 @@ void xScheduleFrame::UpdateStatus(bool force)
             lastid = p->GetId();
             lastrunning = (int)p->IsRunning();
             laststeps = p->GetSteps().size();
+            rebuilt = true;
 
             ListView_Running->DeleteAllItems();
 
@@ -2801,7 +2813,21 @@ void xScheduleFrame::UpdateStatus(bool force)
         bool nexthighlighted = false;
         const auto& theme = ModernUI::GetTheme();
 
-        if (step != nullptr) {
+        wxUIntPtr stepId = step != nullptr ? step->GetId() + 1 : 0;
+        wxUIntPtr nextId = next != nullptr ? next->GetId() + 1 : 0;
+        bool recolour = rebuilt || stepId != lastStep || nextId != lastNext;
+        lastStep = stepId;
+        lastNext = nextId;
+
+        if (step != nullptr && !recolour) {
+            long row = ListView_Running->FindItem(-1, (wxUIntPtr)step->GetId());
+            if (row >= 0) {
+                currenthighlighted = true;
+                std::string status = step->GetStatus();
+                if (ListView_Running->GetItemText(row, 4) != status) ListView_Running->SetItem(row, 4, status);
+            }
+        }
+        else if (step != nullptr) {
             for (int i = 0; i < ListView_Running->GetItemCount(); ++i) {
                 if (!currenthighlighted && ListView_Running->GetItemData(i) == step->GetId()) {
                     currenthighlighted = true;
@@ -2837,16 +2863,17 @@ void xScheduleFrame::UpdateStatus(bool force)
             if (ListView_Running->GetToolTipText() != "") ListView_Running->UnsetToolTip();
         }
 
-        const int minWidths[] = { 50, 80, 80, 80, 250 };
-        for (int c = 0; c < 5; ++c) {
-            ListView_Running->SetColumnWidth(c, wxLIST_AUTOSIZE);
-            if (ListView_Running->GetColumnWidth(c) < FromDIP(minWidths[c])) ListView_Running->SetColumnWidth(c, FromDIP(minWidths[c]));
+        if (rebuilt) {
+            const int minWidths[] = { 50, 80, 80, 80, 250 };
+            for (int c = 0; c < 5; ++c) {
+                ListView_Running->SetColumnWidth(c, wxLIST_AUTOSIZE);
+                if (ListView_Running->GetColumnWidth(c) < FromDIP(minWidths[c])) ListView_Running->SetColumnWidth(c, FromDIP(minWidths[c]));
+            }
+            ModernUI::FitListHeaders(ListView_Running);
         }
-        ModernUI::FitListHeaders(ListView_Running);
     }
 
     ListView_Running->Thaw();
-    ListView_Running->Refresh();
 
     logger_frame->debug("            Updated running listview {}ms", sw.Time());
 
@@ -3770,25 +3797,29 @@ void xScheduleFrame::ScheduleChange(wxCommandEvent& event)
 
 void xScheduleFrame::SlowFrameProcessing(wxCommandEvent& event)
 {
+    // this runs on every frame tick, so labels are only touched when their text changes, and the panel only laid out
+    // again when a label's length changes, the one case where it could run into its neighbor
+    bool relayout = false;
+    auto set = [&relayout](wxStaticText* label, const wxString& text) {
+        if (label->GetLabel() != text) {
+            relayout = relayout || label->GetLabel().length() != text.length();
+            label->SetLabel(text);
+        }
+    };
+
     PlayList* p = __schedule->GetRunningPlayList();
     if (p == nullptr) {
-        StaticText_SequenceTime->SetLabel("NOT PLAYING");
+        set(StaticText_SequenceTime, "NOT PLAYING");
     } else {
         size_t seqtime = p->GetPosition();
-        StaticText_SequenceTime->SetLabel(FormatTime(seqtime, true));
+        set(StaticText_SequenceTime, FormatTime(seqtime, true));
 
         ListenerBase* sync = __schedule->GetListenerManager()->GetSyncListener();
-        if (sync != nullptr)
-        {
-            StaticText3->SetLabel(sync->FormatTime(seqtime));
-        }
-        else
-        {
-            StaticText3->SetLabel("");
-        }
+        set(StaticText3, sync != nullptr ? wxString(sync->FormatTime(seqtime)) : wxString());
     }
-    // labels change width as the time ticks; re-layout so they do not run into each other
-    Panel4->Layout();
+    if (relayout) {
+        Panel4->Layout();
+    }
 }
 
 void xScheduleFrame::Sync(wxCommandEvent& event)
@@ -4059,8 +4090,19 @@ void xScheduleFrame::UpdateUI(bool force)
                         ListView_Ping->SetItemBackgroundColour(item, wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX));
                     }
                     else {
-                        auto pr = serial->Ping();
-                        bool ok = __schedule->IsOutputToLights() ? pr == Output::PINGSTATE::PING_OPEN : pr == Output::PINGSTATE::PING_OPENED;
+                        auto& check = _serialPings[serial->GetName()];
+                        if (check.pending.valid() && check.pending.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                            check.state = check.pending.get();
+                        }
+                        // while output is on this only asks whether the port is open; otherwise it opens the port
+                        wxLongLong now = wxGetUTCTimeMillis();
+                        if (!check.pending.valid() && (check.checked == 0 || now - check.checked > (__schedule->IsOutputToLights() ? 1000 : 30000))) {
+                            check.checked = now;
+                            check.pending = std::async(std::launch::async, [serial]() { return serial->Ping(); });
+                        }
+                        auto pr = check.state;
+                        bool ok = pr == Output::PINGSTATE::PING_OK || pr == Output::PINGSTATE::PING_WEBOK ||
+                                  (__schedule->IsOutputToLights() ? pr == Output::PINGSTATE::PING_OPEN : pr == Output::PINGSTATE::PING_OPENED);
                         ListView_Ping->SetItemBackgroundColour(item, ok ? theme.okBg : theme.badBg);
                         ListView_Ping->SetItemTextColour(item, ok ? theme.okText : theme.badText);
                     }
