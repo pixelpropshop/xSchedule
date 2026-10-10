@@ -142,6 +142,7 @@ class Schedule
         void SetStartDate(const wxDateTime& start) { if (_startDate != start) { _startDate = start; _changeCount++; } }
         void SetEndDate(const wxDateTime& end) { if (_endDate != end) { _endDate = end; _changeCount++; } }
         bool IsDirty() const { return _lastSavedChangeCount != _changeCount; }
+        int GetChangeCount() const { return _changeCount; }
         void ClearDirty() { _lastSavedChangeCount = _changeCount; }
         std::string GetJSON(const std::string& reference);
         Schedule();

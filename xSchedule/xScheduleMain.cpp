@@ -2758,6 +2758,12 @@ void xScheduleFrame::UpdateStatus(bool force)
 
     logger_frame->debug("            Got selected playlist {}ms", sw.Time());
 
+    // the rows are colored and the columns sized again only when the list or the current or next step changes;
+    // doing it every second measured every row of a long playlist
+    static wxUIntPtr lastStep = 0;
+    static wxUIntPtr lastNext = 0;
+    bool rebuilt = false;
+
     if (p == nullptr) {
         ListView_Running->DeleteAllItems();
         lastcc = -1;
@@ -2775,6 +2781,7 @@ void xScheduleFrame::UpdateStatus(bool force)
             lastid = p->GetId();
             lastrunning = (int)p->IsRunning();
             laststeps = p->GetSteps().size();
+            rebuilt = true;
 
             ListView_Running->DeleteAllItems();
 
@@ -2803,7 +2810,21 @@ void xScheduleFrame::UpdateStatus(bool force)
         bool nexthighlighted = false;
         const auto& theme = ModernUI::GetTheme();
 
-        if (step != nullptr) {
+        wxUIntPtr stepId = step != nullptr ? step->GetId() + 1 : 0;
+        wxUIntPtr nextId = next != nullptr ? next->GetId() + 1 : 0;
+        bool recolour = rebuilt || stepId != lastStep || nextId != lastNext;
+        lastStep = stepId;
+        lastNext = nextId;
+
+        if (step != nullptr && !recolour) {
+            long row = ListView_Running->FindItem(-1, (wxUIntPtr)step->GetId());
+            if (row >= 0) {
+                currenthighlighted = true;
+                std::string status = step->GetStatus();
+                if (ListView_Running->GetItemText(row, 4) != status) ListView_Running->SetItem(row, 4, status);
+            }
+        }
+        else if (step != nullptr) {
             for (int i = 0; i < ListView_Running->GetItemCount(); ++i) {
                 if (!currenthighlighted && ListView_Running->GetItemData(i) == step->GetId()) {
                     currenthighlighted = true;
@@ -2839,16 +2860,17 @@ void xScheduleFrame::UpdateStatus(bool force)
             if (ListView_Running->GetToolTipText() != "") ListView_Running->UnsetToolTip();
         }
 
-        const int minWidths[] = { 50, 80, 80, 80, 250 };
-        for (int c = 0; c < 5; ++c) {
-            ListView_Running->SetColumnWidth(c, wxLIST_AUTOSIZE);
-            if (ListView_Running->GetColumnWidth(c) < FromDIP(minWidths[c])) ListView_Running->SetColumnWidth(c, FromDIP(minWidths[c]));
+        if (rebuilt) {
+            const int minWidths[] = { 50, 80, 80, 80, 250 };
+            for (int c = 0; c < 5; ++c) {
+                ListView_Running->SetColumnWidth(c, wxLIST_AUTOSIZE);
+                if (ListView_Running->GetColumnWidth(c) < FromDIP(minWidths[c])) ListView_Running->SetColumnWidth(c, FromDIP(minWidths[c]));
+            }
+            ModernUI::FitListHeaders(ListView_Running);
         }
-        ModernUI::FitListHeaders(ListView_Running);
     }
 
     ListView_Running->Thaw();
-    ListView_Running->Refresh();
 
     logger_frame->debug("            Updated running listview {}ms", sw.Time());
 
@@ -3772,25 +3794,29 @@ void xScheduleFrame::ScheduleChange(wxCommandEvent& event)
 
 void xScheduleFrame::SlowFrameProcessing(wxCommandEvent& event)
 {
+    // this runs on every frame tick, so labels are only touched when their text changes, and the panel only laid out
+    // again when a label's length changes, the one case where it could run into its neighbor
+    bool relayout = false;
+    auto set = [&relayout](wxStaticText* label, const wxString& text) {
+        if (label->GetLabel() != text) {
+            relayout = relayout || label->GetLabel().length() != text.length();
+            label->SetLabel(text);
+        }
+    };
+
     PlayList* p = __schedule->GetRunningPlayList();
     if (p == nullptr) {
-        StaticText_SequenceTime->SetLabel("NOT PLAYING");
+        set(StaticText_SequenceTime, "NOT PLAYING");
     } else {
         size_t seqtime = p->GetPosition();
-        StaticText_SequenceTime->SetLabel(FormatTime(seqtime, true));
+        set(StaticText_SequenceTime, FormatTime(seqtime, true));
 
         ListenerBase* sync = __schedule->GetListenerManager()->GetSyncListener();
-        if (sync != nullptr)
-        {
-            StaticText3->SetLabel(sync->FormatTime(seqtime));
-        }
-        else
-        {
-            StaticText3->SetLabel("");
-        }
+        set(StaticText3, sync != nullptr ? wxString(sync->FormatTime(seqtime)) : wxString());
     }
-    // labels change width as the time ticks; re-layout so they do not run into each other
-    Panel4->Layout();
+    if (relayout) {
+        Panel4->Layout();
+    }
 }
 
 void xScheduleFrame::Sync(wxCommandEvent& event)

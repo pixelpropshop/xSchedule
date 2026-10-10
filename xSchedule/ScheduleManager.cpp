@@ -3000,9 +3000,23 @@ void ScheduleManager::StopPlayList(PlayList* playlist, bool atendofcurrentstep, 
 }
 
 void ScheduleManager::GetNextScheduledPlayList(PlayList** p, Schedule** s) {
+    size_t signature = _playLists.size();
+    for (const auto& pit : _playLists) {
+        signature = signature * 31 + pit->GetId();
+        for (const auto& sit : pit->GetSchedules()) {
+            signature = signature * 31 + sit->GetId() * 7 + sit->GetChangeCount() + (sit->GetEnabled() ? 1 : 0);
+        }
+    }
+    const wxDateTime zero((time_t)0);
+    bool passed = _nextAt.IsValid() && _nextAt != zero && _nextAt <= wxDateTime::Now();
+    if (signature == _nextSignature && time(nullptr) - _nextWorkedOut < 30 && !passed) {
+        *p = _nextPlayList;
+        *s = _nextSchedule;
+        return;
+    }
+
     *p = nullptr;
     *s = nullptr;
-    ;
     wxDateTime next = wxDateTime((time_t)0);
     for (const auto& pit : _playLists) {
         auto schedules = pit->GetSchedules();
@@ -3021,6 +3035,12 @@ void ScheduleManager::GetNextScheduledPlayList(PlayList** p, Schedule** s) {
             }
         }
     }
+
+    _nextPlayList = *p;
+    _nextSchedule = *s;
+    _nextAt = next;
+    _nextWorkedOut = time(nullptr);
+    _nextSignature = signature;
 }
 
 // 127.0.0.1/xScheduleStash?Command=Store&Key=<key> ... this must be posted with the data in the body of the request ... key must be filename legal
