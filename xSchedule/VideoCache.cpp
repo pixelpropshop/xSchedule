@@ -9,6 +9,8 @@
  **************************************************************/
 
 #include "VideoCache.h"
+
+#include <atomic>
 #include "../xlights/src-core/utils/UtilFunctions.h"
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "../xlights/src-core/media/VideoReader.h"
@@ -23,7 +25,7 @@ class CVRThread : public wxThread {
     int _maxFrames;
     std::mutex _access;
     wxSize _size;
-    bool _stop;
+    std::atomic<bool> _stop;
     bool _running;
     VideoReader* _videoReader;
     int _frameMS;
@@ -90,8 +92,8 @@ public:
     void Stop() {
 
         spdlog::debug("Asking video reading thread {} ({}x{}) to stop", _videoFile, _size.GetWidth(), _size.GetHeight());
-        _stop = true;
         std::unique_lock<std::mutex> mutLock(_access);
+        _stop = true;
         _signal.notify_all();
     }
 
@@ -138,8 +140,9 @@ public:
 #ifdef VIDEO_EXTRALOGGING
                 spdlog::debug("Video reading thread {} ({}x{}) waiting for start time to change.", _videoFile, _size.GetWidth(), _size.GetHeight());
 #endif
+                // checked under the lock: a stop or a new start that arrived just before waiting would be missed
                 std::unique_lock<std::mutex> accessLock(_access);
-                _signal.wait(accessLock);
+                _signal.wait(accessLock, [&]() { return _stop || _currentStart != lastStart; });
 #ifdef VIDEO_EXTRALOGGING
                 spdlog::debug("Video reading thread {} ({}x{}) start time changed.", _videoFile, _size.GetWidth(), _size.GetHeight());
 #endif

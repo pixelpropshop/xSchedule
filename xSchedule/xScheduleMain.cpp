@@ -15,6 +15,7 @@
 // #define WEBOVERLOAD
 
 //(*InternalHeaders(xScheduleFrame)
+#include <chrono>
 #include <wx/intl.h>
 #include <wx/string.h>
 //*)
@@ -1715,8 +1716,10 @@ void xScheduleFrame::On_timerTrigger(wxTimerEvent& event)
 
     if (__schedule == nullptr) return;
 
-    static long long lastms = wxGetLocalTimeMillis().GetValue() - 25;
-    long long now = wxGetLocalTimeMillis().GetValue();
+    // a steady clock: local time jumps back an hour when daylight saving ends, and every tick would look premature
+    auto steadyMS = []() { return (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); };
+    static long long lastms = steadyMS() - 25;
+    long long now = steadyMS();
     long long elapsed = (now - lastms);
 
     auto logger_frame = spdlog::get("frame");
