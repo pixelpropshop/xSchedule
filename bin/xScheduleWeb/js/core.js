@@ -509,8 +509,13 @@ function sleep(time) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
 
+// a plugin page's script runs again on every visit and registers a new copy of its function, so one with the same
+// name replaces the old one
 function registerStatusFunction(fnStatus) {
-  if (!registeredForStatus.includes(fnStatus)) {
+  var same = fnStatus.name ? registeredForStatus.findIndex(function(f) { return f.name === fnStatus.name; }) : -1;
+  if (same >= 0) {
+    registeredForStatus[same] = fnStatus;
+  } else if (!registeredForStatus.includes(fnStatus)) {
     registeredForStatus.push(fnStatus);
   }
 }

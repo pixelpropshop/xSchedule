@@ -565,7 +565,12 @@ bool MyRequestHandler(HttpConnection& connection, HttpRequest& request)
         else if (wwwroot != "") {
             wxString uri = wxURI(request.URI()).BuildUnescapedURI();
 
-            if (!__apiOnly && request.URI().StartsWith("/" + wwwroot)) {
+            if (!__apiOnly && request.URI().StartsWith("/" + wwwroot) && uri.Contains("..")) {
+                HttpResponse response(connection, request, HttpStatus::NotFound);
+                connection.SendResponse(response);
+                res = true;
+            }
+            else if (!__apiOnly && request.URI().StartsWith("/" + wwwroot)) {
 #ifdef __WXMSW__
                 wxString d = wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
 #elif __LINUX__
@@ -585,7 +590,7 @@ bool MyRequestHandler(HttpConnection& connection, HttpRequest& request)
                     file += uri;
                 }
 
-                spdlog::info("File request received = '{}' : '{}'", file.ToStdString(), uri.ToStdString());
+                spdlog::debug("File request received = '{}' : '{}'", file.ToStdString(), uri.ToStdString());
 
                 if (!wxFile::Exists(file)) {
                     spdlog::error("    404: file not found.");
@@ -649,7 +654,7 @@ void MyMessageHandler(HttpConnection& connection, WebSocketMessage& message)
         wxString text((char*)message.Content().GetData(), message.Content().GetDataLen());
 
         if (!text.empty()) {
-            spdlog::info("Received {}", text.ToStdString());
+            spdlog::debug("Received {}", text.ToStdString());
 
             try {
                 nlohmann::json root = nlohmann::json::parse(text.ToStdString());
@@ -735,7 +740,7 @@ void MyMessageHandler(HttpConnection& connection, WebSocketMessage& message)
         connection.SendMessage(wsm);
     }
     else if (message.Type() == WebSocketMessage::Binary) {
-        spdlog::info("Received <binary>");
+        spdlog::debug("Received <binary>");
         WebSocketMessage wsm("{\"result\":\"failed\",\"message\":\"Binary web sockets not supported.\"}");
         connection.SendMessage(wsm);
     }
