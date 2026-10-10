@@ -149,6 +149,21 @@ PlayList::PlayList(PlayList& playlist, bool newid) {
     }
 }
 
+PlayList::PlayList(PlayList& playlist, const std::string& onlyStep) :
+    PlayList() {
+    _id = playlist._id;
+    _name = playlist._name;
+
+    ReentrancyCounter rec(_reentrancyCounter);
+    PlayListStep* step = playlist.GetStep(onlyStep);
+    if (step != nullptr) {
+        _steps.push_back(new PlayListStep(*step));
+    }
+    for (auto it : playlist._everySteps) {
+        _everySteps.push_back(new PlayListStep(*it));
+    }
+}
+
 PlayList::PlayList() {
     _reentrancyCounter = 0;
     _commandAtEndOfCurrentStep = "";

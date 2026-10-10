@@ -71,6 +71,8 @@ public:
 #pragma region Constructors and Destructors
     PlayList(OutputManager* outputManager, wxXmlNode* node);
     PlayList(PlayList& playlist, bool newid = false);
+    // a copy with just one step, and the steps run with every step, for an event to play
+    PlayList(PlayList& playlist, const std::string& onlyStep);
     PlayList();
     virtual ~PlayList();
 #pragma endregion Constructors and Destructors

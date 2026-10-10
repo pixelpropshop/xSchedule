@@ -2028,7 +2028,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                         if (pls != nullptr) {
                             spdlog::info("Playing event playlist {} step {}.", p->GetNameNoTime(), pls->GetNameNoTime());
 
-                            _eventPlayLists.push_back(new PlayList(*p));
+                            _eventPlayLists.push_back(new PlayList(*p, step));
                             _eventPlayLists.back()->Start(false, false, 0, step);
                             _eventPlayLists.back()->StopAtEndOfCurrentStep();
                         }
@@ -2045,9 +2045,20 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                         PlayListStep* pls = p->GetStep(step);
 
                         if (pls != nullptr) {
+                            // a loop of this step already running is replaced; another copy would only play on top of it
+                            for (auto it2 = _eventPlayLists.begin(); it2 != _eventPlayLists.end();) {
+                                if ((*it2)->GetId() == p->GetId() && (*it2)->GetRunningStep() != nullptr && (*it2)->GetRunningStep()->GetNameNoTime() == pls->GetNameNoTime()) {
+                                    (*it2)->Stop();
+                                    delete *it2;
+                                    it2 = _eventPlayLists.erase(it2);
+                                } else {
+                                    ++it2;
+                                }
+                            }
+
                             spdlog::info("Playing event playlist {} step {}.", p->GetNameNoTime(), pls->GetNameNoTime());
 
-                            _eventPlayLists.push_back(new PlayList(*p));
+                            _eventPlayLists.push_back(new PlayList(*p, step));
                             _eventPlayLists.back()->Start(false, false, 0, step);
                             _eventPlayLists.back()->LoopStep(step);
                         }
@@ -2080,7 +2091,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
 
                             spdlog::info("Playing event playlist {} step {}.", p->GetNameNoTime(), pls->GetNameNoTime());
 
-                            _eventPlayLists.push_back(new PlayList(*p));
+                            _eventPlayLists.push_back(new PlayList(*p, step));
                             _eventPlayLists.back()->Start(false, false, 0, step);
                             _eventPlayLists.back()->StopAtEndOfCurrentStep();
                         }
@@ -2182,7 +2193,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
 
                             spdlog::info("Playing event playlist {} step {}.", p->GetNameNoTime(), pls->GetNameNoTime());
 
-                            _eventPlayLists.push_back(new PlayList(*p));
+                            _eventPlayLists.push_back(new PlayList(*p, step));
                             _eventPlayLists.back()->Start(false, false, 0, step);
                             _eventPlayLists.back()->LoopStep(step);
                         }
@@ -2214,7 +2225,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                             if (pls != nullptr) {
                                 spdlog::info("Playing event playlist {} step {}.", p->GetNameNoTime(), pls->GetNameNoTime());
 
-                                _eventPlayLists.push_back(new PlayList(*p));
+                                _eventPlayLists.push_back(new PlayList(*p, step));
                                 _eventPlayLists.back()->Start(false, false, 0, step);
                                 _eventPlayLists.back()->StopAtEndOfCurrentStep();
                             }
@@ -2249,7 +2260,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
                             if (pls != nullptr) {
                                 spdlog::info("Playing event playlist {} step {}.", p->GetNameNoTime(), pls->GetNameNoTime());
 
-                                _eventPlayLists.push_back(new PlayList(*p));
+                                _eventPlayLists.push_back(new PlayList(*p, step));
                                 _eventPlayLists.back()->Start(false, false, 0, step);
                                 _eventPlayLists.back()->LoopStep(step);
                             }
