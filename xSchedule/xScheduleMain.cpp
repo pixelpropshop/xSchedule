@@ -2666,15 +2666,8 @@ wxString xScheduleFrame::ProcessPluginRequest(const wxString& plugin, const wxSt
 
 void xScheduleFrame::OnMenuItem_ViewLogSelected(wxCommandEvent& event)
 {
-    [[maybe_unused]] wxString dir;
     wxString fileName = "xschedule_spdlog.log";
-#ifdef __WXMSW__
-    wxGetEnv("APPDATA", &dir);
-    wxString filename = dir + "/" + fileName;
-#endif
-#ifdef __LINUX__
-    wxString filename = "/tmp/" + fileName;
-#endif
+    wxString filename = GetXScheduleLogPath();
     wxString fn = "";
     if (wxFile::Exists(filename)) {
         fn = filename;
