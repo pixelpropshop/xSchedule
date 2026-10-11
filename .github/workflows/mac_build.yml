@@ -36,7 +36,8 @@ jobs:
       - name: Build
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
-          cmake --build build -j $(sysctl -n hw.ncpu) 2>&1 | tee build/build.log | grep -E "error|warning: unused|Linking|Built target" || true
+          # -k keeps going past an error, so one run shows all of them
+          cmake --build build -j $(sysctl -n hw.ncpu) -- -k 2>&1 | tee build/build.log | grep -E " error: |Linking|Built target" || true
           test -x build/xSchedule.app/Contents/MacOS/xSchedule
 
       - name: Errors

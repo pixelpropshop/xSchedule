@@ -38,6 +38,19 @@ endforeach()
 file(GLOB XS_LTC "${CMAKE_SOURCE_DIR}/xSchedule/libltc/*.c")
 list(APPEND XS_SOURCES ${XS_LTC})
 
+# On Apple the xLights core decodes and plays audio and video with Apple's frameworks, through these bridges
+set(XS_APPLE "${CMAKE_SOURCE_DIR}/xlights/macOS/src-apple-core")
+list(APPEND XS_SOURCES
+    "${CMAKE_SOURCE_DIR}/xlights/src-core/media/AudioToolboxDecoder.cpp"
+    "${CMAKE_SOURCE_DIR}/xlights/src-core/media/AVAudioEngineOutput.cpp"
+    "${CMAKE_SOURCE_DIR}/xlights/src-core/media/AVFoundationVideoReader.cpp"
+    "${XS_APPLE}/media/AudioToolboxBridge.mm"
+    "${XS_APPLE}/media/AVAudioEngineOutputBridge.mm"
+    "${XS_APPLE}/media/AVFoundationVideoBridge.mm"
+    "${XS_APPLE}/osxUtils/xlVideoToolboxUtils.mm"
+    "${CMAKE_SOURCE_DIR}/xSchedule/macos/AppleHooks.mm"
+)
+
 # PortMidi: only its Windows files are kept here, so the macOS build takes it from upstream
 include(FetchContent)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -61,6 +74,8 @@ target_include_directories(xSchedule PRIVATE
     "${CMAKE_SOURCE_DIR}/xlights/dependencies"
     "${CMAKE_SOURCE_DIR}/dependencies/pugixml/src"
     "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include"
+    # not osxUtils itself: with it on the path the core takes xLights' Apple file hooks, which need its Swift module
+    "${XS_APPLE}"
     "${XS_DEPS}/lib/wx/include/osx_cocoa-unicode-static-3.3"
     "${XS_DEPS}/include/wx-3.3"
     "${XS_DEPS}/include"
@@ -69,13 +84,12 @@ target_compile_definitions(xSchedule PRIVATE
     __WXOSX_COCOA__ __WXMAC__ __WXOSX__ _FILE_OFFSET_BITS=64 wxUSE_GUI=1
     $<$<CONFIG:Release>:NDEBUG>
 )
-target_compile_options(xSchedule PRIVATE -Wno-deprecated-declarations)
+target_compile_options(xSchedule PRIVATE -Wno-deprecated-declarations $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
 
-find_library(XS_COCOA Cocoa)
 set(XS_FRAMEWORKS
     Cocoa AppKit Foundation Carbon IOKit CoreFoundation CoreServices ApplicationServices Security SystemConfiguration
     AudioToolbox CoreAudio CoreMIDI CoreMedia CoreVideo AVFoundation VideoToolbox QuartzCore OpenGL Metal
-    GameController CoreHaptics ForceFeedback UniformTypeIdentifiers
+    GameController CoreHaptics ForceFeedback UniformTypeIdentifiers CoreImage Accelerate AVFAudio
 )
 set(XS_FRAMEWORK_LINKS)
 foreach(fw ${XS_FRAMEWORKS})
