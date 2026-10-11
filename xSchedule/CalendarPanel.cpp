@@ -26,7 +26,6 @@
 #include <wx/listctrl.h>
 #include <wx/menu.h>
 #include <wx/sizer.h>
-#include <wx/settings.h>
 #include <wx/simplebook.h>
 #include <wx/stattext.h>
 
@@ -149,11 +148,13 @@ wxString StateText(const ScheduleCalendar::Detail& d, const ScheduleCalendar::Se
 
 } // namespace
 
-// a month of nights, one cell each; click a night to choose it, double-click a schedule to edit it
+// a month of nights, one cell each: click a night to choose it, double-click it to open it, double-click a schedule
+// to edit it
 class CalendarMonth : public wxWindow {
 public:
-    CalendarMonth(wxWindow* parent, std::function<void(const wxDateTime&)> select, CalendarPanel::EditSchedule edit, std::function<void(const wxDateTime&)> menu) :
-        wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS | wxFULL_REPAINT_ON_RESIZE), _select(select), _edit(edit), _menu(menu) {
+    CalendarMonth(wxWindow* parent, std::function<void(const wxDateTime&)> select, std::function<void(const wxDateTime&)> open, CalendarPanel::EditSchedule edit,
+                  std::function<void(const wxDateTime&)> menu) :
+        wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS | wxFULL_REPAINT_ON_RESIZE), _select(select), _open(open), _edit(edit), _menu(menu) {
         SetName("Calendar month");
         Bind(wxEVT_RIGHT_UP, [this](wxMouseEvent& e) {
             int c = CellAt(e.GetPosition());
@@ -165,8 +166,6 @@ public:
         Bind(wxEVT_LEFT_DOWN, &CalendarMonth::OnClick, this);
         Bind(wxEVT_LEFT_DCLICK, &CalendarMonth::OnDoubleClick, this);
         Bind(wxEVT_MOTION, &CalendarMonth::OnMotion, this);
-        _openLater.SetOwner(this);
-        Bind(wxEVT_TIMER, [this](wxTimerEvent&) { _select(_pending); });
     }
 
     void Set(const std::vector<ScheduleCalendar::Night>& nights, const wxDateTime& month, const wxDateTime& selected) {
@@ -316,25 +315,18 @@ private:
     void OnClick(wxMouseEvent& event) {
         SetFocus();
         int c = CellAt(event.GetPosition());
-        if (c < 0) return;
-        bool onChip = std::any_of(_hits.begin(), _hits.end(), [&event](const Hit& h) { return h.rect.Contains(event.GetPosition()); });
-        if (!onChip) {
-            _select(_nights[c].date);
-            return;
-        }
-        // a click on a schedule may be the first of a double-click, which edits it instead of opening the night
-        _pending = _nights[c].date;
-        _openLater.StartOnce(wxSystemSettings::GetMetric(wxSYS_DCLICK_MSEC, this));
+        if (c >= 0) _select(_nights[c].date);
     }
 
     void OnDoubleClick(wxMouseEvent& event) {
         for (const auto& h : _hits) {
             if (h.rect.Contains(event.GetPosition())) {
-                _openLater.Stop();
                 _edit(h.schedule);
                 return;
             }
         }
+        int c = CellAt(event.GetPosition());
+        if (c >= 0) _open(_nights[c].date);
     }
 
     void OnMotion(wxMouseEvent& event) {
@@ -349,10 +341,9 @@ private:
     }
 
     std::function<void(const wxDateTime&)> _select;
+    std::function<void(const wxDateTime&)> _open;
     CalendarPanel::EditSchedule _edit;
     std::function<void(const wxDateTime&)> _menu;
-    wxTimer _openLater;
-    wxDateTime _pending;
     std::vector<ScheduleCalendar::Night> _nights;
     wxDateTime _month;
     wxDateTime _selected;
@@ -757,7 +748,7 @@ CalendarPanel::CalendarPanel(wxWindow* parent, EditSchedule edit, AddSchedule ad
     // the month uses the whole tab; a night opens in its place
     _book = new wxSimplebook(this, wxID_ANY);
     auto menu = [this](const wxDateTime& d) { NightMenu(d); };
-    _monthView = new CalendarMonth(_book, [this](const wxDateTime& d) { Select(d); ShowNight(true); }, _edit, menu);
+    _monthView = new CalendarMonth(_book, [this](const wxDateTime& d) { Select(d); }, [this](const wxDateTime& d) { Select(d); ShowNight(true); }, _edit, menu);
     _dayView = new CalendarDay(_book, _edit, menu);
     _book->AddPage(_monthView, "Month");
     _book->AddPage(_dayView, "Night");
