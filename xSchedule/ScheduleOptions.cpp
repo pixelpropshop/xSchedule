@@ -20,6 +20,7 @@
 #include <wx/xml/xml.h>
 
 #include "City.h"
+#include "Holidays.h"
 #include "CommandManager.h"
 #include "Schedule.h"
 #include "UserButton.h"
@@ -79,6 +80,7 @@ ScheduleOptions::ScheduleOptions(OutputManager* outputManager, wxXmlNode* node, 
     _wwwRoot = node->GetAttribute("WWWRoot", "xScheduleWeb");
     _crashBehaviour = node->GetAttribute("CrashBehaviour", "Prompt user");
     _logLevel = node->GetAttribute("LogLevel", "Normal").ToStdString();
+    _holidayCountry = node->GetAttribute("HolidayCountry", "").ToStdString();
     _artNetTimeCodeFormat = static_cast<TIMECODEFORMAT>(wxAtoi(node->GetAttribute("ARTNetTimeCodeFormat", "1")));
     _audioDevice = node->GetAttribute("AudioDevice", "").ToStdString();
     _inputAudioDevice = node->GetAttribute("InputAudioDevice", "").ToStdString();
@@ -214,6 +216,15 @@ void ScheduleOptions::ApplyLocation() const {
     double longitude = 0;
     bool known = GetLocation(latitude, longitude);
     Schedule::SetLocation(known, latitude, longitude);
+    Holidays::SetCountry(_holidayCountry == "all" ? std::string() : !_holidayCountry.empty() ? _holidayCountry : LocalCountry());
+}
+
+std::string ScheduleOptions::LocalCountry() const {
+    double latitude = 0;
+    double longitude = 0;
+    if (!GetLocation(latitude, longitude)) return "";
+    City* city = City::GetCity(City::GetNearestCity(latitude, longitude));
+    return city == nullptr ? std::string() : Holidays::CountryCode(city->_country);
 }
 
 bool ScheduleOptions::ParseLocation(const std::string& text, double& latitude, double& longitude) {
@@ -344,6 +355,7 @@ wxXmlNode* ScheduleOptions::Save() {
     res->AddAttribute("WWWRoot", _wwwRoot);
     res->AddAttribute("CrashBehaviour", _crashBehaviour);
     if (_logLevel != "Normal") res->AddAttribute("LogLevel", _logLevel);
+    if (!_holidayCountry.empty()) res->AddAttribute("HolidayCountry", _holidayCountry);
     res->AddAttribute("MIDITimecodeDevice", _MIDITimecodeDevice);
     res->AddAttribute("MIDITimecodeFormat", wxString::Format("%d", _MIDITimecodeFormat));
     res->AddAttribute("MIDITimecodeOffset", wxString::Format("%ld", (long)_MIDITimecodeOffset));

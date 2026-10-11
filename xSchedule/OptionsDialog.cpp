@@ -12,6 +12,7 @@
 
 #include "ButtonDetailsDialog.h"
 #include "City.h"
+#include "Holidays.h"
 #include "CommandManager.h"
 #include "ScheduleManager.h"
 #include "ScheduleOptions.h"
@@ -136,6 +137,8 @@ const long OptionsDialog::ID_STATICTEXT1 = wxNewId();
 const long OptionsDialog::ID_CHOICE3 = wxNewId();
 const long OptionsDialog::ID_STATICTEXT_COORDINATES = wxNewId();
 const long OptionsDialog::ID_TEXTCTRL_COORDINATES = wxNewId();
+const long OptionsDialog::ID_STATICTEXT_HOLIDAYS = wxNewId();
+const long OptionsDialog::ID_CHOICE_HOLIDAYS = wxNewId();
 const long OptionsDialog::ID_BUTTON_FINDLOCATION = wxNewId();
 const long OptionsDialog::ID_STATICTEXT10 = wxNewId();
 const long OptionsDialog::ID_CHOICE5 = wxNewId();
@@ -336,6 +339,11 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
     Button_FindLocation->SetToolTip(_("Look up a town, city or postcode on OpenStreetMap."));
     BoxSizer2->Add(Button_FindLocation, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
     FlexGridSizer3->Add(BoxSizer2, 1, wxEXPAND, 0);
+    StaticText_Holidays = new wxStaticText(this, ID_STATICTEXT_HOLIDAYS, _("Holidays:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT_HOLIDAYS"));
+    FlexGridSizer3->Add(StaticText_Holidays, 1, wxALL | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
+    Choice_Holidays = new wxChoice(this, ID_CHOICE_HOLIDAYS, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICE_HOLIDAYS"));
+    Choice_Holidays->SetToolTip(_("Which country's holidays the calendar shows and schedules offer to start or end on."));
+    FlexGridSizer3->Add(Choice_Holidays, 1, wxALL | wxEXPAND, 5);
     StaticText10 = new wxStaticText(this, ID_STATICTEXT10, _("Force Local IP:"), wxDefaultPosition, wxDefaultSize, 0, _T("ID_STATICTEXT10"));
     FlexGridSizer3->Add(StaticText10, 1, wxALL | wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL, 5);
     Choice1 = new wxChoice(this, ID_CHOICE5, wxDefaultPosition, wxDefaultSize, 0, 0, 0, wxDefaultValidator, _T("ID_CHOICE5"));
@@ -410,6 +418,15 @@ OptionsDialog::OptionsDialog(wxWindow* parent, CommandManager* commandManager, S
 
     Choice_OnCrash->SetStringSelection(options->GetCrashBehaviour());
     Choice_LogLevel->SetSelection(options->GetLogLevel() == "Errors" ? 1 : options->GetLogLevel() == "Off" ? 2 : 0);
+    Choice_Holidays->Append("Automatic", new wxStringClientData(""));
+    Choice_Holidays->Append("All countries", new wxStringClientData("all"));
+    for (const auto& c : Holidays::Countries()) {
+        Choice_Holidays->Append(c.second, new wxStringClientData(c.first));
+    }
+    Choice_Holidays->SetSelection(0);
+    for (unsigned i = 0; i < Choice_Holidays->GetCount(); ++i) {
+        if (static_cast<wxStringClientData*>(Choice_Holidays->GetClientObject(i))->GetData() == options->GetHolidayCountry()) Choice_Holidays->SetSelection(i);
+    }
     CheckBox_SendOffWhenNotRunning->SetValue(options->IsSendOffWhenNotRunning());
     CheckBox_MultithreadedTransmission->SetValue(options->IsParallelTransmission());
     Choice_ARTNetTimeCodeFormat->SetSelection(static_cast<int>(options->GetARTNetTimeCodeFormat()));
@@ -551,6 +568,7 @@ void OptionsDialog::OnButton_OkClick(wxCommandEvent& event) {
     }
     _options->SetCrashBehaviour(Choice_OnCrash->GetStringSelection().ToStdString());
     _options->SetLogLevel(Choice_LogLevel->GetSelection() == 1 ? "Errors" : Choice_LogLevel->GetSelection() == 2 ? "Off" : "Normal");
+    _options->SetHolidayCountry(static_cast<wxStringClientData*>(Choice_Holidays->GetClientObject(Choice_Holidays->GetSelection()))->GetData().ToStdString());
     _options->SetRemoteAllOff(CheckBox_RemoteAllOff->GetValue());
     _options->SetKeepScreenOn(CheckBox_KeepScreenOn->GetValue());
     _options->SetMinimiseUIUpdates(CheckBox_MinimiseUI->GetValue());
@@ -688,6 +706,24 @@ void OptionsDialog::ValidateWindow() {
     } else {
         Button_Ok->Enable();
     }
+    UpdateHolidayChoice();
+}
+
+void OptionsDialog::UpdateHolidayChoice() {
+    if (Choice_Holidays->GetCount() == 0) return;
+    // "Automatic (United Kingdom)": the country of the nearest listed city to the location being edited
+    std::string country;
+    double latitude = 0;
+    double longitude = 0;
+    City* city = nullptr;
+    if (Choice_Location->GetStringSelection() == OTHER_LOCATION) {
+        if (ScheduleOptions::ParseLocation(TextCtrl_Coordinates->GetValue().ToStdString(), latitude, longitude)) city = City::GetCity(City::GetNearestCity(latitude, longitude));
+    } else {
+        city = City::GetCity(Choice_Location->GetStringSelection().ToStdString());
+    }
+    if (city != nullptr) country = Holidays::CountryName(Holidays::CountryCode(city->_country));
+    wxString label = country.empty() ? wxString("Automatic (all countries)") : wxString("Automatic (" + country + ")");
+    if (Choice_Holidays->GetString(0) != label) Choice_Holidays->SetString(0, label);
 }
 
 void OptionsDialog::OnChoice_LocationSelect(wxCommandEvent& event) {

@@ -39,19 +39,26 @@ int Minutes(const wxDateTime& night, const wxDateTime& t)
 std::string HolidayOn(const wxDateTime& date)
 {
     static std::map<int, std::map<long, std::string>> byYear;
+    static std::string country = "-";
+    if (country != Holidays::GetCountry()) {
+        country = Holidays::GetCountry();
+        byYear.clear();
+    }
     int year = date.GetYear();
     auto it = byYear.find(year);
     if (it == byYear.end()) {
         std::map<long, std::string> days;
         for (const auto& h : Holidays::All()) {
+            if (!Holidays::IsShown(h)) continue;
             wxDateTime d = Holidays::DateFor(h.id, year);
             if (!d.IsValid()) continue;
-            // "Thanksgiving (US, 4th Thu in Nov)" -> "Thanksgiving (US)", "Christmas Eve (Dec 24)" -> "Christmas Eve"
+            // "Thanksgiving (US, 4th Thu in Nov)" -> "Thanksgiving (US)", or just "Thanksgiving" when showing one
+            // country's; "Christmas Eve (Dec 24)" -> "Christmas Eve"
             std::string name = h.name;
             if (auto open = name.find(" ("); open != std::string::npos) {
                 std::string region = name.substr(open + 2, name.find_first_of(",)", open) - open - 2);
                 bool date = region.find_first_of("0123456789") != std::string::npos;
-                name = name.substr(0, open) + (date ? "" : " (" + region + ")");
+                name = name.substr(0, open) + (date || !country.empty() ? "" : " (" + region + ")");
             }
             auto& day = days[DayNumber(d)];
             day += (day.empty() ? "" : ", ") + name;

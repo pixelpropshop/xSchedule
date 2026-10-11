@@ -543,6 +543,22 @@
 						<option>1</option>
 					</object>
 					<object class="sizeritem">
+						<object class="wxStaticText" name="ID_STATICTEXT_HOLIDAYS" variable="StaticText_Holidays" member="yes">
+							<label>Holidays:</label>
+						</object>
+						<flag>wxALL|wxALIGN_LEFT|wxALIGN_CENTER_VERTICAL</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
+						<object class="wxChoice" name="ID_CHOICE_HOLIDAYS" variable="Choice_Holidays" member="yes">
+							<tooltip>Which country&apos;s holidays the calendar shows and schedules offer to start or end on.</tooltip>
+						</object>
+						<flag>wxALL|wxEXPAND</flag>
+						<border>5</border>
+						<option>1</option>
+					</object>
+					<object class="sizeritem">
 						<object class="wxStaticText" name="ID_STATICTEXT10" variable="StaticText10" member="yes">
 							<label>Force Local IP:</label>
 						</object>

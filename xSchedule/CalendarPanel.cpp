@@ -11,6 +11,7 @@
 #include "CalendarPanel.h"
 
 #include "DateField.h"
+#include "Holidays.h"
 #include "ModernUI.h"
 #include "PlayList/PlayList.h"
 #include "Schedule.h"
@@ -25,6 +26,7 @@
 #include <wx/listctrl.h>
 #include <wx/menu.h>
 #include <wx/sizer.h>
+#include <wx/settings.h>
 #include <wx/simplebook.h>
 #include <wx/stattext.h>
 
@@ -163,6 +165,8 @@ public:
         Bind(wxEVT_LEFT_DOWN, &CalendarMonth::OnClick, this);
         Bind(wxEVT_LEFT_DCLICK, &CalendarMonth::OnDoubleClick, this);
         Bind(wxEVT_MOTION, &CalendarMonth::OnMotion, this);
+        _openLater.SetOwner(this);
+        Bind(wxEVT_TIMER, [this](wxTimerEvent&) { _select(_pending); });
     }
 
     void Set(const std::vector<ScheduleCalendar::Night>& nights, const wxDateTime& month, const wxDateTime& selected) {
@@ -310,14 +314,23 @@ private:
     }
 
     void OnClick(wxMouseEvent& event) {
-        int c = CellAt(event.GetPosition());
-        if (c >= 0) _select(_nights[c].date);
         SetFocus();
+        int c = CellAt(event.GetPosition());
+        if (c < 0) return;
+        bool onChip = std::any_of(_hits.begin(), _hits.end(), [&event](const Hit& h) { return h.rect.Contains(event.GetPosition()); });
+        if (!onChip) {
+            _select(_nights[c].date);
+            return;
+        }
+        // a click on a schedule may be the first of a double-click, which edits it instead of opening the night
+        _pending = _nights[c].date;
+        _openLater.StartOnce(wxSystemSettings::GetMetric(wxSYS_DCLICK_MSEC, this));
     }
 
     void OnDoubleClick(wxMouseEvent& event) {
         for (const auto& h : _hits) {
             if (h.rect.Contains(event.GetPosition())) {
+                _openLater.Stop();
                 _edit(h.schedule);
                 return;
             }
@@ -338,6 +351,8 @@ private:
     std::function<void(const wxDateTime&)> _select;
     CalendarPanel::EditSchedule _edit;
     std::function<void(const wxDateTime&)> _menu;
+    wxTimer _openLater;
+    wxDateTime _pending;
     std::vector<ScheduleCalendar::Night> _nights;
     wxDateTime _month;
     wxDateTime _selected;
@@ -724,6 +739,7 @@ CalendarPanel::CalendarPanel(wxWindow* parent, EditSchedule edit, AddSchedule ad
     _title = new wxStaticText(this, wxID_ANY, "");
     _title->SetFont(GetFont().Scaled(1.3f).Bold());
     _title->SetForegroundColour(t.text);
+    _title->SetBackgroundColour(t.panel);
     auto* today = text("Today", "Go to today (Home)");
     _inactiveBox = new wxCheckBox(this, wxID_ANY, "Show inactive");
     _inactiveBox->SetForegroundColour(t.text);
@@ -794,6 +810,7 @@ void CalendarPanel::ShowNight(bool night)
     _prev->SetToolTip(night ? "Previous night (Left)" : "Previous month (Page Up)");
     _next->SetToolTip(night ? "Next night (Right)" : "Next month (Page Down)");
     Layout();
+    Refresh(); // the hidden Back button's area is left unpainted otherwise
     if (IsShownOnScreen()) (night ? (wxWindow*)_dayView : (wxWindow*)_monthView)->SetFocus();
 }
 
@@ -886,7 +903,7 @@ void CalendarPanel::Forget()
 std::string CalendarPanel::Signature() const
 {
     std::string sig = _month.FormatISODate().ToStdString() + _selected.FormatISODate().ToStdString() + wxDateTime::Today().FormatISODate().ToStdString() +
-                      (_inactive ? "i" : "") + "|";
+                      (_inactive ? "i" : "") + "|" + Holidays::GetCountry() + "|";
     double latitude;
     double longitude;
     Schedule::GetLocation(latitude, longitude);
