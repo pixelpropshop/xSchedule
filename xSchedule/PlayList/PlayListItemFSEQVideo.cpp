@@ -194,11 +194,11 @@ void PlayListItemFSEQVideo::LoadFiles(bool doCache) {
         spdlog::error("FSEQ Video: File does not exist. {}", (const char*)_fseqFileName.c_str());
     }
 
-    if (!_useMediaPlayer && _cacheVideo && doCache) {
+    if (!UseMediaPlayer() && _cacheVideo && doCache) {
         _cachedVideoReader = new CachedVideoReader(_videoFile, 0, GetFrameMS(), _size, false);
     } else {
         _videoReader = new VideoReader(_videoFile, _size.GetWidth(), _size.GetHeight(), false);
-        if (_useMediaPlayer) {
+        if (UseMediaPlayer()) {
             _videoLength = _videoReader->GetLengthMS();
             delete _videoReader;
             _videoReader = nullptr;
@@ -555,10 +555,10 @@ void PlayListItemFSEQVideo::Frame(uint8_t* buffer, size_t size, size_t ms, size_
     } else {
         long adjustedMS = ms - _delay;
 
-        if (_useMediaPlayer) {
+        if (UseMediaPlayer()) {
             bool videoOver = (!_loopVideo && (size_t)adjustedMS > _videoLength);
 
-            if (!videoOver && _frame->GetState() != wxMEDIASTATE_PLAYING) {
+            if (!videoOver && !_frame->IsPlaying()) {
                 _frame->Play();
             }
 
@@ -662,7 +662,7 @@ void PlayListItemFSEQVideo::Start(long stepLengthMS) {
     }
 
     // create the window
-    if (_useMediaPlayer) {
+    if (UseMediaPlayer()) {
         if (_frame == nullptr) {
             _frame = new PlayerFrame(wxGetApp().GetTopWindow(), _topMost, wxID_ANY, _origin, _size);
             auto res = _frame->Load(_videoFile);
@@ -836,4 +836,9 @@ long PlayListItemFSEQVideo::GetFSEQChannels() const {
             return 0;
         }
     }
+}
+
+bool PlayListItemFSEQVideo::UseMediaPlayer() const
+{
+    return _useMediaPlayer && PlayerFrame::Available();
 }

@@ -1,0 +1,58 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [ feature/macos ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Dependency bundle
+        working-directory: xlights/macOS
+        run: |
+          bash scripts/download_deps
+          lipo -info dependencies/lib/libwx_baseu-3.3.a dependencies/lib/libavcodec.a
+
+      - name: Icon
+        run: |
+          mkdir -p build/xSchedule.iconset
+          for s in 16 32 128 256 512; do
+            sips -z $s $s images/icons/256x256.png --out build/xSchedule.iconset/icon_${s}x${s}.png > /dev/null
+            d=$((s * 2))
+            sips -z $d $d images/icons/256x256.png --out build/xSchedule.iconset/icon_${s}x${s}@2x.png > /dev/null
+          done
+          iconutil -c icns build/xSchedule.iconset -o build/xSchedule.icns
+
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+          cmake --build build -j $(sysctl -n hw.ncpu) 2>&1 | tee build/build.log | grep -E "error|warning: unused|Linking|Built target" || true
+          test -x build/xSchedule.app/Contents/MacOS/xSchedule
+
+      - name: Errors
+        if: failure()
+        run: grep -E " error: |undefined symbol|ld: " build/build.log | sort | uniq -c | sort -rn | head -80
+
+      - name: Package
+        run: |
+          codesign --force --deep --sign - build/xSchedule.app
+          otool -L build/xSchedule.app/Contents/MacOS/xSchedule
+          mkdir -p dmg
+          cp -R build/xSchedule.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "xSchedule" -srcfolder dmg -ov -format UDZO xSchedule-macOS.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: xSchedule-macOS.dmg

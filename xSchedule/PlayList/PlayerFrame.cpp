@@ -62,6 +62,7 @@ PlayerFrame::PlayerFrame(wxWindow* parent, bool topmost, wxWindowID id, const wx
 }
 
 bool PlayerFrame::InitMediaPlayer() {
+#if wxUSE_MEDIACTRL
     if (_mediaCtrl != nullptr)
         return true;
 
@@ -99,11 +100,10 @@ bool PlayerFrame::InitMediaPlayer() {
     sizer->Add(_mediaCtrl, 0, wxALL | wxEXPAND, 0);
     Layout();
 
-    //_mediaCtrl->Connect(wxEVT_LEFT_DOWN, (wxObjectEventFunction)&PlayerFrame::OnMouseLeftDown, 0, this);
-    //_mediaCtrl->Connect(wxEVT_LEFT_UP, (wxObjectEventFunction)&PlayerFrame::OnMouseLeftUp, 0, this);
-    //_mediaCtrl->Connect(wxEVT_MOTION, (wxObjectEventFunction)&PlayerFrame::OnMouseMove, 0, this);
-
     return true;
+#else
+    return false;
+#endif
 }
 
 PlayerFrame::~PlayerFrame() {
@@ -111,17 +111,16 @@ PlayerFrame::~PlayerFrame() {
     //*)
 }
 
+void PlayerFrame::OnClose(wxCloseEvent& event) {
+    Hide();
+    Stop();
+}
+
+#if wxUSE_MEDIACTRL
 bool PlayerFrame::Load(const wxString& filename) {
     if (!InitMediaPlayer())
         return false;
     return _mediaCtrl->Load(filename);
-}
-
-void PlayerFrame::OnClose(wxCloseEvent& event) {
-    Hide();
-    if (!InitMediaPlayer())
-        return;
-    _mediaCtrl->Stop();
 }
 
 void PlayerFrame::Stop() {
@@ -156,11 +155,28 @@ void PlayerFrame::Play() {
     _mediaCtrl->SetPlaybackRate(1);
 }
 
-int PlayerFrame::GetState() {
-    if (!InitMediaPlayer())
-        return wxMEDIASTATE_STOPPED;
-    return _mediaCtrl->GetState();
+bool PlayerFrame::IsPlaying() {
+    return InitMediaPlayer() && _mediaCtrl->GetState() == wxMEDIASTATE_PLAYING;
 }
+#else
+bool PlayerFrame::Load(const wxString& filename) {
+    return false;
+}
+void PlayerFrame::Stop() {
+}
+void PlayerFrame::Pause() {
+}
+void PlayerFrame::Seek(int ms) {
+}
+int PlayerFrame::Tell() {
+    return 0;
+}
+void PlayerFrame::Play() {
+}
+bool PlayerFrame::IsPlaying() {
+    return false;
+}
+#endif
 
 // void PlayerFrame::OnMouseLeftUp(wxMouseEvent& event)
 //{

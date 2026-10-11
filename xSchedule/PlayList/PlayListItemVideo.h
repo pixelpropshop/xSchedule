@@ -42,6 +42,7 @@ protected:
     int _fadeInMS = 0;
     int _fadeOutMS = 0;
     bool _useMediaPlayer = false;
+    bool UseMediaPlayer() const;
     #pragma endregion Member Variables
 
     void OpenFiles(bool doCache);

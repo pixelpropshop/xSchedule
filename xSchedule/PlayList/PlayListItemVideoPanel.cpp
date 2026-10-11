@@ -9,6 +9,7 @@
  **************************************************************/
 
 #include "PlayListItemVideoPanel.h"
+#include "PlayerFrame.h"
 #include "PlayListItemVideo.h"
 #include "VideoWindowPositionDialog.h"
 #include "PlayListDialog.h"
@@ -134,6 +135,7 @@ PlayListItemVideoPanel::PlayListItemVideoPanel(wxWindow* parent, PlayListItemVid
     SpinCtrl_FadeIn->SetValue(video->GetFadeInMS());
     SpinCtrl_FadeOut->SetValue(video->GetFadeOutMS());
 	CheckBox_UseMediaPlayer->SetValue(video->GetUseMediaPlayer());
+	CheckBox_UseMediaPlayer->Show(PlayerFrame::Available());
 
     SetWindowPositionText();
 	ValidateWindow();

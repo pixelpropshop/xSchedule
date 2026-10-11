@@ -9,6 +9,7 @@
  **************************************************************/
 
 #include "PlayListItemFSEQVideoPanel.h"
+#include "PlayerFrame.h"
 #include "PlayListDialog.h"
 #include "PlayListItemFSEQVideo.h"
 #include "VideoWindowPositionDialog.h"
@@ -269,6 +270,7 @@ PlayListItemFSEQVideoPanel::PlayListItemFSEQVideoPanel(wxWindow* parent, OutputM
     SpinCtrl_FadeIn->SetValue(fseq->GetFadeInMS());
     SpinCtrl_FadeOut->SetValue(fseq->GetFadeOutMS());
     CheckBox_UseMediaPlayer->SetValue(fseq->GetUseMediaPlayer());
+    CheckBox_UseMediaPlayer->Show(PlayerFrame::Available());
 
     long channels = xScheduleFrame::GetScheduleManager()->GetTotalChannels();
     SpinCtrl_Channels->SetRange(1, channels);

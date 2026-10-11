@@ -59,6 +59,7 @@ protected:
     long _fadeOutMS = 0;
     bool _loopVideo = false;
     bool _useMediaPlayer = false;
+    bool UseMediaPlayer() const;
     std::string _videoFile;
     wxPoint _origin;
     wxSize _size;

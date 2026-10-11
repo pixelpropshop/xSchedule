@@ -32,7 +32,9 @@ public:
     void Seek(int ms);
     int Tell();
     void Play();
-    int GetState();
+    bool IsPlaying();
+    // wx on macOS is built without wxMediaCtrl, so there the media player option does nothing
+    static bool Available() { return wxUSE_MEDIACTRL != 0; }
     
 protected:
 

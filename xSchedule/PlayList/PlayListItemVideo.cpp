@@ -221,14 +221,14 @@ void PlayListItemVideo::OpenFiles(bool doCache)
 {
     CloseFiles();
 
-    if (_cacheVideo && doCache && !_useMediaPlayer) {
+    if (_cacheVideo && doCache && !UseMediaPlayer()) {
         _cachedVideoReader = new CachedVideoReader(_videoFile, 0, GetFrameMS(), _size, false);
         _durationMS = _cachedVideoReader->GetLengthMS();
     }
     else {
         _videoReader = new VideoReader(_videoFile, _size.GetWidth(), _size.GetHeight(), false); // , true);
         _durationMS = _videoReader->GetLengthMS();
-        if (_useMediaPlayer) {
+        if (UseMediaPlayer()) {
             delete _videoReader;
             _videoReader = nullptr;
         }
@@ -250,10 +250,10 @@ void PlayListItemVideo::Frame(uint8_t* buffer, size_t size, size_t ms, size_t fr
 
         long adjustedMS = ms - _delay;
 
-        if (_useMediaPlayer && _frame != nullptr) {
+        if (UseMediaPlayer() && _frame != nullptr) {
             bool videoOver = (!_loopVideo && (size_t)adjustedMS > _durationMS);
 
-            if (!videoOver && _frame->GetState() != wxMEDIASTATE_PLAYING) {
+            if (!videoOver && !_frame->IsPlaying()) {
                 _frame->Play();
             }
 
@@ -328,7 +328,7 @@ void PlayListItemVideo::Start(long stepLengthMS)
 
     OpenFiles(true);
 
-    if (_useMediaPlayer) {
+    if (UseMediaPlayer()) {
         if (_frame == nullptr) {
             _frame = new PlayerFrame(wxGetApp().GetTopWindow(), _topMost, wxID_ANY, _origin, _size);
             bool res = _frame->Load(_videoFile);
@@ -430,4 +430,9 @@ std::list<std::string> PlayListItemVideo::GetMissingFiles()
     }
 
     return res;
+}
+
+bool PlayListItemVideo::UseMediaPlayer() const
+{
+    return _useMediaPlayer && PlayerFrame::Available();
 }
