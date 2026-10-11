@@ -335,6 +335,11 @@ wxImage CachedVideoReader::FadeImage(const wxImage& image, int brightness) {
 
     wxImage faded;
 
+    if (image.IsOk() && brightness == 100) {
+        // wxImage shares its data, so this costs no copy of the frame
+        return image;
+    }
+
     if (!image.IsOk() || brightness == 0) {
         // create a blank image if it is invalid or faded to black
         faded.Create(image.GetWidth(), image.GetHeight());

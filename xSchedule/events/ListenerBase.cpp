@@ -47,6 +47,18 @@ void* ListenerThread::Entry() {
 
     _listener->StartProcess(_localIP);
 
+    // A listener that can't start (a network one whose address isn't up yet at boot, a port in use, a device
+    // unplugged) tries again every 30 s instead of staying off until xSchedule restarts.
+    while (!_stop && !_listener->IsOk() && !_listener->PollsWhenNotOk()) {
+        for (int i = 0; i < 300 && !_stop; i++) {
+            wxMilliSleep(100);
+        }
+        if (_stop) break;
+        spdlog::info("Listener {} trying to start again.", _listener->GetType());
+        _listener->StopProcess();
+        _listener->StartProcess(_localIP);
+    }
+
     if (_listener->IsOk() || _listener->PollsWhenNotOk()) {
         while (!_stop) {
             _listener->Poll();
