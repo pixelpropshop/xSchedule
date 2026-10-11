@@ -159,6 +159,7 @@ class xScheduleFrame : public xlFrame {
     ModernUI::NowPlayingBar* _nowPlaying = nullptr;
     wxNotebook* _rightBook = nullptr;
     wxListView* _listUpcoming = nullptr;
+    class CalendarPanel* _calendar = nullptr;
     wxSearchCtrl* _treeFilter = nullptr;
     std::string _upcomingSignature;
 
@@ -169,6 +170,9 @@ class xScheduleFrame : public xlFrame {
     void RunUICommand(const std::string& command);
     void UpdateNowPlaying();
     void UpdateUpcoming();
+    void RefreshCalendar(bool force = false) const;
+    void EditSchedule(Schedule* schedule);
+    void AddScheduleOn(PlayList* playlist, const wxDateTime& night);
     void OnTreeFilter(wxCommandEvent& event);
     void RefreshTreeStates();
     bool SaveSchedule();

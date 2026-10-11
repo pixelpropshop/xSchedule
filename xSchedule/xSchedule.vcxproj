@@ -329,6 +329,8 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClCompile Include="City.cpp" />
     <ClCompile Include="DateField.cpp" />
     <ClCompile Include="Diagnostics.cpp" />
+    <ClCompile Include="ScheduleCalendar.cpp" />
+    <ClCompile Include="CalendarPanel.cpp" />
     <ClCompile Include="LogSink.cpp" />
     <ClCompile Include="ColourOrderDialog.cpp" />
     <ClCompile Include="CommandManager.cpp" />
@@ -583,6 +585,8 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClInclude Include="City.h" />
     <ClInclude Include="DateField.h" />
     <ClInclude Include="Diagnostics.h" />
+    <ClInclude Include="ScheduleCalendar.h" />
+    <ClInclude Include="CalendarPanel.h" />
     <ClInclude Include="LogSink.h" />
     <ClInclude Include="ColourOrderDialog.h" />
     <ClInclude Include="CommandManager.h" />

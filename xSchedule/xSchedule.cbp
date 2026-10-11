@@ -353,6 +353,10 @@
 		<Unit filename="DateField.h" />
 		<Unit filename="Diagnostics.cpp" />
 		<Unit filename="Diagnostics.h" />
+		<Unit filename="ScheduleCalendar.cpp" />
+		<Unit filename="ScheduleCalendar.h" />
+		<Unit filename="CalendarPanel.cpp" />
+		<Unit filename="CalendarPanel.h" />
 		<Unit filename="LogSink.cpp" />
 		<Unit filename="LogSink.h" />
 		<Unit filename="PlayList/AudioPreload.h" />

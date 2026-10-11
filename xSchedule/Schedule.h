@@ -59,6 +59,7 @@ class Schedule
     wxDateTime _lastFired;
 
     void SetTime(wxDateTime& toset, wxDateTime time, std::string timeString, int offset) const;
+    bool IsActiveAt(const wxDateTime& now, bool honorSkipAndEnabled) const;
     bool IsOkDOW(const wxDateTime& date) const;
     bool IsOkNthDay(const wxDateTime& date) const;
     bool IsSkipDate(const wxDateTime& date) const;
@@ -78,6 +79,7 @@ class Schedule
         static void SetLocation(bool known, double latitude, double longitude) { __locationKnown = known; __latitude = latitude; __longitude = longitude; }
         // sunrise, sunset, dawn or dusk (sunup and sundown are older names)
         static bool IsSunTime(const std::string& time);
+        static bool GetLocation(double& latitude, double& longitude) { latitude = __latitude; longitude = __longitude; return __locationKnown; }
         wxUint32 GetId() const { return _id; }
         bool operator<(const Schedule& rhs) const { return _priority < rhs._priority; }
         bool operator==(const Schedule& rhs) const { return _id == rhs._id; }
@@ -158,6 +160,9 @@ class Schedule
         bool IsActiveAt(const wxDateTime& when) const;
         // the next windows (start, end) that start after 'from', looking at most maxDays ahead
         std::vector<std::pair<wxDateTime, wxDateTime>> GetUpcomingWindows(const wxDateTime& from, size_t count, int maxDays = 400) const;
+        // the window that starts on the given night, if there is one; skipped is set for a skip date, which (like an
+        // inactive schedule) still gets its window so a calendar can show it
+        bool GetWindowOn(const wxDateTime& night, wxDateTime& start, wxDateTime& end, bool& skipped) const;
         std::string GetNextTriggerTime();
         std::string GetNextEndTime();
         void AddMinsToEndTime(int mins);

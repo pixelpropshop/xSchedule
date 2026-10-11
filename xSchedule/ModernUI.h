@@ -82,10 +82,15 @@ enum class Glyph {
     Command,
     Network,
     Effect,
-    Delay
+    Delay,
+    ChevronLeft,
+    ChevronRight
 };
 
-wxBitmap MakeIconButton(wxWindow* win, Glyph glyph, bool primary, int sizeDIP = 32);
+// background: what shows round the rounded corners, the toolbar's color when not given
+wxBitmap MakeIconButton(wxWindow* win, Glyph glyph, bool primary, int sizeDIP = 32, const wxColour* background = nullptr);
+// a labelled button in the same style as the icon buttons
+wxBitmap MakeTextButton(wxWindow* win, const wxString& label, bool primary, int heightDIP = 32, const wxColour* background = nullptr);
 wxBitmap MakeTreeIcon(wxWindow* win, Glyph glyph);
 wxBitmap MakeSwatch(wxWindow* win, const wxColour& color);
 

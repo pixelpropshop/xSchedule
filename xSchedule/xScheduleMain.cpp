@@ -81,6 +81,7 @@
 #include <wx/srchctrl.h>
 #include <algorithm>
 #include "ModernUI.h"
+#include "CalendarPanel.h"
 
 
 #include "../xlights/include/xLights.xpm"
@@ -942,6 +943,7 @@ void xScheduleFrame::LoadSchedule()
     if (__schedule != nullptr)
     {
         spdlog::debug("LoadSchedule: deleting existing ScheduleManager.");
+        if (_calendar != nullptr) _calendar->Forget(); // it holds pointers to the schedules about to go
         _serialPings.clear(); // waits for checks still running on its controllers
         delete __schedule;
         __schedule = nullptr;
@@ -1639,8 +1641,41 @@ void xScheduleFrame::LoadShowDir()
     }
 }
 
+void xScheduleFrame::RefreshCalendar(bool force) const
+{
+    if (_calendar == nullptr || __schedule == nullptr) return;
+    if (force || _rightBook->GetCurrentPage() == _calendar) _calendar->RefreshFrom(__schedule, force);
+}
+
+void xScheduleFrame::EditSchedule(Schedule* schedule)
+{
+    if (schedule->Configure(this) != nullptr) {
+        auto rs = __schedule->GetRunningSchedule(schedule);
+        if (rs != nullptr) rs->Reset();
+        UpdateTree();
+        UpdateUI(true);
+    }
+}
+
+void xScheduleFrame::AddScheduleOn(PlayList* playlist, const wxDateTime& night)
+{
+    Schedule* schedule = new Schedule();
+    schedule->SetStartDate(night.GetDateOnly());
+    schedule->SetEndDate(night.GetDateOnly());
+    if (schedule->Configure(this) == nullptr) {
+        delete schedule;
+        return;
+    }
+    playlist->AddSchedule(schedule);
+    UpdateTree();
+    UpdateSchedule();
+    UpdateUI(true);
+}
+
 void xScheduleFrame::UpdateTree() const
 {
+    // the calendar holds pointers to schedules, and a tree rebuild follows any added or deleted one
+    RefreshCalendar(true);
     TreeCtrl_PlayListsSchedules->Freeze();
 
     TreeCtrl_PlayListsSchedules->DeleteAllItems();
@@ -2362,6 +2397,12 @@ void xScheduleFrame::ApplyModernLayout()
     _listUpcoming->AppendColumn("Playlist");
     _listUpcoming->AppendColumn("Status");
     _rightBook->AddPage(_listUpcoming, "Upcoming");
+    _calendar = new CalendarPanel(_rightBook, [this](Schedule* s) { EditSchedule(s); }, [this](PlayList* p, const wxDateTime& night) { AddScheduleOn(p, night); });
+    _rightBook->AddPage(_calendar, "Calendar");
+    _rightBook->Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, [this](wxBookCtrlEvent& e) {
+        RefreshCalendar();
+        e.Skip();
+    });
     rightSizer->Add(_rightBook, 1, wxALL | wxEXPAND, 5);
 
     if (auto treeSizer = dynamic_cast<wxFlexGridSizer*>(Panel6->GetSizer()); treeSizer != nullptr) {
@@ -3963,6 +4004,7 @@ void xScheduleFrame::UpdateUI(bool force)
     bool minimiseUIUpdates = __schedule->GetOptions()->IsMinimiseUIUpdates();
 
     UpdateStatus(force);
+    RefreshCalendar();
 
     logger_frame->debug("        Status updated {}ms", sw.Time());
 
