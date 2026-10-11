@@ -11,11 +11,15 @@ concurrency:
 
 jobs:
   macos:
-    runs-on: macos-15
+    # the dependency bundle's static libraries hold Xcode 26 bitcode, which an older linker can't read
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
+
+      - name: Xcode
+        run: xcodebuild -version
 
       - name: Dependency bundle
         working-directory: xlights/macOS
