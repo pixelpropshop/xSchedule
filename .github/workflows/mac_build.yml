@@ -43,7 +43,15 @@ jobs:
       - name: Errors
         if: failure()
         run: |
-          grep -E " error: |undefined symbol|ld: " build/build.log | sort | uniq -c | sort -rn | head -80
+          grep -E " error: " build/build.log | sort | uniq -c | sort -rn | head -80
+          # the linker's missing symbols, by name
+          grep -E "^ld: |Undefined symbols|^  \"" build/build.log | sed 's/, referenced from:.*//' | sort -u | head -200
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-log
+          path: build/build.log
 
       - name: Package
         run: |
