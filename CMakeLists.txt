@@ -53,6 +53,17 @@ list(APPEND XS_SOURCES
     "${CMAKE_SOURCE_DIR}/xlights/src-ui-wx/shared/utils/xLightsTimer.mm"
 )
 
+# The plugins are compiled in (XSCHEDULE_STATIC_PLUGINS): a plugin library would bring a second copy of wx, and two
+# copies' Objective-C classes clash in one process
+foreach(file
+    RemoteFalcon/RemoteFalcon RemoteFalcon/RemoteFalconApp RemoteFalcon/RemoteFalconMain RemoteFalcon/RemoteFalconOptions
+    RemoteFalcon/RemoteFalconSettingsDialog RemoteFalcon/xSchedule
+    xSMSDaemon/MagicWord xSMSDaemon/MagicWordDialog xSMSDaemon/MagicWordsDialog xSMSDaemon/SMSDaemonOptions
+    xSMSDaemon/SMSMessage xSMSDaemon/SMSSettingsDialog xSMSDaemon/TestMessagesDialog xSMSDaemon/xSMSDaemonApp
+    xSMSDaemon/xSMSDaemonMain)
+    list(APPEND XS_SOURCES "${CMAKE_SOURCE_DIR}/xSchedule/${file}.cpp")
+endforeach()
+
 # PortMidi: only its Windows files are kept here, so the macOS build takes it from upstream
 include(FetchContent)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -88,6 +99,7 @@ target_compile_definitions(xSchedule PRIVATE
     wxDEBUG_LEVEL=0
     # as the Linux and Windows projects: xSchedule has none of xLights' layout and network editing
     EXCLUDENETWORKUI DISCOVERYONLY
+    XSCHEDULE_STATIC_PLUGINS
     $<$<CONFIG:Release>:NDEBUG>
 )
 target_compile_options(xSchedule PRIVATE -Wno-deprecated-declarations $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)

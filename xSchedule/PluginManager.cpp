@@ -350,7 +350,57 @@ std::string PluginManager::GetMenuLabel(const std::string& plugin) const
     return std::string(buffer);
 }
 
+#ifdef XSCHEDULE_STATIC_PLUGINS
+// macOS: the plugins are compiled in, as a second wx copy in a library would clash with xSchedule's
+bool RemoteFalcon_xSchedule_Load(char* showDir);
+void RemoteFalcon_xSchedule_Unload();
+bool RemoteFalcon_xSchedule_Start(char* showDir, char* xScheduleURL, p_xSchedule_Action action);
+void RemoteFalcon_xSchedule_Stop();
+bool RemoteFalcon_xSchedule_HandleWeb(const char* command, const wchar_t* parameters, const wchar_t* data, const wchar_t* reference, wchar_t* response, size_t responseSize);
+void RemoteFalcon_xSchedule_WipeSettings();
+void RemoteFalcon_xSchedule_ManipulateBuffer(uint8_t* buffer, size_t bufferSize);
+void RemoteFalcon_xSchedule_NotifyStatus(const char* status);
+void RemoteFalcon_xSchedule_GetVirtualWebFolder(char* buffer, size_t bufferSize);
+void RemoteFalcon_xSchedule_GetMenuLabel(char* buffer, size_t bufferSize);
+bool RemoteFalcon_xSchedule_FireEvent(const char* eventType, const char* eventParameters);
+bool RemoteFalcon_xSchedule_SendCommand(const char* command, const char* parameters, char* msg, size_t bufferSize);
+
+bool xSMSDaemon_xSchedule_Load(char* showDir);
+void xSMSDaemon_xSchedule_Unload();
+bool xSMSDaemon_xSchedule_Start(char* showDir, char* xScheduleURL, p_xSchedule_Action action);
+void xSMSDaemon_xSchedule_Stop();
+bool xSMSDaemon_xSchedule_HandleWeb(const char* command, const wchar_t* parameters, const wchar_t* data, const wchar_t* reference, wchar_t* response, size_t responseSize);
+void xSMSDaemon_xSchedule_WipeSettings();
+void xSMSDaemon_xSchedule_ManipulateBuffer(uint8_t* buffer, size_t bufferSize);
+void xSMSDaemon_xSchedule_NotifyStatus(const char* status);
+void xSMSDaemon_xSchedule_GetVirtualWebFolder(char* buffer, size_t bufferSize);
+void xSMSDaemon_xSchedule_GetMenuLabel(char* buffer, size_t bufferSize);
+bool xSMSDaemon_xSchedule_FireEvent(const char* eventType, const char* eventParameters);
+bool xSMSDaemon_xSchedule_SendCommand(const char* command, const char* parameters, char* msg, size_t bufferSize);
+#define XS_STATIC_PLUGIN(name) \
+    { \
+        auto ps = new PluginState(nullptr, #name); \
+        ps->_loadFn = name##_xSchedule_Load; \
+        ps->_unloadFn = name##_xSchedule_Unload; \
+        ps->_startFn = name##_xSchedule_Start; \
+        ps->_stopFn = name##_xSchedule_Stop; \
+        ps->_handleWebFn = name##_xSchedule_HandleWeb; \
+        ps->_wipeFn = name##_xSchedule_WipeSettings; \
+        ps->_manipulateBufferFn = name##_xSchedule_ManipulateBuffer; \
+        ps->_notifyStatusFn = name##_xSchedule_NotifyStatus; \
+        ps->_getVirtualWebFolderFn = name##_xSchedule_GetVirtualWebFolder; \
+        ps->_getMenuLabelFn = name##_xSchedule_GetMenuLabel; \
+        ps->_fireEventFn = name##_xSchedule_FireEvent; \
+        ps->_sendCommandFn = name##_xSchedule_SendCommand; \
+        _plugins[#name] = ps; \
+    }
+#endif
+
 void PluginManager::RegisterStaticPlugins() {
+#ifdef XSCHEDULE_STATIC_PLUGINS
+    XS_STATIC_PLUGIN(RemoteFalcon)
+    XS_STATIC_PLUGIN(xSMSDaemon)
+#endif
 }
 
 

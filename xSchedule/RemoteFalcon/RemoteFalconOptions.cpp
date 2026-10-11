@@ -9,6 +9,7 @@
  **************************************************************/
 
 #include "RemoteFalconOptions.h"
+#include "../PluginConfig.h"
 
 #include <wx/xml/xml.h>
 #include <wx/file.h>
@@ -25,7 +26,7 @@ RemoteFalconOptions::RemoteFalconOptions()
 
 void RemoteFalconOptions::Load()
 {
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("RemoteFalcon");
     _token = config->Read(_("RemoteFalconToken"), wxEmptyString).ToStdString();
     _playDuring = config->Read(_("RemoteFalconPlayDuring"), wxEmptyString).ToStdString();
     _playlist = config->ReadLong(_("RemoteFalconPlaylist"), -1);
@@ -41,7 +42,7 @@ void RemoteFalconOptions::Load()
 
 void RemoteFalconOptions::Save()
 {
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("RemoteFalcon");
     config->Write(_("RemoteFalconToken"), wxString(_token));
     config->Write(_("RemoteFalconPlayDuring"), wxString(_playDuring));
     config->Write(_("RemoteFalconPlaylist"), _playlist);

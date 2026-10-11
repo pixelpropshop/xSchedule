@@ -27,6 +27,7 @@
 #endif
 
 #include "xSMSDaemonApp.h"
+#include "../PluginConfig.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/common.h"
@@ -84,12 +85,15 @@
 #pragma comment(lib, "ImageHlp.Lib")
 #endif
 
+#ifndef XSCHEDULE_STATIC_PLUGINS
 IMPLEMENT_APP_NO_MAIN(xSMSDaemonApp)
+#endif
 
 static std::string __showDir;
 static std::string __xScheduleURL;
 static bool __started = false;
 static p_xSchedule_Action __action;
+static xSMSDaemonFrame* __frame = nullptr;
 
 xSMSDaemonApp::xSMSDaemonApp() :
     xlBaseApp("xSMSDaemon")
@@ -105,7 +109,7 @@ static void WipeSettings()
 {
     spdlog::warn("------ Wiping xSMSDaemon settings ------");
 
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("xSMSDaemon");
     config->DeleteAll();
 }
 
@@ -177,7 +181,7 @@ static void InitialiseLogging(bool fromMain)
     bool xSMSDaemon_xSchedule_HandleWeb(const char* command, const wchar_t* parameters, const wchar_t* data, const wchar_t* reference, wchar_t* response, size_t responseSize) {
         std::wstring resp;
         memset(response, 0x00, responseSize);
-        bool res = ((xSMSDaemonFrame*)wxTheApp->GetTopWindow())->Action(std::string(command), std::wstring(parameters), std::wstring(data), std::wstring(reference), resp);
+        bool res = __frame->Action(std::string(command), std::wstring(parameters), std::wstring(data), std::wstring(reference), resp);
         wchar_t* pr = (wchar_t*)resp.c_str();
         wcsncpy(response, pr, (responseSize / 2) - 1); // divide by 2 as 2 byte characters
         return res;
@@ -191,12 +195,18 @@ static void InitialiseLogging(bool fromMain)
         __showDir = std::string(showDir);
         __xScheduleURL = std::string(xScheduleURL);
 
+#ifdef XSCHEDULE_STATIC_PLUGINS
+        // compiled into xSchedule, which already runs wx and the log
+        __frame = new xSMSDaemonFrame(nullptr, __showDir, __xScheduleURL, __action);
+        __frame->Show();
+#else
         InitialiseLogging(false);
 
         int argc = 0;
         char** argv = NULL;
         if (!wxEntryStart(argc, argv) || !wxTheApp || !wxTheApp->CallOnInit())
             return false;
+#endif
 
         __started = true;
         return true;
@@ -208,7 +218,12 @@ static void InitialiseLogging(bool fromMain)
 
         if (!__started) return;
 
+#ifdef XSCHEDULE_STATIC_PLUGINS
+        if (__frame != nullptr) __frame->Destroy();
+#else
         wxEntryCleanup();
+#endif
+        __frame = nullptr;
 
         __started = false;
     }
@@ -244,6 +259,7 @@ static void InitialiseLogging(bool fromMain)
         // we dont manipulate pixel data directly
     }
 
+#ifndef XSCHEDULE_STATIC_PLUGINS
     extern "C" {
         bool WXEXPORT xSchedule_Load(char* showDir)
         {
@@ -294,6 +310,7 @@ static void InitialiseLogging(bool fromMain)
             return xSMSDaemon_xSchedule_SendCommand(command, parameters, msg, bufferSize);
         }
     }
+#endif
 
 int xSMSDaemonApp::OnExit()
 {
@@ -323,6 +340,7 @@ bool xSMSDaemonApp::OnInit()
     //(*AppInitialize
     xSMSDaemonFrame* Frame = new xSMSDaemonFrame(0, __showDir, __xScheduleURL, __action);
     Frame->Show();
+    __frame = Frame;
 
     return true;
 }

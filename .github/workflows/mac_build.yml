@@ -83,18 +83,28 @@ jobs:
           curl -sf "http://127.0.0.1:8099/xScheduleQuery?Query=GetCalendar&Parameters=2026-12-22,2026-12-24" | head -c 600; echo
           echo "web page: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/xScheduleWeb/index.html)"
           screencapture -x smoke.png || true
+          plugins=1
+          for pl in Remote%20Falcon SMS; do
+            r=$(curl -s "http://127.0.0.1:8099/xScheduleCommand?Command=Start%20plugin&Parameters=$pl"); echo "start $pl: $r"
+            echo "$r" | grep -q '"result":"ok"' || plugins=0
+            sleep 4
+            screencapture -x "smoke-${pl%%\%*}.png" || true
+            echo "stop $pl: $(curl -s "http://127.0.0.1:8099/xScheduleCommand?Command=Stop%20plugin&Parameters=$pl")"
+            sleep 2
+          done
+          echo "alive after plugins: $(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8099/xScheduleQuery?Query=GetPlayingStatus")"
           kill $APP || true
           sleep 2
           cp ~/Library/Logs/xschedule_spdlog.log smoke-log.txt || true
           tail -40 smoke-log.txt || true
-          test $up = 1
+          test $up = 1 && test $plugins = 1
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: smoke
           path: |
-            smoke.png
+            smoke*.png
             smoke-log.txt
             smoke-app.txt
 

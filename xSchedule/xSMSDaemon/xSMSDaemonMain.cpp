@@ -11,6 +11,7 @@
 #define ZERO 0
 
 #include "utils/CurlManager.h"
+#include "../PluginConfig.h"
 
 //(*InternalHeaders(xSMSDaemonFrame)
 #include <wx/intl.h>
@@ -207,7 +208,7 @@ xSMSDaemonFrame::xSMSDaemonFrame(wxWindow* parent, const std::string& showDir, c
     icons.AddIcon(wxIcon(xlights_xpm));
     SetIcons(icons);
 
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("xSMSDaemon");
     int x = config->ReadLong(_("xsmsWindowPosX"), 50);
     int y = config->ReadLong(_("xsmsWindowPosY"), 50);
     int w = config->ReadLong(_("xsmsWindowPosW"), 800);
@@ -253,7 +254,7 @@ xSMSDaemonFrame::~xSMSDaemonFrame()
     int w, h;
     GetSize(&w, &h);
 
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("xSMSDaemon");
     config->Write(_("xsmsWindowPosX"), x);
     config->Write(_("xsmsWindowPosY"), y);
     config->Write(_("xsmsWindowPosW"), w);
@@ -518,7 +519,7 @@ std::string xSMSDaemonFrame::xSMSDaemonShowDir()
 {
     wxString showDir = "";
 
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("xSMSDaemon");
     if (config != nullptr)
     {
         config->Read(_("SMSDaemonDir"), &showDir);
@@ -529,7 +530,7 @@ std::string xSMSDaemonFrame::xSMSDaemonShowDir()
 
 void xSMSDaemonFrame::LoadShowDir()
 {
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("xSMSDaemon");
     spdlog::debug("Config: AppName '{}' Path '{}' Entries {} Groups {} Style {} Vendor '{}'.", config->GetAppName().ToStdString(), config->GetPath().ToStdString(), config->GetNumberOfEntries(), config->GetNumberOfGroups(), config->GetStyle(), config->GetVendorName().ToStdString());
 
     // get the show directory
@@ -574,7 +575,7 @@ void xSMSDaemonFrame::LoadShowDir()
 
 void xSMSDaemonFrame::SaveShowDir() const
 {
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("xSMSDaemon");
     auto sd = wxString(_showDir);
     spdlog::debug("Saving show folder location {}.", (const char *)sd.c_str());
     if (!config->Write(_("SMSDaemonDir"), sd))

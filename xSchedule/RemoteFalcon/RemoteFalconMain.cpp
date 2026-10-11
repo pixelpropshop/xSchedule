@@ -11,6 +11,7 @@
 #define ZERO 0
 
 #include "utils/CurlManager.h"
+#include "../PluginConfig.h"
 
 //(*InternalHeaders(RemoteFalconFrame)
 #include <wx/intl.h>
@@ -278,7 +279,7 @@ RemoteFalconFrame::RemoteFalconFrame(wxWindow* parent, const std::string& showDi
     icons.AddIcon(wxIcon(xlights_xpm));
     SetIcons(icons);
 
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("RemoteFalcon");
     int x = config->ReadLong(_("RemoteFalconWindowPosX"), 50);
     int y = config->ReadLong(_("RemoteFalconWindowPosY"), 50);
     int w = config->ReadLong(_("RemoteFalconWindowPosW"), 800);
@@ -353,7 +354,7 @@ RemoteFalconFrame::~RemoteFalconFrame()
     int w, h;
     GetSize(&w, &h);
 
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("RemoteFalcon");
     config->Write(_("RemoteFalconWindowPosX"), x);
     config->Write(_("RemoteFalconWindowPosY"), y);
     config->Write(_("RemoteFalconWindowPosW"), w);

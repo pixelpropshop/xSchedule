@@ -27,6 +27,7 @@
 #endif
 
 #include "RemoteFalconApp.h"
+#include "../PluginConfig.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/common.h"
@@ -85,12 +86,15 @@
 #pragma comment(lib, "ImageHlp.Lib")
 #endif
 
+#ifndef XSCHEDULE_STATIC_PLUGINS
 IMPLEMENT_APP_NO_MAIN(RemoteFalconApp)
+#endif
 
 static std::string __showDir;
 static std::string __xScheduleURL;
 static bool __started = false;
 static p_xSchedule_Action __action;
+static RemoteFalconFrame* __frame = nullptr;
 
 RemoteFalconApp::RemoteFalconApp() :
     xlBaseApp("RemoteFalcon")
@@ -101,7 +105,7 @@ static void WipeSettings()
 {
     spdlog::warn("------ Wiping RemoteFalcon settings ------");
 
-    wxConfigBase* config = wxConfigBase::Get();
+    wxConfigBase* config = PluginConfig("RemoteFalcon");
     config->DeleteAll();
 }
 
@@ -176,7 +180,7 @@ static void InitialiseLogging(bool fromMain)
         std::string c(command);
         std::string p(parameters);
         std::string m;
-        bool rc = ((RemoteFalconFrame*)wxTheApp->GetTopWindow())->SendCommand(c, p, m);
+        bool rc = __frame->SendCommand(c, p, m);
         strncpy(msg, m.c_str(), bufferSize - 1);
         return rc;
     }
@@ -193,12 +197,18 @@ static void InitialiseLogging(bool fromMain)
         __showDir = std::string(showDir);
         __xScheduleURL = std::string(xScheduleURL);
 
+#ifdef XSCHEDULE_STATIC_PLUGINS
+        // compiled into xSchedule, which already runs wx and the log
+        __frame = new RemoteFalconFrame(nullptr, __showDir, __xScheduleURL, __action);
+        __frame->Show();
+#else
         InitialiseLogging(false);
 
         int argc = 0;
         char** argv = NULL;
         if (!wxEntryStart(argc, argv) || !wxTheApp || !wxTheApp->CallOnInit())
             return false;
+#endif
 
         __started = true;
         return true;
@@ -210,7 +220,12 @@ static void InitialiseLogging(bool fromMain)
 
         if (!__started) return;
 
+#ifdef XSCHEDULE_STATIC_PLUGINS
+        if (__frame != nullptr) __frame->Destroy();
+#else
         wxEntryCleanup();
+#endif
+        __frame = nullptr;
 
         __started = false;
     }
@@ -225,18 +240,19 @@ static void InitialiseLogging(bool fromMain)
     }
 
     void RemoteFalcon_xSchedule_NotifyStatus(const char* status) {
-        ((RemoteFalconFrame*)wxTheApp->GetTopWindow())->NotifyStatus(status);
+        __frame->NotifyStatus(status);
     }
 
     bool RemoteFalcon_xSchedule_FireEvent(const char* eventType, const char* eventParameters)
     {
-        return ((RemoteFalconFrame*)wxTheApp->GetTopWindow())->FireEvent(eventType, eventParameters);
+        return __frame->FireEvent(eventType, eventParameters);
     }
 
     void RemoteFalcon_xSchedule_ManipulateBuffer(uint8_t* buffer, size_t bufferSize) {
         // we dont manipulate pixel data directly
     }
 
+#ifndef XSCHEDULE_STATIC_PLUGINS
 extern "C" {
     bool WXEXPORT xSchedule_Load(char* showDir) {
         return RemoteFalcon_xSchedule_Load(showDir);
@@ -277,6 +293,7 @@ extern "C" {
         return RemoteFalcon_xSchedule_SendCommand(command, parameters, msg, bufferSize);
     }
 }
+#endif
 
 int RemoteFalconApp::OnExit()
 {
@@ -306,6 +323,7 @@ bool RemoteFalconApp::OnInit()
     //(*AppInitialize
     RemoteFalconFrame* Frame = new RemoteFalconFrame(0, __showDir, __xScheduleURL, __action);
     Frame->Show();
+    __frame = Frame;
 
     return true;
 }
