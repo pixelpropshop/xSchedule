@@ -66,6 +66,38 @@ jobs:
           ln -s /Applications dmg/Applications
           hdiutil create -volname "xSchedule" -srcfolder dmg -ov -format UDZO xSchedule-macOS.dmg
 
+      - name: Smoke test
+        run: |
+          mkdir -p ~/smoke && cp build_scripts/macos/smoke/* ~/smoke/
+          build/xSchedule.app/Contents/MacOS/xSchedule -s ~/smoke > smoke-app.txt 2>&1 &
+          APP=$!
+          up=0
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:8099/xScheduleQuery?Query=GetPlayingStatus" > /dev/null; then up=1; break; fi
+            sleep 1
+          done
+          echo "web server up: $up after $i s"
+          curl -sf "http://127.0.0.1:8099/xScheduleCommand?Command=Play%20specified%20playlist&Parameters=Test"; echo
+          sleep 4
+          curl -sf "http://127.0.0.1:8099/xScheduleQuery?Query=GetPlayingStatus" | head -c 400; echo
+          curl -sf "http://127.0.0.1:8099/xScheduleQuery?Query=GetCalendar&Parameters=2026-12-22,2026-12-24" | head -c 600; echo
+          echo "web page: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/xScheduleWeb/index.html)"
+          screencapture -x smoke.png || true
+          kill $APP || true
+          sleep 2
+          cp ~/Library/Logs/xschedule_spdlog.log smoke-log.txt || true
+          tail -40 smoke-log.txt || true
+          test $up = 1
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke
+          path: |
+            smoke.png
+            smoke-log.txt
+            smoke-app.txt
+
       - uses: actions/upload-artifact@v4
         with:
           name: macos

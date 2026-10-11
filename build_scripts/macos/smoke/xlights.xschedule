@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xSchedule>
+  <Options WebServerPort="8099" City="Phoenix"/>
+  <PlayList Name="Test">
+    <PlayListStep Name="One"><PLIDelay Name="One" Duration="20000" Delay="0"/></PlayListStep>
+    <Schedule Name="Nightly" DOW="MonTueWedThuFriSatSun" StartDate="2026-01-01" EndDate="2026-12-31" StartTime="sunset" StartTwilight="TRUE" EndTime="22:00:00" Priority="5" NthDay="1" NthDayOffset="0" OnOffsetMins="0" OffOffsetMins="0" FireFrequency="Fire once" Loop="TRUE" Loops="0" EveryYear="TRUE" Enabled="TRUE"/>
+  </PlayList>
+</xSchedule>
