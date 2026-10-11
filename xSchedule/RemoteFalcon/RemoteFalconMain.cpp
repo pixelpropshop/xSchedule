@@ -433,6 +433,10 @@ void RemoteFalconFrame::OnButton_PauseClick(wxCommandEvent& event)
     }
 }
 
+#ifdef XSCHEDULE_STATIC_PLUGINS
+std::string GetXScheduleLogPath();
+#endif
+
 void RemoteFalconFrame::OnMenuItem_ViewLogSelected(wxCommandEvent& event)
 {
     wxString fileName = "RemoteFalcon_spdlog.log";
@@ -443,6 +447,10 @@ void RemoteFalconFrame::OnMenuItem_ViewLogSelected(wxCommandEvent& event)
 #endif
 #ifdef __LINUX__
     wxString filename = "/tmp/" + fileName;
+#endif
+#ifdef XSCHEDULE_STATIC_PLUGINS
+    // compiled into xSchedule, so it writes to xSchedule's log
+    wxString filename = GetXScheduleLogPath();
 #endif
     wxString fn = "";
     if (wxFile::Exists(filename))

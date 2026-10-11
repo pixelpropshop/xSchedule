@@ -459,6 +459,10 @@ void xSMSDaemonFrame::OnMenuItem_ShowFolderSelected(wxCommandEvent& event)
     Start();
 }
 
+#ifdef XSCHEDULE_STATIC_PLUGINS
+std::string GetXScheduleLogPath();
+#endif
+
 void xSMSDaemonFrame::OnMenuItem_ViewLogSelected(wxCommandEvent& event)
 {
     [[maybe_unused]] wxString dir;
@@ -469,6 +473,10 @@ void xSMSDaemonFrame::OnMenuItem_ViewLogSelected(wxCommandEvent& event)
 #endif
 #ifdef __LINUX__
     wxString filename = "/tmp/" + fileName;
+#endif
+#ifdef XSCHEDULE_STATIC_PLUGINS
+    // compiled into xSchedule, so it writes to xSchedule's log
+    wxString filename = GetXScheduleLogPath();
 #endif
     wxString fn = "";
     if (wxFile::Exists(filename))
