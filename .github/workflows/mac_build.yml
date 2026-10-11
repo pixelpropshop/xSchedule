@@ -41,7 +41,8 @@ jobs:
 
       - name: Errors
         if: failure()
-        run: grep -E " error: |undefined symbol|ld: " build/build.log | sort | uniq -c | sort -rn | head -80
+        run: |
+          grep -E " error: |undefined symbol|ld: " build/build.log | sort | uniq -c | sort -rn | head -80
 
       - name: Package
         run: |
