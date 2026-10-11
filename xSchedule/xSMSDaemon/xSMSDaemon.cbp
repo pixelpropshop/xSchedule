@@ -138,11 +138,6 @@
 		<Unit filename="../../xlights/src-ui-wx/shared/utils/xLightsTimer.cpp" />
 		<Unit filename="../../xlights/src-ui-wx/shared/utils/xLightsTimer.h" />
 		<Unit filename="../../xlights/src-core/xLightsVersion.h" />
-		<Unit filename="../wxJSON/json_defs.h" />
-		<Unit filename="../wxJSON/jsonreader.cpp" />
-		<Unit filename="../wxJSON/jsonreader.h" />
-		<Unit filename="../wxJSON/jsonval.cpp" />
-		<Unit filename="../wxJSON/jsonval.h" />
 		<Unit filename="Bandwidth.h" />
 		<Unit filename="SMSDaemonOptions.cpp" />
 		<Unit filename="SMSDaemonoptions.h" />
