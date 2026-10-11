@@ -50,6 +50,8 @@ class APinger
     Output::PINGSTATE Ping();
 	std::string GetName() const;
     int GetPingInterval() const { return PINGINTERVAL; }
+    // tells the thread to stop without waiting for it
+    void AskToStop();
     void Stop();
     std::string GetIP() const { return _ip; }
     int GetFailCount() const { return  _failCount; }
