@@ -581,7 +581,9 @@ bool PlayListStep::Frame(uint8_t* buffer, size_t size, bool outputframe)
 
     if (sw.Time() > (float)msPerFrame * 0.8)
     {
-        spdlog::warn("Step {} frame {} took longer than 80% frame time to output: {}ms.", (const char*)GetNameNoTime().c_str(), (long)frameMS, (long)sw.Time());
+        // every slow frame would otherwise write a warning, flushed to disk, just when the machine is behind
+        static uint32_t slowFrames = 0;
+        spdlog::log(++slowFrames % 200 == 1 ? spdlog::level::warn : spdlog::level::debug, "Step {} frame {} took longer than 80% frame time to output: {}ms. {} slow frames so far.", (const char*)GetNameNoTime().c_str(), (long)frameMS, (long)sw.Time(), slowFrames);
     }
 
     //logger_base.debug("    Step %s frame %ld done in %ld.", (const char *)GetNameNoTime().c_str(), (long)frameMS, (long)sw.Time());

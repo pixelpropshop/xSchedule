@@ -311,7 +311,8 @@ void PlayListItemVideo::Frame(uint8_t* buffer, size_t size, size_t ms, size_t fr
             }
         }
         if ((size_t)sw.Time() > framems / 2) {
-            spdlog::warn("   Getting frame {} from video {} took more than half a frame: {}.", (long)ms - _delay, GetNameNoTime(), (long)sw.Time());
+            static uint32_t slowFrames = 0;
+            spdlog::log(++slowFrames % 200 == 1 ? spdlog::level::warn : spdlog::level::debug, "   Getting frame {} from video {} took more than half a frame: {}. {} slow frames so far.", (long)ms - _delay, GetNameNoTime(), (long)sw.Time(), slowFrames);
         }
         //logger_base.debug("   Done rendering frame %ld for video %s.", (long)ms - _delay, (const char *)GetNameNoTime().c_str());
     }
