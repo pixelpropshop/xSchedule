@@ -351,6 +351,10 @@
 		<Unit filename="Pinger.h" />
 		<Unit filename="DateField.cpp" />
 		<Unit filename="DateField.h" />
+		<Unit filename="Diagnostics.cpp" />
+		<Unit filename="Diagnostics.h" />
+		<Unit filename="LogSink.cpp" />
+		<Unit filename="LogSink.h" />
 		<Unit filename="PlayList/AudioPreload.h" />
 		<Unit filename="PlayList/PlayList.cpp" />
 		<Unit filename="PlayList/PlayList.h" />

@@ -50,6 +50,8 @@ public:
     void Stop();
     void StartListeners(const std::string& localIP);
     ListenerBase* GetSyncListener() const;
+    // "E131 ok, MQTT not running"
+    std::string Describe() const;
     void SetRemoteOSC();
     void SetRemoteFPP();
     void SetRemoteCSVFPP();

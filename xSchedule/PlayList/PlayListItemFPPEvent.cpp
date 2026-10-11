@@ -22,6 +22,7 @@
 #include <wx/protocol/http.h>
 #include <wx/socket.h>
 #include <wx/xml/xml.h>
+#include "../Diagnostics.h"
 
 class FPPEventThread : public wxThread {
     std::string _ip;
@@ -77,6 +78,7 @@ public:
     virtual void* Entry() override {
         
 
+        Diagnostics::ThreadName name("FPP event item");
         spdlog::debug("PlayListFPPEvent in thread.");
 
         if (ip_utils::IsIPValidOrHostname(_ip) && _ip != "255.255.255.255") {

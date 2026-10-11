@@ -20,6 +20,7 @@
 #include "../../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 
 #include <log.h>
+#include "../Diagnostics.h"
 
 class MQTTThread : public wxThread
 {
@@ -37,6 +38,7 @@ public:
 
     virtual void* Entry() override
     {
+        Diagnostics::ThreadName name("MQTT item");
         spdlog::debug("PlayListMQTT in thread.");
 
         wxSocketClient client(wxSOCKET_BLOCK);

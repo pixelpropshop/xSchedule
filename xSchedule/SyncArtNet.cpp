@@ -20,6 +20,7 @@
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "../xlights/src-core/outputs/ArtNetOutput.h"
 #include <log.h>
+#include "Diagnostics.h"
 
 class ArtNetTimecodeThread : public wxThread {
     std::atomic<bool> _stop;
@@ -60,6 +61,7 @@ public:
     }
 
     void* Entry() {
+        Diagnostics::ThreadName name("ArtNet timecode");
         double interval = _syncArtNet->GetInterval() * 1000.0;
         _running = true;
         // the time of the next send; sending only when it is due and sleeping until then keeps the thread idle

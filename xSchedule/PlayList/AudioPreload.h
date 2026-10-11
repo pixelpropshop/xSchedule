@@ -16,6 +16,7 @@
 #include <wx/file.h>
 
 #include "../../xlights/src-core/media/AudioManager.h"
+#include "../Diagnostics.h"
 
 // Decodes an audio file on another thread. AudioManager decodes the whole file when it is created, and doing that
 // on the main thread, which also sends the light frames, held the show up at every song change.
@@ -38,7 +39,10 @@ public:
         if (file.empty() || !wxFile::Exists(file)) return;
         _file = file;
         _device = device;
-        _future = std::async(std::launch::async, [file, device]() { return new AudioManager(file, -1, device); });
+        _future = std::async(std::launch::async, [file, device]() {
+            Diagnostics::ThreadName name("audio preload");
+            return new AudioManager(file, -1, device);
+        });
     }
 
     // the preloaded audio when it is for this file, waiting for it if it isn't finished, otherwise a new one

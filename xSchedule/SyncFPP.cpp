@@ -20,6 +20,7 @@
 #include "../xlights/src-core/outputs/IPOutput.h"
 #include "../xlights/src-core/utils/ip_utils.h"
 #include "xScheduleVersion.h"
+#include "Diagnostics.h"
 
 #define FPP_MEDIA_SYNC_INTERVAL_MS 500
 #define FPP_SEQ_SYNC_INTERVAL_FRAMES 16
@@ -235,6 +236,7 @@ bool HostLookup::Get(const std::string& host, unsigned short port, wxIPV4address
                 auto failed = _failed.find(host);
                 if (failed != _failed.end() && time(nullptr) - failed->second < 30) return false;
                 _pending[host] = std::async(std::launch::async, [host]() {
+                    Diagnostics::ThreadName name("host lookup");
                     wxIPV4address a;
                     return a.Hostname(host) ? a.IPAddress().ToStdString() : std::string();
                 });

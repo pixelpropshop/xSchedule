@@ -60,6 +60,7 @@
 #include <nlohmann/json.hpp>
 
 #include <log.h>
+#include "Diagnostics.h"
 
 ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showDir) {
     spdlog::info("Loading schedule from {}.", showDir);
@@ -781,6 +782,12 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
             wxPostEvent(wxGetApp().GetTopWindow(), event2);
         }
         PlayList* running = GetRunningPlayList();
+        static PlayListStep* lastStep = nullptr;
+        PlayListStep* step = running != nullptr ? running->GetRunningStep() : nullptr;
+        if (step != lastStep) {
+            lastStep = step;
+            Diagnostics::SetPlaying(step != nullptr ? running->GetNameNoTime() + " / " + step->GetNameNoTime() : std::string());
+        }
         if (running != nullptr || _xyzzy != nullptr) {
             rate = 50;
             std::string fseq = "";
@@ -802,6 +809,7 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
             bool done = false;
             if (running != nullptr) {
                 spdlog::debug("Frame: About to run step frame {}ms", sw.Time());
+                Diagnostics::Activity activity("playing a step");
                 done = running->Frame(_buffer, totalChannels, outputframe);
                 spdlog::debug("Frame: step frame done {}ms", sw.Time());
 
@@ -828,6 +836,7 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
                         tsn = running->GetRunningStep()->GetTimeSource(fms)->GetNameNoTime();
                     }
 
+                    Diagnostics::Activity activity("sending sync");
                     _syncManager->SendSync(rate,
                                            running->GetRunningStep()->GetLengthMS(),
                                            running->GetRunningStep()->GetPosition(),
@@ -863,6 +872,7 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
             }
 
             if (_eventPlayLists.size() > 0) {
+                Diagnostics::Activity activity("playing event playlists");
                 auto it = _eventPlayLists.begin();
                 while (it != _eventPlayLists.end()) {
                     if ((*it)->Frame(_buffer, _outputManager->GetTotalChannels(), outputframe)) {
@@ -918,6 +928,7 @@ int ScheduleManager::Frame(bool outputframe, xScheduleFrame* frame) {
 
                 spdlog::debug("Frame: Data set {}ms", sw.Time());
 
+                Diagnostics::Activity activity("sending output to the controllers");
                 _outputManager->EndFrame();
 
                 spdlog::debug("Frame: Data sent {}ms", sw.Time());
@@ -1540,6 +1551,7 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
     bool result = true;
     bool scheduleChanged = false;
 
+    Diagnostics::Activity activity("running a command", command.ToStdString());
     Command* cmd = _commandManager.GetCommand(command);
 
     if (cmd == nullptr) {
@@ -1555,12 +1567,13 @@ bool ScheduleManager::Action(const wxString& command, const wxString& parameters
 
                 // Because of what this function can do calling it on the main thread is dangerous ... so we need to switch threads
                 ActionMessageData* amd = new ActionMessageData(command, parameters, data);
+                amd->_source = Diagnostics::GetCommandSource();
                 wxCommandEvent event(EVT_DOACTION);
                 event.SetClientData(amd);
                 wxPostEvent(wxGetApp().GetTopWindow(), event);
             } else {
-                spdlog::debug("Action '{}':'{}'.",
-                              command.ToStdString(), parameters.ToStdString());
+                std::string source = Diagnostics::GetCommandSource();
+                spdlog::info("Command '{}' '{}' from {}.", command.ToStdString(), parameters.ToStdString(), source.empty() ? std::string("xSchedule") : source);
                 if (command == "Stop all now") {
                     // we cant stop here as this might be in the middle of playing the playlist
                     wxCommandEvent event(EVT_STOP);

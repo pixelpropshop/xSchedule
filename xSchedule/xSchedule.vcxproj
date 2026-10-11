@@ -328,6 +328,8 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClCompile Include="ButtonDetailsDialog.cpp" />
     <ClCompile Include="City.cpp" />
     <ClCompile Include="DateField.cpp" />
+    <ClCompile Include="Diagnostics.cpp" />
+    <ClCompile Include="LogSink.cpp" />
     <ClCompile Include="ColourOrderDialog.cpp" />
     <ClCompile Include="CommandManager.cpp" />
     <ClCompile Include="ConfigureMIDITimecodeDialog.cpp" />
@@ -580,6 +582,8 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClInclude Include="ButtonDetailsDialog.h" />
     <ClInclude Include="City.h" />
     <ClInclude Include="DateField.h" />
+    <ClInclude Include="Diagnostics.h" />
+    <ClInclude Include="LogSink.h" />
     <ClInclude Include="ColourOrderDialog.h" />
     <ClInclude Include="CommandManager.h" />
     <ClInclude Include="ConfigureMIDITimecodeDialog.h" />

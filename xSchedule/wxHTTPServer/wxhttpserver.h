@@ -350,6 +350,7 @@ public:
 	bool Start(const HttpContext &context);
 	bool Stop();
 	void DropConnection(wxSocketBase *socket);
+	size_t ConnectionCount() const { return _connections.size(); }
 
 	// properties
 

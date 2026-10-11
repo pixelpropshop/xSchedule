@@ -22,6 +22,7 @@
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 
 #include <log.h>
+#include "../Diagnostics.h"
 
 PlayListItemJukebox::PlayListItemJukebox(wxXmlNode* node) :
     PlayListItem(node)
@@ -103,6 +104,7 @@ void PlayListItemJukebox::Frame(uint8_t* buffer, size_t size, size_t ms, size_t 
         int port = GetPort();
         int button = _jukeboxButton;
         std::thread([port, button]() {
+            Diagnostics::ThreadName name("jukebox");
             // an unexpected reply from xLights must not throw
             try {
                 nlohmann::json result = xLightsRequest(port, "{\"cmd\":\"lightsOn\"}");

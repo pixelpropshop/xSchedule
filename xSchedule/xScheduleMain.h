@@ -113,6 +113,7 @@ class xScheduleFrame : public xlFrame {
     void AddPlayList(bool forceadvanced = false);
     void EditSelectedItem(bool forceadvanced = false);
     void UpdateUI(bool force = false);
+    void LogHealth();
     void DoPaste();
     void DoCopy();
     void AddSchedule();
