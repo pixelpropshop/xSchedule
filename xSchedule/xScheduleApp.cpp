@@ -17,7 +17,8 @@
 //*)
 
 #include <log.h>
-#include "spdlog/sinks/rotating_file_sink.h"
+#include "LogSink.h"
+#include "Diagnostics.h"
 #include "spdlog/common.h"
 
 #include <SpecialOptions.h>
@@ -204,6 +205,13 @@ void DumpConfig()
 #endif
 }
 
+static std::shared_ptr<LogSink> __logSink;
+
+std::string GetXScheduleLogPath()
+{
+    return __logSink != nullptr ? __logSink->GetPath() : std::string();
+}
+
 void InitialiseLogging(bool fromMain)
 {
     static bool loggingInitialised = false;
@@ -227,12 +235,13 @@ void InitialiseLogging(bool fromMain)
 
         // wxStandardPaths::Get().Get()
 
-        auto rotating_file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logFilePath, 1024 * 1024 * 10, 2);
+        __logSink = std::make_shared<LogSink>(logFilePath, 10 * 1024 * 1024, 7, 30 * 1024 * 1024);
+        Diagnostics::NameThread("main");
 
-        auto file_logger = std::make_shared<spdlog::logger>("xschedule", rotating_file_sink);
-        auto curl_logger = std::make_shared<spdlog::logger>("curl", rotating_file_sink);
-        auto frame_logger = std::make_shared<spdlog::logger>("frame", rotating_file_sink);
-        auto job_logger = std::make_shared<spdlog::logger>("job", rotating_file_sink);
+        auto file_logger = std::make_shared<spdlog::logger>("xschedule", __logSink);
+        auto curl_logger = std::make_shared<spdlog::logger>("curl", __logSink);
+        auto frame_logger = std::make_shared<spdlog::logger>("frame", __logSink);
+        auto job_logger = std::make_shared<spdlog::logger>("job", __logSink);
         curl_logger->set_level(spdlog::level::from_str(SpecialOptions::GetOption("curl_logger", "info")));
         frame_logger->set_level(spdlog::level::from_str(SpecialOptions::GetOption("frame_logger", "info")));
         spdlog::register_logger(curl_logger);
@@ -242,8 +251,7 @@ void InitialiseLogging(bool fromMain)
         loggingInitialised = true;
         spdlog::initialize_logger(file_logger);
         spdlog::set_default_logger(file_logger);
-        spdlog::set_pattern("%Y-%m-%d %H:%M:%S.%e [%l] %v");
-        spdlog::flush_on(spdlog::level::info);
+        spdlog::set_formatter(Diagnostics::MakeFormatter("%Y-%m-%d %H:%M:%S.%e [%l] [%N] %v"));
 
         // wxOperatingSystemId os = wxGetOsVersion();
         // std::string osStr = DecodeOS(os);
@@ -275,6 +283,10 @@ int xScheduleApp::OnExit()
         _checker = nullptr;
     }
     spdlog::info("xSchedule exiting.");
+    Diagnostics::StopWatchdog();
+    if (__logSink != nullptr) {
+        __logSink->Stop();
+    }
 
     return 0;
 }
@@ -306,6 +318,7 @@ bool xScheduleApp::OnInit()
 
     InitialiseLogging(false);
     spdlog::info("******* OnInit: xSchedule started.");
+    Diagnostics::StartWatchdog();
 
     // The wx-free xLights core reaches the app through these hooks. Without them "main thread" work runs on
     // the calling thread, errors are only logged, and a worker thread exception terminates.

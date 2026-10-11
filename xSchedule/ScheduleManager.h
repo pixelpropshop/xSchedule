@@ -70,6 +70,7 @@ public:
     std::string _command;
     std::string _parameters;
     std::string _data;
+    std::string _source;
 };
 
 struct PlaybackState {

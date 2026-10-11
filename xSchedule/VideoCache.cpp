@@ -16,6 +16,7 @@
 #include "../xlights/src-core/media/VideoReader.h"
 
 #include <log.h>
+#include "Diagnostics.h"
 
 // #define VIDEO_EXTRALOGGING
 
@@ -99,6 +100,7 @@ public:
 
     virtual void* Entry() override {
         _running = true;
+        Diagnostics::ThreadName name("video cache");
 
 
         spdlog::debug("Video reading thread {} ({}x{}) started", _videoFile, _size.GetWidth(), _size.GetHeight());

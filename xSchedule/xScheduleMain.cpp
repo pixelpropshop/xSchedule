@@ -94,6 +94,8 @@
 #include "../xlights/include/no_web_icon.xpm"
 
 #include <log.h>
+#include "Diagnostics.h"
+#include "xScheduleApp.h"
 
 ScheduleManager* xScheduleFrame::__schedule = nullptr;
 
@@ -893,6 +895,7 @@ void xScheduleFrame::ApplyLogLevel()
 void xScheduleFrame::LoadSchedule()
 {
     wxASSERT(wxThread::IsMain());
+    Diagnostics::Activity activity("loading the show folder");
 
     // reset our special options
     SpecialOptions::StashShowDir(_showDir);
@@ -1071,6 +1074,7 @@ xScheduleFrame::~xScheduleFrame()
     // stop the timers immediately
     _timer.Stop();
     _timerSchedule.Stop();
+    Diagnostics::FramesPaused();
 
     // give them plenty of time to stop
     wxMilliSleep(100);
@@ -1714,7 +1718,11 @@ void xScheduleFrame::On_timerTrigger(wxTimerEvent& event)
     static uint32_t shortFramesSkipped = 0;
     static uint32_t longFrames = 0;
 
-    if (__schedule == nullptr) return;
+    if (__schedule == nullptr) {
+        Diagnostics::FramesPaused();
+        return;
+    }
+    Diagnostics::Activity activity("running a frame");
 
     // a steady clock: local time jumps back an hour when daylight saving ends, and every tick would look premature
     auto steadyMS = []() { return (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); };
@@ -1779,6 +1787,9 @@ void xScheduleFrame::On_timerTrigger(wxTimerEvent& event)
     wxDateTime frameEnd = wxDateTime::UNow();
     long ms = (frameEnd - frameStart).GetMilliseconds().ToLong();
 
+    Diagnostics::FrameDone(ms);
+    LogHealth();
+
     if (ms > _timer.GetInterval())
     {
         // we took too long so next frame has to be an output frame
@@ -1798,6 +1809,25 @@ void xScheduleFrame::On_timerTrigger(wxTimerEvent& event)
     wxPostEvent(this, event3);
 
     logger_frame->trace("Timer: End Frame: Time {}", ms);
+}
+
+void xScheduleFrame::LogHealth()
+{
+    static auto start = std::chrono::steady_clock::now();
+    static auto next = start + std::chrono::minutes(1);
+    auto now = std::chrono::steady_clock::now();
+    if (now < next) return;
+    next = now + std::chrono::minutes(10);
+
+    auto mins = std::chrono::duration_cast<std::chrono::minutes>(now - start).count();
+    std::string playing = "nothing";
+    if (PlayList* p = __schedule->GetRunningPlayList(); p != nullptr) {
+        playing = p->GetNameNoTime() + (p->GetRunningStep() != nullptr ? " / " + p->GetRunningStep()->GetNameNoTime() : std::string());
+    }
+    spdlog::info("Health: up {}d {}h {}m; {}; {}; output to lights {}; playing {}; web connections {}; listeners {}.",
+                 mins / 1440, (mins / 60) % 24, mins % 60, Diagnostics::ProcessStats(), Diagnostics::TakeFrameStats(),
+                 __schedule->IsOutputToLights() ? "on" : "off", playing,
+                 _webServer != nullptr ? _webServer->GetConnectionCount() : 0, __schedule->GetListenerManager()->Describe());
 }
 
 void xScheduleFrame::RefreshTreeStates()
@@ -1861,6 +1891,7 @@ void xScheduleFrame::RefreshTreeStates()
 void xScheduleFrame::UpdateSchedule()
 {
     if (__schedule == nullptr) return;
+    Diagnostics::Activity activity("checking the schedules");
 
     wxASSERT(wxThread::IsMain());
     auto logger_frame = spdlog::get("frame");
@@ -1907,6 +1938,7 @@ void xScheduleFrame::UpdateSchedule()
 void xScheduleFrame::On_timerScheduleTrigger(wxTimerEvent& event)
 {
     if (__schedule == nullptr) return;
+    Diagnostics::Activity activity("checking the schedules");
 
     if (__schedule->IsFPPRemoteOrMaster()) {
         SyncFPP::Ping(__schedule->IsSlave(), __schedule->GetForceLocalIP());
@@ -2140,6 +2172,7 @@ void xScheduleFrame::OnButton_UserClick(wxCommandEvent& event)
 
     size_t rate = _timer.GetInterval();
     wxString msg = "";
+    Diagnostics::CommandSource source("button " + ((wxButton*)event.GetEventObject())->GetLabel().ToStdString());
     __schedule->Action(((wxButton*)event.GetEventObject())->GetLabel(), playlist, step, schedule, rate, msg);
 
     CorrectTimer(rate);
@@ -2157,6 +2190,7 @@ void xScheduleFrame::RunUICommand(const std::string& command)
 
     size_t rate = _timer.GetInterval();
     wxString msg = "";
+    Diagnostics::CommandSource source("the main window");
     __schedule->Action(command, "", "", playlist, step, schedule, rate, msg);
     if (msg != "") SetTempMessage(msg.ToStdString());
 
@@ -2726,6 +2760,7 @@ void xScheduleFrame::OnListView_RunningItemActivated(wxListEvent& event)
     {
         size_t rate = 0;
         wxString msg;
+        Diagnostics::CommandSource source("the main window");
         __schedule->Action("Jump to specified step in current playlist", PlayListStep::GetStepNameWithId((int)ListView_Running->GetItemData(selected)), "", p, nullptr, nullptr, rate, msg);
     }
 }
@@ -2733,6 +2768,7 @@ void xScheduleFrame::OnListView_RunningItemActivated(wxListEvent& event)
 void xScheduleFrame::UpdateStatus(bool force)
 {
     wxASSERT(wxThread::IsMain());
+    Diagnostics::Activity activity("updating the window");
 
     wxStopWatch sw;
     auto logger_frame = spdlog::get("frame");
@@ -3166,6 +3202,12 @@ void xScheduleFrame::OnBitmapButton_UnsavedClick(wxCommandEvent& event)
 void xScheduleFrame::CreateDebugReport(xlCrashHandler* crashHandler)
 {
     spdlog::critical("Crash handler called.");
+    spdlog::default_logger()->flush();
+    // the core attaches xLights' log, not this one
+    std::string log = GetXScheduleLogPath();
+    if (!log.empty() && FileExists(log)) {
+        crashHandler->GetDebugReport().AddFile(log, wxFileName(log).GetFullName());
+    }
     if (xScheduleFrame::GetScheduleManager() != nullptr) {
         crashHandler->GetDebugReport().SetCompressedFileDirectory(xScheduleFrame::GetScheduleManager()->GetShowDir());
     }
@@ -3282,6 +3324,7 @@ bool xScheduleFrame::HandleHotkeys(wxKeyEvent& event)
 
             size_t rate = _timer.GetInterval();
             wxString msg = "";
+            Diagnostics::CommandSource source("hotkey for button " + (*it)->GetLabel());
             __schedule->Action((*it)->GetLabel(), playlist, step, schedule, rate, msg);
 
             CorrectTimer(rate);
@@ -3797,6 +3840,7 @@ void xScheduleFrame::ScheduleChange(wxCommandEvent& event)
 
 void xScheduleFrame::SlowFrameProcessing(wxCommandEvent& event)
 {
+    Diagnostics::Activity activity("updating the window");
     // this runs on every frame tick, so labels are only touched when their text changes, and the panel only laid out
     // again when a label's length changes, the one case where it could run into its neighbor
     bool relayout = false;
@@ -3872,6 +3916,7 @@ void xScheduleFrame::DoStop(wxCommandEvent& event)
 void xScheduleFrame::DoAction(wxCommandEvent& event)
 {
     ActionMessageData* amd = (ActionMessageData*)event.GetClientData();
+    Diagnostics::CommandSource source(amd->_source);
 
     spdlog::debug("    Thread switched command = {}", amd->_command);
 
@@ -4098,7 +4143,10 @@ void xScheduleFrame::UpdateUI(bool force)
                         wxLongLong now = wxGetUTCTimeMillis();
                         if (!check.pending.valid() && (check.checked == 0 || now - check.checked > (__schedule->IsOutputToLights() ? 1000 : 30000))) {
                             check.checked = now;
-                            check.pending = std::async(std::launch::async, [serial]() { return serial->Ping(); });
+                            check.pending = std::async(std::launch::async, [serial]() {
+                                Diagnostics::ThreadName name("serial check");
+                                return serial->Ping();
+                            });
                         }
                         auto pr = check.state;
                         bool ok = pr == Output::PINGSTATE::PING_OK || pr == Output::PINGSTATE::PING_WEBOK ||

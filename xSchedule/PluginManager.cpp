@@ -19,6 +19,7 @@
 #include "ScheduleManager.h"
 #include <log.h>
 #include <algorithm>
+#include "Diagnostics.h"
 
 uint32_t __nextId = 1;
 
@@ -493,6 +494,7 @@ bool Action(const char* command, const wchar_t* parameters, const char* data, ch
     }
     else
     {
+        Diagnostics::CommandSource source("a plugin");
         bool result = ((xScheduleFrame*)wxTheApp->GetTopWindow())->GetScheduleManager()->Action(c, p, d, nullptr, nullptr, nullptr, rate, msg);
         if (result || msg == "")
         {

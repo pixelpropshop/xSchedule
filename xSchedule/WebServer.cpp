@@ -24,6 +24,7 @@
 #include "md5.h"
 
 #include <log.h>
+#include "Diagnostics.h"
 #include <nlohmann/json.hpp>
 
 #undef WXUSINGDLL
@@ -190,6 +191,7 @@ wxString ProcessCommand(HttpConnection& connection, const wxString& command, con
     wxString result;
     size_t rate = 0;
     wxString msg = "";
+    Diagnostics::CommandSource source("the web interface or API");
     if (xScheduleFrame::GetScheduleManager()->Action(command, parameters, data, nullptr, nullptr, nullptr, rate, msg)) {
         wxCommandEvent event(EVT_FRAMEMS);
         event.SetInt(rate);
@@ -426,6 +428,7 @@ bool MyRequestHandler(HttpConnection& connection, HttpRequest& request)
     std::string plugin;
 
     spdlog::debug("Web request {}.", request.URI().ToStdString());
+    Diagnostics::Activity activity("answering a web request", request.URI().ToStdString());
 
     xScheduleFrame::GetScheduleManager()->WebRequestReceived();
 
@@ -646,6 +649,7 @@ bool MyRequestHandler(HttpConnection& connection, HttpRequest& request)
 void MyMessageHandler(HttpConnection& connection, WebSocketMessage& message)
 {
     wxLogNull logNo; //kludge: avoid "error 0" message from wxWidgets after new file is written
+    Diagnostics::Activity activity("answering a web socket message");
 
     xScheduleFrame::GetScheduleManager()->WebRequestReceived();
 

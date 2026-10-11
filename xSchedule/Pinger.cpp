@@ -23,6 +23,7 @@
 #include <mutex>
 
 #include <log.h>
+#include "Diagnostics.h"
 
 class PingThread : public wxThread {
     APinger* _pinger;
@@ -59,6 +60,7 @@ public:
 
     virtual void* Entry() override {
         _running = true;
+        Diagnostics::ThreadName name("ping " + _pinger->GetName());
 
         if (_pinger->IsInactive()) {
             spdlog::debug("Pinging thread {} is inactive. Skipping", (const char*)_pinger->GetName().c_str());

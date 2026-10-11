@@ -16,6 +16,8 @@
 class wxSingleInstanceChecker;
 class xScheduleFrame;
 
+std::string GetXScheduleLogPath();
+
 class xScheduleApp : public xlBaseApp
 {
     wxSingleInstanceChecker* _checker = nullptr;

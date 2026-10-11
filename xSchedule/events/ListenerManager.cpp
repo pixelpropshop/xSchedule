@@ -30,6 +30,7 @@
 #include "EventMQTT.h"
 #include "EventE131.h"
 #include "../PlayList/PlayList.h"
+#include "../Diagnostics.h"
 
 wxDEFINE_EVENT(EVT_MIDI, wxCommandEvent);
 
@@ -1002,6 +1003,16 @@ void ListenerManager::ProcessPacket(const std::string& source, const std::string
             it->Process(topic, data, _scheduleManager);
         }
     }
+}
+
+std::string ListenerManager::Describe() const
+{
+    std::string res;
+    for (const auto& it : _listeners) {
+        if (!res.empty()) res += ", ";
+        res += it->GetType() + (it->IsOk() ? " ok" : " not running");
+    }
+    return res.empty() ? "none" : res;
 }
 
 void ListenerManager::Stop()

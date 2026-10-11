@@ -19,6 +19,7 @@
 #include "../xlights/src-core/utils/UtilFunctions.h"
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include <log.h>
+#include "Diagnostics.h"
 
 class MIDITimecodeThread : public wxThread {
     std::atomic<bool> _stop;
@@ -59,6 +60,7 @@ public:
     }
 
     void* Entry() {
+        Diagnostics::ThreadName name("MIDI timecode");
         double interval = _syncMidi->GetInterval() * 1000.0; // quarter frame messages
         _running = true;
         // the time of the next send; sending only when it is due and sleeping until then keeps the thread idle
@@ -137,6 +139,7 @@ public:
     }
 
     void* Entry() {
+        Diagnostics::ThreadName name("MIDI clock");
         wxLongLong last = 0;
         double interval = 1000000.0 / 24.0; // 88 BPM, 24 frames per second
         spdlog::debug("Clock thread interval {}ms", interval / 1000);
