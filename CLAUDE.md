@@ -32,7 +32,7 @@ call build_xSchedule_x64.cmd     # fetches the bundle + VC++ redistributable, bu
 
 After the bundle is staged, `xSchedule/xSchedule.sln` can be built from Visual Studio (Release x64). The plugins have their own solutions (`xSchedule/RemoteFalcon/`, `xSchedule/xSMSDaemon/`).
 
-LibLTC (`xSchedule/libltc/`, 1.3.1) and PortMidi (`xSchedule/portmidi/`, 217) are compiled from source on Windows; xLights no longer ships those libraries. Linux links the system packages instead.
+LibLTC (`xSchedule/libltc/`, 1.3.2) and PortMidi (`xSchedule/portmidi/`, 217) are compiled from source on Windows; xLights no longer ships those libraries. Linux links the system packages instead.
 
 ### wxSmith Generated Code
 Some dialogs use wxSmith (wxWidgets RAD tool). Generated code is delimited by `//(* ... //*)` guards in `.cpp`/`.h` files. **Any changes within these guards MUST also be reflected in the corresponding `.wxs` file** in `xSchedule/wxsmith/`. Otherwise the changes will be overwritten the next time the `.wxs` file is opened in wxSmith.
@@ -52,8 +52,7 @@ When adding new `.cpp`/`.h` files, the following project files must be updated m
   - `xSMSDaemon/` — SMS notification plugin (builds as DLL/SO)
   - `wxHTTPServer/` — embedded HTTP server for web UI
   - `wxMIDI/` — wxWidgets MIDI wrapper
-  - `wxJSON/` — JSON parsing library
-  - `libltc/` — SMPTE timecode (header, plus the 1.3.1 sources compiled on Windows)
+  - `libltc/` — SMPTE timecode (header, plus the 1.3.2 sources compiled on Windows)
   - `portmidi/` — PortMidi 217 (headers, plus the Windows sources)
   - `Xyzzy/` — configuration/sample data
 - **`xlights/`** — git submodule pointing to the xLights repository. Shared code is split into a wx-free core and a wx layer:

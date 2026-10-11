@@ -621,12 +621,6 @@
 		<Unit filename="wxHTTPServer/sha1.h" />
 		<Unit filename="wxHTTPServer/status.cpp" />
 		<Unit filename="wxHTTPServer/wxhttpserver.h" />
-		<Unit filename="wxJSON/jsonreader.cpp" />
-		<Unit filename="wxJSON/jsonreader.h" />
-		<Unit filename="wxJSON/jsonval.cpp" />
-		<Unit filename="wxJSON/jsonval.h" />
-		<Unit filename="wxJSON/jsonwriter.cpp" />
-		<Unit filename="wxJSON/jsonwriter.h" />
 		<Unit filename="wxMIDI/src/wxMidi.cpp" />
 		<Unit filename="wxMIDI/src/wxMidi.h" />
 		<Unit filename="wxMIDI/src/wxMidiDatabase.cpp" />
