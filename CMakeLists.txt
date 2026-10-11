@@ -49,6 +49,8 @@ list(APPEND XS_SOURCES
     "${XS_APPLE}/media/AVFoundationVideoBridge.mm"
     "${XS_APPLE}/osxUtils/xlVideoToolboxUtils.mm"
     "${CMAKE_SOURCE_DIR}/xSchedule/macos/AppleHooks.mm"
+    "${CMAKE_SOURCE_DIR}/xSchedule/macos/AppleHooksWx.cpp"
+    "${CMAKE_SOURCE_DIR}/xlights/src-ui-wx/shared/utils/xLightsTimer.mm"
 )
 
 # PortMidi: only its Windows files are kept here, so the macOS build takes it from upstream
@@ -82,6 +84,10 @@ target_include_directories(xSchedule PRIVATE
 )
 target_compile_definitions(xSchedule PRIVATE
     __WXOSX_COCOA__ __WXMAC__ __WXOSX__ _FILE_OFFSET_BITS=64 wxUSE_GUI=1
+    # as the dependency bundle's wx was built
+    wxDEBUG_LEVEL=0
+    # as the Linux and Windows projects: xSchedule has none of xLights' layout and network editing
+    EXCLUDENETWORKUI DISCOVERYONLY
     $<$<CONFIG:Release>:NDEBUG>
 )
 target_compile_options(xSchedule PRIVATE -Wno-deprecated-declarations $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
@@ -89,7 +95,7 @@ target_compile_options(xSchedule PRIVATE -Wno-deprecated-declarations $<$<COMPIL
 set(XS_FRAMEWORKS
     Cocoa AppKit Foundation Carbon IOKit CoreFoundation CoreServices ApplicationServices Security SystemConfiguration
     AudioToolbox CoreAudio CoreMIDI CoreMedia CoreVideo AVFoundation VideoToolbox QuartzCore OpenGL Metal
-    GameController CoreHaptics ForceFeedback UniformTypeIdentifiers CoreImage Accelerate AVFAudio
+    GameController CoreHaptics ForceFeedback UniformTypeIdentifiers CoreImage Accelerate AVFAudio MetalKit
 )
 set(XS_FRAMEWORK_LINKS)
 foreach(fw ${XS_FRAMEWORKS})
@@ -97,7 +103,7 @@ foreach(fw ${XS_FRAMEWORKS})
 endforeach()
 
 set(XS_STATIC
-    wx_osx_cocoau_adv-3.3 wx_osx_cocoau_core-3.3 wx_baseu_net-3.3 wx_baseu_xml-3.3 wx_baseu-3.3
+    wx_osx_cocoau_qa-3.3 wx_osx_cocoau_adv-3.3 wx_osx_cocoau_core-3.3 wx_baseu_net-3.3 wx_baseu_xml-3.3 wx_baseu-3.3
     wxpng-3.3 wxjpeg-3.3 wxwebp-3.3 wxregexu-3.3 wxexpat-3.3 wxzlib-3.3
     avformat avcodec avfilter avdevice swscale swresample avutil
     SDL2 curl ssl crypto zstd
