@@ -33,6 +33,7 @@ class OptionsDialog: public wxDialog
 
     void LoadButtons();
     void ValidateWindow();
+    void UpdateHolidayChoice();
     void OnButtonsDragEnd(wxMouseEvent& event);
     void OnButtonsDragQuit(wxMouseEvent& event);
     void OnButtonsMouseMove(wxMouseEvent& event);
@@ -94,6 +95,7 @@ class OptionsDialog: public wxDialog
 		wxStaticText* StaticText14;
 		wxStaticText* StaticText1;
 		wxStaticText* StaticText_Coordinates;
+		wxStaticText* StaticText_Holidays;
 		wxStaticText* StaticText2;
 		wxStaticText* StaticText3;
 		wxStaticText* StaticText4;
@@ -103,6 +105,7 @@ class OptionsDialog: public wxDialog
 		wxStaticText* StaticText8;
 		wxStaticText* StaticText9;
 		wxTextCtrl* TextCtrl_Coordinates;
+		wxChoice* Choice_Holidays;
 		wxTextCtrl* TextCtrl_DefaultPage;
 		wxTextCtrl* TextCtrl_Password;
 		wxTextCtrl* TextCtrl_wwwRoot;
@@ -165,6 +168,8 @@ class OptionsDialog: public wxDialog
 		static const long ID_CHOICE3;
 		static const long ID_STATICTEXT_COORDINATES;
 		static const long ID_TEXTCTRL_COORDINATES;
+		static const long ID_STATICTEXT_HOLIDAYS;
+		static const long ID_CHOICE_HOLIDAYS;
 		static const long ID_BUTTON_FINDLOCATION;
 		static const long ID_STATICTEXT10;
 		static const long ID_CHOICE5;

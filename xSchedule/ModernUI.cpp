@@ -217,6 +217,18 @@ void DrawGlyph(wxGraphicsContext* gc, Glyph glyph, double x, double y, double s,
         path.AddRectangle(x + 0.72 * s, y + 0.20 * s, 0.12 * s, 0.60 * s);
         triangle(P(0.16, 0.20), P(0.16, 0.80), P(0.68, 0.50));
         break;
+    case Glyph::ChevronLeft:
+        fill = false;
+        path.MoveToPoint(P(0.62, 0.20));
+        path.AddLineToPoint(P(0.34, 0.50));
+        path.AddLineToPoint(P(0.62, 0.80));
+        break;
+    case Glyph::ChevronRight:
+        fill = false;
+        path.MoveToPoint(P(0.38, 0.20));
+        path.AddLineToPoint(P(0.66, 0.50));
+        path.AddLineToPoint(P(0.38, 0.80));
+        break;
     case Glyph::Minus:
         fill = false;
         path.MoveToPoint(P(0.25, 0.5));
@@ -368,15 +380,37 @@ wxBitmap MakePill(wxWindow* win, const wxString& label, PillStyle style, int min
     return c.Finish();
 }
 
-wxBitmap MakeIconButton(wxWindow* win, Glyph glyph, bool primary, int sizeDIP) {
+wxBitmap MakeIconButton(wxWindow* win, Glyph glyph, bool primary, int sizeDIP, const wxColour* background) {
     const Theme& t = GetTheme();
     const int s = win->FromDIP(sizeDIP);
-    Canvas c(s, s, &t.toolbar);
+    Canvas c(s, s, background != nullptr ? background : &t.toolbar);
     c->SetPen(c->CreatePen(wxGraphicsPenInfo(primary ? t.accent : t.buttonBorder, std::max(1.0, (double)win->FromDIP(1)))));
     c->SetBrush(wxBrush(primary ? t.accent : t.buttonBg));
     c->DrawRoundedRectangle(0.5, 0.5, s - 1.0, s - 1.0, win->FromDIP(6));
     const double g = s * 0.5;
     DrawGlyph(c.get(), glyph, (s - g) / 2.0, (s - g) / 2.0, g, primary ? t.onAccent : t.text, std::max(1.5, win->FromDIP(2) * 1.0));
+    return c.Finish();
+}
+
+wxBitmap MakeTextButton(wxWindow* win, const wxString& label, bool primary, int heightDIP, const wxColour* background) {
+    const Theme& t = GetTheme();
+    wxFont font = win->GetFont();
+    if (primary) font = font.Bold();
+    double tw = 0;
+    double th = 0;
+    {
+        Canvas measure(1, 1, nullptr);
+        measure->SetFont(font, t.text);
+        measure->GetTextExtent(label, &tw, &th);
+    }
+    const int h = win->FromDIP(heightDIP);
+    const int w = (int)std::ceil(tw) + win->FromDIP(26);
+    Canvas c(w, h, background != nullptr ? background : &t.toolbar);
+    c->SetPen(c->CreatePen(wxGraphicsPenInfo(primary ? t.accent : t.buttonBorder, std::max(1.0, (double)win->FromDIP(1)))));
+    c->SetBrush(wxBrush(primary ? t.accent : t.buttonBg));
+    c->DrawRoundedRectangle(0.5, 0.5, w - 1.0, h - 1.0, win->FromDIP(6));
+    c->SetFont(font, primary ? t.onAccent : t.text);
+    c->DrawText(label, (w - tw) / 2.0, (h - th) / 2.0);
     return c.Finish();
 }
 

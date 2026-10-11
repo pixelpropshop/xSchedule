@@ -382,22 +382,18 @@ ScheduleDialog::ScheduleDialog(wxWindow* parent, Schedule* schedule, wxWindowID 
 	SpinCtrl_OffOffsetMins->SetValue(schedule->GetOffOffsetMins());
     Choice_EndAction->SetSelection(schedule->IsHardStop() ? 2 : (schedule->IsStopAtEndOfLoop() ? 1 : 0));
 
-    // holiday choices: the first entry means "use the date above"
-    for (auto choice : { Choice_StartHoliday, Choice_EndHoliday }) {
-        choice->Append(_("(use the date)"));
-        for (const auto& h : Holidays::All()) {
-            choice->Append(h.name);
-        }
+    // holiday choices: the first entry means "use the date above"; the country's holidays (Options), and one in use
+    auto fillHolidays = [](wxChoice* choice, const std::string& selected) {
+        choice->Append(_("(use the date)"), new wxStringClientData(""));
         choice->SetSelection(0);
-    }
-    auto selectHoliday = [](wxChoice* choice, const std::string& id) {
-        const auto& all = Holidays::All();
-        for (size_t i = 0; i < all.size(); ++i) {
-            if (all[i].id == id) choice->SetSelection((int)i + 1);
+        for (const auto& h : Holidays::All()) {
+            if (!Holidays::IsShown(h) && h.id != selected) continue;
+            int i = choice->Append(h.name, new wxStringClientData(h.id));
+            if (h.id == selected) choice->SetSelection(i);
         }
     };
-    selectHoliday(Choice_StartHoliday, schedule->GetStartHoliday());
-    selectHoliday(Choice_EndHoliday, schedule->GetEndHoliday());
+    fillHolidays(Choice_StartHoliday, schedule->GetStartHoliday());
+    fillHolidays(Choice_EndHoliday, schedule->GetEndHoliday());
     SpinCtrl_StartHolidayOffset->SetValue(schedule->GetStartHolidayOffset());
     SpinCtrl_EndHolidayOffset->SetValue(schedule->GetEndHolidayOffset());
     for (auto spin : { SpinCtrl_StartHolidayOffset, SpinCtrl_EndHolidayOffset }) {
@@ -426,8 +422,9 @@ ScheduleDialog::~ScheduleDialog()
 std::string ScheduleDialog::GetHolidayId(wxChoice* choice) const
 {
     int sel = choice->GetSelection();
-    if (sel <= 0 || sel > (int)Holidays::All().size()) return "";
-    return Holidays::All()[sel - 1].id;
+    if (sel == wxNOT_FOUND) return "";
+    auto data = dynamic_cast<wxStringClientData*>(choice->GetClientObject(sel));
+    return data == nullptr ? std::string() : data->GetData().ToStdString();
 }
 
 void ScheduleDialog::ApplyTo(Schedule* schedule) const

@@ -61,6 +61,7 @@
 
 #include <log.h>
 #include "Diagnostics.h"
+#include "ScheduleCalendar.h"
 
 ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showDir) {
     spdlog::info("Loading schedule from {}.", showDir);
@@ -1525,6 +1526,8 @@ bool ScheduleManager::IsQuery(const wxString& command) {
         c == "getplayingstatus" ||
         c == "getrangesset" ||
         c == "getbuttons" ||
+        c == "getcalendar" ||
+        c == "getcalendarday" ||
         c == "getmatrix") {
         return true;
     }
@@ -3379,12 +3382,111 @@ bool ScheduleManager::Query(const wxString& command, const wxString& parameters,
         }
     } else if (c == "getbuttons") {
         data = _scheduleOptions->GetButtonsJSON(_commandManager, referenceIn.ToStdString());
+    } else if (c == "getcalendar" || c == "getcalendarday") {
+        data = CalendarJSON(c == "getcalendarday", parameters.ToStdString(), reference, msg);
+        result = !data.empty();
     } else {
         result = false;
         msg = "Unknown query.";
     }
 
     return result;
+}
+
+// GetCalendar: "from,to[,inactive]", dates as YYYY-MM-DD. GetCalendarDay: "date[,inactive]". Times are minutes from
+// the night's midnight, so 1470 is 12:30 AM the next morning.
+std::string ScheduleManager::CalendarJSON(bool day, const std::string& parameters, const std::string& reference, wxString& msg) {
+    auto parts = wxSplit(parameters, ',');
+    auto date = [&parts](size_t i, wxDateTime& d) {
+        return i < parts.size() && d.ParseISODate(parts[i].Trim().Trim(false));
+    };
+    bool inactive = parts.size() > (day ? 1u : 2u) && parts.back().Trim().Trim(false).Lower() == "inactive";
+    wxDateTime from;
+    wxDateTime to;
+    if (!date(0, from) || (!day && !date(1, to))) {
+        msg = day ? "Expected a date, YYYY-MM-DD." : "Expected two dates, YYYY-MM-DD,YYYY-MM-DD.";
+        return "";
+    }
+    if (!day && (to < from || (to - from).GetDays() > 400)) {
+        msg = "The range must run forward, and cover at most 400 days.";
+        return "";
+    }
+
+    auto id = [](const ScheduleCalendar::Window& w) { return wxString::Format("%u", (unsigned)w.schedule->GetId()).ToStdString(); };
+    auto windowJSON = [&id](const ScheduleCalendar::Window& w) {
+        return "{\"id\":\"" + id(w) + "\",\"night\":\"" + w.night.FormatISODate().ToStdString() +
+               "\",\"start\":" + std::to_string(w.start) + ",\"end\":" + std::to_string(w.end) + ",\"playEnd\":" + std::to_string(w.playEnd) +
+               ",\"skipped\":" + (w.skipped ? "true" : "false") + ",\"enabled\":" + (w.enabled ? "true" : "false") + "}";
+    };
+    auto clashesJSON = [&id](const std::vector<ScheduleCalendar::Clash>& clashes, const std::vector<ScheduleCalendar::Window>& windows) {
+        std::string res = "[";
+        for (const auto& c : clashes) {
+            if (res.size() > 1) res += ",";
+            res += "{\"start\":" + std::to_string(c.start) + ",\"end\":" + std::to_string(c.end) +
+                   ",\"a\":\"" + id(windows[c.a]) + "\",\"b\":\"" + id(windows[c.b]) + "\"}";
+        }
+        return res + "]";
+    };
+    auto nightJSON = [](const ScheduleCalendar::Night& n) {
+        return "\"date\":\"" + n.date.FormatISODate().ToStdString() + "\",\"holiday\":\"" + JSONSafe(n.holiday) +
+               "\",\"sunset\":" + std::to_string(n.sunset) + ",\"dusk\":" + std::to_string(n.dusk);
+    };
+
+    std::string res = "{\"schedules\":[";
+    int index = 0;
+    for (const auto& pl : _playLists) {
+        for (const auto& s : pl->GetSchedules()) {
+            if (index > 0) res += ",";
+            res += "{\"id\":\"" + wxString::Format("%u", (unsigned)s->GetId()).ToStdString() + "\",\"name\":\"" + JSONSafe(s->GetName()) +
+                   "\",\"playlist\":\"" + JSONSafe(pl->GetNameNoTime()) + "\",\"priority\":" + std::to_string(s->GetPriority()) +
+                   ",\"enabled\":" + (s->GetEnabled() ? "true" : "false") + ",\"index\":" + std::to_string(index) + "}";
+            ++index;
+        }
+    }
+    res += "],";
+
+    if (day) {
+        auto d = ScheduleCalendar::DetailOf(*this, from, inactive);
+        res += nightJSON(d.night) + ",\"axisStart\":" + std::to_string(d.axisStart) + ",\"axisEnd\":" + std::to_string(d.axisEnd) + ",\"windows\":[";
+        for (size_t i = 0; i < d.windows.size(); ++i) {
+            if (i > 0) res += ",";
+            res += windowJSON(d.windows[i]);
+        }
+        res += "],\"lanes\":[";
+        for (size_t i = 0; i < d.lanes.size(); ++i) {
+            if (i > 0) res += ",";
+            res += "{\"window\":" + std::to_string(d.lanes[i].window) + ",\"segments\":[";
+            for (size_t j = 0; j < d.lanes[i].segments.size(); ++j) {
+                const auto& g = d.lanes[i].segments[j];
+                if (j > 0) res += ",";
+                const char* state = g.state == ScheduleCalendar::State::Plays ? "plays" : g.state == ScheduleCalendar::State::Hidden ? "hidden" : g.state == ScheduleCalendar::State::Clash ? "clash" : "done";
+                res += "{\"start\":" + std::to_string(g.start) + ",\"end\":" + std::to_string(g.end) + ",\"state\":\"" + state + "\",\"by\":" + std::to_string(g.by) + "}";
+            }
+            res += "]}";
+        }
+        res += "],\"onTheLights\":[";
+        for (size_t i = 0; i < d.onTheLights.size(); ++i) {
+            const auto& g = d.onTheLights[i];
+            if (i > 0) res += ",";
+            res += "{\"start\":" + std::to_string(g.start) + ",\"end\":" + std::to_string(g.end) + ",\"window\":" + std::to_string(g.by) + "}";
+        }
+        res += "],\"clashes\":" + clashesJSON(d.clashes, d.windows);
+    } else {
+        res += "\"days\":[";
+        bool first = true;
+        for (const auto& n : ScheduleCalendar::Nights(*this, from, to, inactive)) {
+            if (!first) res += ",";
+            first = false;
+            res += "{" + nightJSON(n) + ",\"windows\":[";
+            for (size_t i = 0; i < n.windows.size(); ++i) {
+                if (i > 0) res += ",";
+                res += windowJSON(n.windows[i]);
+            }
+            res += "],\"clashes\":" + clashesJSON(ScheduleCalendar::ClashesOf(n.windows), n.windows) + "}";
+        }
+        res += "]";
+    }
+    return res + ",\"reference\":\"" + reference + "\"}";
 }
 
 static std::atomic<bool> __startingOutputToLights = false;

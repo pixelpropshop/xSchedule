@@ -325,6 +325,7 @@ class ScheduleOptions {
     TIMECODEFORMAT _artNetTimeCodeFormat;
     std::string _city;
     std::string _logLevel = "Normal"; // Normal, Errors or Off
+    std::string _holidayCountry; // "" from the location, "all", or a country code
     bool _customLocation = false;
     double _latitude = 0;
     double _longitude = 0;
@@ -593,6 +594,17 @@ public:
     std::string GetLogLevel() const {
         return _logLevel;
     }
+    std::string GetHolidayCountry() const {
+        return _holidayCountry;
+    }
+    void SetHolidayCountry(const std::string& country) {
+        if (country != _holidayCountry) {
+            _holidayCountry = country;
+            _changeCount++;
+        }
+    }
+    // the country of the nearest listed city to the location, or "" when it isn't one the holidays cover
+    std::string LocalCountry() const;
     void SetLogLevel(const std::string& level) {
         if (level != _logLevel) {
             _logLevel = level;

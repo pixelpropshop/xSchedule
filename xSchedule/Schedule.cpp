@@ -756,11 +756,16 @@ void Schedule::SetEndTime(const std::string& end)
 
 bool Schedule::IsActiveAt(const wxDateTime& now) const
 {
+    return IsActiveAt(now, true);
+}
+
+bool Schedule::IsActiveAt(const wxDateTime& now, bool honorSkipAndEnabled) const
+{
 #ifdef LOGCALCNEXTTRIGGERTIME
     spdlog::debug("   Checking {}.", (const char *)now.Format("%Y-%m-%d %H:%M").c_str());
 #endif
 
-    if (!_enabled) return false;
+    if (honorSkipAndEnabled && !_enabled) return false;
 
     wxDateTime s = now;
     wxDateTime e = now;
@@ -781,7 +786,7 @@ bool Schedule::IsActiveAt(const wxDateTime& now) const
 
         return false;
     }
-    if (IsSkipDate(night)) return false;
+    if (honorSkipAndEnabled && IsSkipDate(night)) return false;
 
     wxDateTime start;
     wxDateTime end;
@@ -897,6 +902,24 @@ std::vector<std::pair<wxDateTime, wxDateTime>> Schedule::GetUpcomingWindows(cons
         res.push_back({ start, end });
     }
     return res;
+}
+
+bool Schedule::GetWindowOn(const wxDateTime& night, wxDateTime& start, wxDateTime& end, bool& skipped) const
+{
+    if (_dow.empty()) return false;
+
+    wxDateTime day = night.GetDateOnly();
+    start = day;
+    SetTime(start, _startTime, _startTimeString, _onOffsetMins);
+    start.SetSecond(0);
+    end = day;
+    SetTime(end, _endTime, _endTimeString, _offOffsetMins);
+    end.SetSecond(0);
+    if (end <= start) end += wxDateSpan::Day(); // past midnight, or the same time: all day
+
+    if (!IsActiveAt(start, false)) return false;
+    skipped = IsSkipDate(day);
+    return true;
 }
 
 wxDateTime Schedule::GetNextTriggerDateTime()
