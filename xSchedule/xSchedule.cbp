@@ -358,6 +358,10 @@
 		<Unit filename="ScheduleCalendar.h" />
 		<Unit filename="SchedulePreview.cpp" />
 		<Unit filename="SchedulePreview.h" />
+		<Unit filename="ShowBackups.cpp" />
+		<Unit filename="ShowBackups.h" />
+		<Unit filename="RestoreBackupDialog.cpp" />
+		<Unit filename="RestoreBackupDialog.h" />
 		<Unit filename="CalendarPanel.cpp" />
 		<Unit filename="CalendarPanel.h" />
 		<Unit filename="LogSink.cpp" />

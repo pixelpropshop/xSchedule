@@ -97,6 +97,8 @@
 #include <log.h>
 #include "Diagnostics.h"
 #include "xScheduleApp.h"
+#include "RestoreBackupDialog.h"
+#include "ShowBackups.h"
 #include "../xlights/src-ui-wx/settings/XLightsConfigAdapter.h"
 
 ScheduleManager* xScheduleFrame::__schedule = nullptr;
@@ -669,6 +671,14 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     Connect(wxID_ANY, wxEVT_CLOSE_WINDOW, (wxObjectEventFunction)&xScheduleFrame::OnClose);
     Connect(wxEVT_SIZE, (wxObjectEventFunction)&xScheduleFrame::OnResize);
     //*)
+
+    // added here rather than in wxSmith, so it sits after Save
+    size_t savePos = 0;
+    if (Menu1->FindChildItem(ID_MNU_SAVE, &savePos) != nullptr) {
+        const wxWindowID restoreId = wxNewId();
+        Menu1->Insert(savePos + 1, restoreId, "Restore from &Backup...", "Put the show back as it was before an earlier save");
+        Bind(wxEVT_MENU, [this](wxCommandEvent&) { RestoreFromBackup(); }, restoreId);
+    }
 
     Brightness->Connect(wxEVT_LEFT_DOWN, (wxObjectEventFunction)&xScheduleFrame::OnCustom_BrightnessLeftDown, 0, this);
     Connect(ID_LISTVIEW1, wxEVT_COMMAND_LIST_ITEM_SELECTED, (wxObjectEventFunction)&xScheduleFrame::OnListView_RunningItemSelected);
@@ -1565,27 +1575,57 @@ void xScheduleFrame::OnMenuItem_ShowFolderSelected(wxCommandEvent& event)
     spdlog::debug("ShowFolderSelected: menu item invoked.");
     if (SelectShowFolder())
     {
-        spdlog::debug("ShowFolderSelected: new show folder '{}' selected. Stopping plugins.", _showDir);
-        _pluginManager.StopPlugins();
-        spdlog::debug("ShowFolderSelected: plugins stopped. Uninitialising plugins.");
-        _pluginManager.Uninitialise();
-        spdlog::debug("ShowFolderSelected: plugins uninitialised. Stopping timers.");
-        _timerSchedule.Stop();
-        _timer.Stop();
-        spdlog::debug("ShowFolderSelected: timers stopped. Loading schedule.");
-        LoadSchedule();
-        spdlog::debug("ShowFolderSelected: schedule loaded. Restarting timers.");
-        wxASSERT(__schedule != nullptr);
-        _useHalfFrames = true;
-        _timer.Start(50 / 2, false);
-        _timerSchedule.Start(500, false);
-        spdlog::debug("ShowFolderSelected: timers restarted. Initialising plugins.");
-        _pluginManager.Initialise(_showDir);
-        RebuildPluginsMenu();
-        spdlog::debug("ShowFolderSelected: plugins initialised.");
+        spdlog::debug("ShowFolderSelected: new show folder '{}' selected.", _showDir);
+        ReloadShow();
     }
     ValidateWindow();
     spdlog::debug("ShowFolderSelected: complete.");
+}
+
+void xScheduleFrame::ReloadShow()
+{
+    spdlog::debug("ReloadShow: stopping plugins.");
+    _pluginManager.StopPlugins();
+    spdlog::debug("ReloadShow: plugins stopped. Uninitialising plugins.");
+    _pluginManager.Uninitialise();
+    spdlog::debug("ReloadShow: plugins uninitialised. Stopping timers.");
+    _timerSchedule.Stop();
+    _timer.Stop();
+    spdlog::debug("ReloadShow: timers stopped. Loading schedule.");
+    LoadSchedule();
+    spdlog::debug("ReloadShow: schedule loaded. Restarting timers.");
+    wxASSERT(__schedule != nullptr);
+    _useHalfFrames = true;
+    _timer.Start(50 / 2, false);
+    _timerSchedule.Start(500, false);
+    spdlog::debug("ReloadShow: timers restarted. Initialising plugins.");
+    _pluginManager.Initialise(_showDir);
+    RebuildPluginsMenu();
+    spdlog::debug("ReloadShow: plugins initialised.");
+}
+
+void xScheduleFrame::RestoreFromBackup()
+{
+    if (__schedule == nullptr) return;
+    RestoreBackupDialog dlg(this, _showDir, ScheduleManager::GetScheduleFile());
+    if (dlg.ShowModal() != wxID_OK) return;
+
+    wxString question = "Put the show back as it was on " + dlg.GetChosenWhen() + "?\n\nThe show as it is now is backed up first.";
+    if (__schedule->IsDirty()) question += " Changes you haven't saved will be lost.";
+    question += " Anything playing stops while the show reloads.";
+    if (wxMessageBox(question, "Restore from Backup", wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION, this) != wxYES) return;
+
+    std::string error;
+    if (!ShowBackups::Restore(_showDir, ScheduleManager::GetScheduleFile(), dlg.GetChosen(), ShowBackups::Now(), error)) {
+        spdlog::error("Restoring the show from {} failed: {}", dlg.GetChosen().string(), error);
+        wxMessageBox("The backup was not restored.\n\n" + error, "Restore from Backup", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    spdlog::info("Restored the show from {}.", dlg.GetChosen().string());
+    // the restored show replaces it, so the question about saving changes on unloading doesn't apply
+    __schedule->ClearDirty();
+    ReloadShow();
+    ValidateWindow();
 }
 
 void xScheduleFrame::SaveShowDir() const
