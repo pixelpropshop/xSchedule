@@ -4,9 +4,9 @@ WX_CONFIG ?= wx-config
 CXXFLAGS += -std=gnu++20 -O2 -I../../xlights/include -I../../xlights/src-core/utils -I../../xlights/src-core \
             -I../../xlights/src-ui-wx -I../../xlights/src-ui-wx/shared/utils -I../../xlights/common -I../../dependencies -I../../dependencies/spdlog/include \
             $(shell $(WX_CONFIG) --cxxflags)
-SOURCES = ScheduleTests.cpp ../Schedule.cpp ../City.cpp ../Holidays.cpp
+SOURCES = ScheduleTests.cpp ../Schedule.cpp ../SchedulePreview.cpp ../City.cpp ../Holidays.cpp
 
-build/xScheduleTests: $(SOURCES) ../Schedule.h ../Holidays.h ../City.h
+build/xScheduleTests: $(SOURCES) ../Schedule.h ../SchedulePreview.h ../Holidays.h ../City.h
 	mkdir -p build
 	$(CXX) $(CXXFLAGS) $(SOURCES) -o $@ $(shell $(WX_CONFIG) --libs std,xml)
 

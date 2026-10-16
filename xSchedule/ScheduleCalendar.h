@@ -10,6 +10,8 @@
  * License: https://github.com/xLightsSequencer/xLights/blob/master/License.txt
  **************************************************************/
 
+#include "SchedulePreview.h"
+
 #include <wx/datetime.h>
 
 #include <string>
@@ -78,13 +80,25 @@ struct Detail {
     std::vector<Clash> clashes;
 };
 
+// the night played out step by step. Plays and findings refer to windows by their index here, and detailWindow
+// gives each one's index in Detail::windows.
+struct Preview {
+    std::vector<SchedulePreview::Window> windows;
+    std::vector<int> detailWindow;
+    std::vector<std::string> playlists; // by SchedulePreview::Play::playlist
+    SchedulePreview::Plan plan;
+    std::string background; // the background playlist, which plays alongside
+};
+
 Night NightOf(ScheduleManager& manager, const wxDateTime& date, bool includeInactive);
 std::vector<Night> Nights(ScheduleManager& manager, const wxDateTime& from, const wxDateTime& to, bool includeInactive);
 Detail DetailOf(ScheduleManager& manager, const wxDateTime& date, bool includeInactive);
 // same-priority windows that overlap, among windows that compete
 std::vector<Clash> ClashesOf(const std::vector<Window>& windows);
+Preview PreviewOf(ScheduleManager& manager, const Detail& detail);
 
 std::string FormatMinutes(int minutes); // "5:47 PM", in the computer's 12 or 24 hour style
 std::string FormatRange(int start, int end);
+std::string FormatTime(long long ms); // to the second, from the night's midnight
 
 } // namespace ScheduleCalendar

@@ -14,7 +14,7 @@ make test
 
 cd /src/xSchedule
 INCLUDES="-I../xlights/include -I../xlights/src-core -I../xlights/src-core/utils -I../xlights/src-ui-wx -I../xlights/src-ui-wx/shared/utils -I../xlights/common -I../dependencies -I../dependencies/spdlog/include"
-for f in ModernUI.cpp Holidays.cpp Schedule.cpp ScheduleDialog.cpp; do
+for f in ModernUI.cpp Holidays.cpp Schedule.cpp ScheduleDialog.cpp SchedulePreview.cpp ScheduleCalendar.cpp CalendarPanel.cpp; do
     echo "syntax check $f"
     g++ -std=gnu++20 -fsyntax-only $INCLUDES $(wx-config --cxxflags) "$f"
 done

@@ -23,6 +23,7 @@
 #include "../City.h"
 #include "../Holidays.h"
 #include "../Schedule.h"
+#include "../SchedulePreview.h"
 
 namespace {
 
@@ -447,6 +448,226 @@ void TestExtendEndTime() {
     Schedule::SetLocation(true, -33.861481, 151.205475);
 }
 
+// ---- SchedulePreview: the night played out by the scheduler's rules ----
+
+namespace SP = SchedulePreview;
+constexpr long long SEC = 1000;
+constexpr long long MIN = 60 * SEC;
+constexpr long long SIX_PM = 18 * 60 * MIN;
+
+SP::PlayList List(const std::string& name, std::initializer_list<std::pair<const char*, int>> steps, bool firstOnce = false, bool lastOnce = false) {
+    SP::PlayList p;
+    p.name = name;
+    p.firstOnce = firstOnce;
+    p.lastOnce = lastOnce;
+    for (const auto& st : steps) {
+        SP::Step s;
+        s.name = st.first;
+        s.lengthMS = st.second * SEC;
+        p.steps.push_back(s);
+    }
+    return p;
+}
+
+SP::Window Win(int schedule, int playlist, int priority, long long start, long long end, bool loop = true) {
+    SP::Window w;
+    w.schedule = schedule;
+    w.name = "S" + std::to_string(schedule);
+    w.playlist = playlist;
+    w.priority = priority;
+    w.start = start;
+    w.end = end;
+    w.loop = loop;
+    return w;
+}
+
+SP::Plan Play(const SP::Input& in) {
+    return SP::Run(in, in.windows.front().start, in.windows.front().start + 24 * 60 * MIN);
+}
+
+std::string Steps(const SP::Plan& plan) {
+    std::string res;
+    for (const auto& p : plan.plays) res += (res.empty() ? "" : " ") + p.step;
+    return res;
+}
+
+const SP::Finding* FindingOf(const SP::Plan& plan, SP::Kind kind) {
+    for (const auto& f : plan.findings) {
+        if (f.kind == kind) return &f;
+    }
+    return nullptr;
+}
+
+void TestPreviewEndOfWindow() {
+    SP::Input in;
+    in.playlists.push_back(List("Main", { { "Intro", 45 }, { "S1", 100 }, { "S2", 100 }, { "Outro", 40 } }, true, true));
+    in.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + 10 * MIN));
+
+    // the end comes during a step: it finishes, then the last step plays
+    auto plan = Play(in);
+    CHECK(Steps(plan) == "Intro S1 S2 S1 S2 S1 S2 Outro");
+    CHECK(plan.plays.front().start == SIX_PM);
+    CHECK(plan.plays.back().start == SIX_PM + 645 * SEC);
+    CHECK(plan.plays.back().end == SIX_PM + 685 * SEC);
+    CHECK(plan.plays[3].pass == 2);
+    const auto* late = FindingOf(plan, SP::Kind::RunsLate);
+    CHECK(late != nullptr && late->amount == 85 * SEC && late->play == 7);
+    CHECK(plan.plays.back().flag == SP::Flag::Late);
+
+    // a hard stop cuts the step and skips the last one
+    in.windows[0].hardStop = true;
+    plan = Play(in);
+    CHECK(Steps(plan) == "Intro S1 S2 S1 S2 S1 S2");
+    CHECK(plan.plays.back().end == SIX_PM + 10 * MIN && plan.plays.back().ending == SP::Ending::Cut);
+    const auto* cut = FindingOf(plan, SP::Kind::CutOff);
+    CHECK(cut != nullptr && cut->amount == 45 * SEC);
+    CHECK(FindingOf(plan, SP::Kind::RunsLate) == nullptr);
+
+    // stop at the end of the loop finishes the pass
+    SP::Input loop;
+    loop.playlists.push_back(List("ABC", { { "A", 100 }, { "B", 100 }, { "C", 100 } }));
+    loop.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + 2 * MIN + 30 * SEC));
+    loop.windows[0].end = SIX_PM + 3 * MIN; // windows end on a minute
+    plan = Play(loop);
+    CHECK(Steps(plan) == "A B");
+    loop.windows[0].stopAtEndOfLoop = true;
+    plan = Play(loop);
+    CHECK(Steps(plan) == "A B C");
+
+    // loops: 2 passes, then the playlist is done and the lights go dark until the window ends
+    SP::Input twice;
+    twice.playlists.push_back(List("AB", { { "A", 60 }, { "B", 60 } }));
+    twice.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + 10 * MIN));
+    twice.windows[0].loops = 2;
+    plan = Play(twice);
+    CHECK(Steps(plan) == "A B A B");
+    const auto* dark = FindingOf(plan, SP::Kind::GoesDark);
+    CHECK(dark != nullptr && dark->at == SIX_PM + 4 * MIN && dark->amount == 6 * MIN);
+}
+
+void TestPreviewPriorities() {
+    SP::Input in;
+    in.playlists.push_back(List("Low", { { "L", 100 } }));
+    in.playlists.push_back(List("High", { { "H", 30 } }));
+    in.windows.push_back(Win(0, 0, 1, SIX_PM, SIX_PM + 10 * MIN));
+    in.windows.push_back(Win(1, 1, 5, SIX_PM + 2 * MIN, SIX_PM + 4 * MIN, false));
+
+    // a graceful interrupt waits for the step to end; the low one then starts its next step from the beginning
+    in.windows[1].graceful = true;
+    auto plan = Play(in);
+    CHECK(plan.plays.size() >= 5);
+    CHECK(plan.plays[1].step == "L" && plan.plays[1].end == SIX_PM + 200 * SEC && plan.plays[1].flag == SP::Flag::Wait);
+    CHECK(plan.plays[2].step == "H" && plan.plays[2].start == SIX_PM + 200 * SEC && plan.plays[2].end == SIX_PM + 230 * SEC);
+    CHECK(plan.plays[3].step == "L" && plan.plays[3].start == SIX_PM + 230 * SEC && plan.plays[3].offset == 0);
+    const auto* late = FindingOf(plan, SP::Kind::StartsLate);
+    CHECK(late != nullptr && late->amount == 80 * SEC && late->window == 1);
+
+    // otherwise the low one stops mid-step and carries on from there
+    in.windows[1].graceful = false;
+    plan = Play(in);
+    CHECK(plan.plays[1].start == SIX_PM + 100 * SEC && plan.plays[1].end == SIX_PM + 120 * SEC && plan.plays[1].ending == SP::Ending::Suspended);
+    CHECK(plan.plays[2].step == "H" && plan.plays[2].start == SIX_PM + 120 * SEC);
+    CHECK(plan.plays[3].step == "L" && plan.plays[3].start == SIX_PM + 150 * SEC && plan.plays[3].offset == 20 * SEC && plan.plays[3].end == SIX_PM + 230 * SEC);
+    CHECK(FindingOf(plan, SP::Kind::StartsLate) == nullptr);
+
+    // equal priority: the one that started first keeps the lights. The other is still waiting with its step started
+    // when its window ends, so it finishes that step once the lights are free.
+    in.windows[1].priority = 1;
+    plan = Play(in);
+    long long high = -1;
+    for (const auto& p : plan.plays) {
+        if (p.step == "H") high = p.start;
+    }
+    CHECK(high >= SIX_PM + 10 * MIN);
+    CHECK(FindingOf(plan, SP::Kind::RunsLate) != nullptr && FindingOf(plan, SP::Kind::RunsLate)->window == 1);
+}
+
+void TestPreviewFireEvery() {
+    Schedule s = Make({ { "StartDate", "2026-01-01" }, { "EndDate", "2026-12-31" }, { "StartTime", "18:00" }, { "EndTime", "18:10" },
+                        { "FireFrequency", "Fire every 2 minutes" }, { "DOW", "MonTueWedThuFriSatSun" } });
+    SP::Input in;
+    in.playlists.push_back(List("Short", { { "Short", 20 } }));
+    in.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + 10 * MIN, false));
+    in.windows[0].fireOnce = false;
+    const wxDateTime night = D(2026, 6, 1);
+    in.shouldFire = [&](int, long long now, long long last) {
+        return s.ShouldFireAt(night + wxTimeSpan::Milliseconds(now), night + wxTimeSpan::Milliseconds(last));
+    };
+    auto plan = Play(in);
+    std::string starts;
+    for (const auto& p : plan.plays) starts += std::to_string((p.start - SIX_PM) / MIN) + " ";
+    CHECK(starts == "0 2 4 6 8 ");
+    CHECK(s.ShouldFire() == s.ShouldFireAt(wxDateTime::Now(), wxDateTime::Now() - wxTimeSpan(2)));
+}
+
+void TestPreviewBranches() {
+    // every 2nd loop from loop 2 plays the announcement
+    SP::Input in;
+    in.playlists.push_back(List("Loops", { { "Pick", 0 }, { "Announce", 2 }, { "Song", 2 } }));
+    auto branch = std::make_shared<SP::Branch>();
+    branch->isTrue = [](long long, int loop) { return loop >= 2 && (loop - 2) % 2 == 0; };
+    branch->trueStep = "Announce";
+    branch->falseStep = "Song";
+    in.playlists[0].steps[0].branch = branch;
+    in.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + MIN));
+    auto plan = Play(in);
+    CHECK(Steps(plan).rfind("Song Announce Song Song Announce Song", 0) == 0);
+
+    // a branch that plays another playlist, then carries on
+    SP::Input call;
+    call.playlists.push_back(List("Call", { { "A", 2 }, { "Pick", 0 }, { "B", 3 } }));
+    call.playlists.push_back(List("Insert", { { "Ins", 2 } }));
+    auto always = std::make_shared<SP::Branch>();
+    always->isTrue = [](long long, int) { return true; };
+    always->truePlayList = "insert";
+    call.playlists[0].steps[1].branch = always;
+    call.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + MIN, false));
+    plan = Play(call);
+    CHECK(Steps(plan) == "A Ins B");
+    CHECK(plan.plays.size() == 3 && plan.plays[1].called && plan.plays[1].start == SIX_PM + 2 * SEC && plan.plays[2].start == SIX_PM + 4 * SEC);
+
+    // branches that point at each other stop the playlist instead of hanging
+    SP::Input ring;
+    ring.playlists.push_back(List("Ring", { { "P1", 0 }, { "P2", 0 }, { "Never", 2 } }));
+    auto to2 = std::make_shared<SP::Branch>();
+    to2->isTrue = [](long long, int) { return true; };
+    to2->trueStep = "P2";
+    auto to1 = std::make_shared<SP::Branch>();
+    to1->isTrue = [](long long, int) { return true; };
+    to1->trueStep = "P1";
+    ring.playlists[0].steps[0].branch = to2;
+    ring.playlists[0].steps[1].branch = to1;
+    ring.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + MIN));
+    plan = Play(ring);
+    CHECK(plan.plays.empty());
+}
+
+void TestPreviewShuffle() {
+    SP::Input in;
+    in.playlists.push_back(List("Mix", { { "A", 30 }, { "B", 31 }, { "C", 32 }, { "D", 33 }, { "E", 34 } }));
+    in.windows.push_back(Win(0, 0, 5, SIX_PM, SIX_PM + 10 * MIN));
+    in.windows[0].random = true;
+    in.seed = 7;
+    auto plan = Play(in);
+    CHECK(plan.plays.size() >= 15);
+    bool estimated = true;
+    bool distinct = true;
+    for (size_t i = 0; i + 5 <= plan.plays.size(); i += 5) {
+        std::string seen;
+        for (size_t j = i; j < i + 5; ++j) {
+            if (seen.find(plan.plays[j].step) != std::string::npos) distinct = false;
+            seen += plan.plays[j].step;
+        }
+    }
+    for (const auto& p : plan.plays) estimated = estimated && p.estimated;
+    CHECK(distinct);
+    CHECK(estimated);
+    auto again = Play(in);
+    CHECK(Steps(again) == Steps(plan)); // the same night shows the same order
+    const auto* late = FindingOf(plan, SP::Kind::RunsLate);
+    CHECK(late == nullptr || late->amount >= 0);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -468,6 +689,11 @@ int main(int argc, char** argv) {
     TestJSONAndState();
     TestSunTimes();
     TestExtendEndTime();
+    TestPreviewEndOfWindow();
+    TestPreviewPriorities();
+    TestPreviewFireEvery();
+    TestPreviewBranches();
+    TestPreviewShuffle();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

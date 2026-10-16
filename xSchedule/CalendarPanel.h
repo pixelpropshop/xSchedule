@@ -17,13 +17,16 @@
 #include <wx/timer.h>
 
 #include <functional>
+#include <set>
 #include <string>
+#include <vector>
 
 class CalendarDay;
 class CalendarMonth;
 class Schedule;
 class ScheduleManager;
 class wxCheckBox;
+class wxListView;
 class wxStaticText;
 
 // The Calendar tab: a month of nights, and for the chosen night what plays on the lights and what waits.
@@ -48,6 +51,11 @@ private:
     void NightMenu(const wxDateTime& night);
     std::string Signature() const;
     void OnClock(wxTimerEvent& event);
+    void SetPlayByPlay(bool list);
+    void FillList();
+    void ShowFinding(int finding);
+    void ActivateRow(long row);
+    void FitHeader();
 
     ScheduleManager* _manager = nullptr;
     EditSchedule _edit;
@@ -66,4 +74,23 @@ private:
     CalendarMonth* _monthView = nullptr;
     CalendarDay* _dayView = nullptr;
     wxTimer _clock;
+
+    // the night's play-by-play
+    struct Row {
+        int play = -1;
+        int fold = -1;
+        int finding = -1;
+    };
+    class wxPanel* _nightPage = nullptr;
+    wxListView* _list = nullptr;
+    wxStaticText* _footer = nullptr;
+    class wxButton* _timelineButton = nullptr;
+    class wxButton* _listButton = nullptr;
+    bool _playByPlay = false;
+    ScheduleCalendar::Detail _detail;
+    ScheduleCalendar::Preview _preview;
+    std::vector<Row> _rows;
+    std::vector<std::pair<int, int>> _folds; // first and last play of steps shown as one row
+    std::set<int> _unfolded;                 // folds shown in full, by their first play
+    wxDateTime _unfoldedNight;
 };

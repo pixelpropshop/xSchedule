@@ -863,11 +863,11 @@ void PlayList::TogglePause() {
 
     if (IsPaused()) {
         spdlog::info("        Unpausing playlist {}.", (const char*)GetName().c_str());
-        _currentStep->AdjustTime(wxDateTime::Now() - _pauseTime);
+        _currentStep->AdjustTime(wxDateTime::UNow() - _pauseTime);
         _pauseTime = wxDateTime(static_cast<time_t>(0));
     } else {
         spdlog::info("        Pausing playlist {}.", (const char*)GetName().c_str());
-        _pauseTime = wxDateTime::Now();
+        _pauseTime = wxDateTime::UNow();
     }
 
     _currentStep->Pause(IsPaused());
@@ -891,12 +891,12 @@ int PlayList::Suspend(bool suspend) {
         } else if (!suspend && IsSuspended()) {
             // unsuspend
             spdlog::info("         Playlist {} unsuspending.", (const char*)GetNameNoTime().c_str());
-            _currentStep->AdjustTime(wxDateTime::Now() - _suspendTime);
+            _currentStep->AdjustTime(wxDateTime::UNow() - _suspendTime);
             _suspendTime = wxDateTime(static_cast<time_t>(0));
         } else if (suspend && !IsSuspended()) {
             // suspend
             spdlog::info("         Playlist {} suspending.", (const char*)GetNameNoTime().c_str());
-            _suspendTime = wxDateTime::Now();
+            _suspendTime = wxDateTime::UNow();
         }
     }
 
