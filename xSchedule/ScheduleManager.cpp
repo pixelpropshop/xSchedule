@@ -62,6 +62,7 @@
 #include <log.h>
 #include "Diagnostics.h"
 #include "ScheduleCalendar.h"
+#include "../xlights/src-ui-wx/settings/XLightsConfigAdapter.h"
 
 ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showDir) {
     spdlog::info("Loading schedule from {}.", showDir);
@@ -100,10 +101,10 @@ ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showD
 
     _mode = (int)SYNCMODE::STANDALONE;
     _remoteMode = REMOTEMODE::DISABLED;
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
     if (config != nullptr) {
-        _mode = config->ReadLong(_("SyncMode"), (int)SYNCMODE::STANDALONE);
-        _remoteMode = (REMOTEMODE)config->ReadLong(_("RemoteMode"), (int)REMOTEMODE::DISABLED);
+        _mode = config->ReadLong("SyncMode", (int)SYNCMODE::STANDALONE);
+        _remoteMode = (REMOTEMODE)config->ReadLong("RemoteMode", (int)REMOTEMODE::DISABLED);
     }
 
     wxLogNull logNo; // kludge: avoid "error 0" message from wxWidgets after new file is written
@@ -3903,9 +3904,9 @@ void ScheduleManager::SetMode(int mode, REMOTEMODE remote) {
     _mode = mode;
     _remoteMode = remote;
 
-    wxConfigBase* config = wxConfigBase::Get();
-    config->Write(_("SyncMode"), (long)_mode);
-    config->Write(_("RemoteMode"), (long)_remoteMode);
+    auto* config = GetXLightsConfig();
+    config->Write("SyncMode", (long)_mode);
+    config->Write("RemoteMode", (long)_remoteMode);
     config->Flush();
 
     _syncManager->Start(mode, remote, GetForceLocalIP());
@@ -5132,9 +5133,9 @@ std::string ScheduleManager::xLightsShowDir() {
 std::string ScheduleManager::xScheduleShowDir() {
     wxString showDir = "";
 
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
     if (config != nullptr) {
-        config->Read(_("SchedulerLastDir"), &showDir);
+        config->Read("SchedulerLastDir", &showDir);
     }
 
     return showDir.ToStdString();
@@ -5249,8 +5250,9 @@ void ScheduleManager::ForceLocalIP(const std::string& forceLocalIP) {
 }
 
 void ScheduleManager::SetForceLocalIP(const std::string& forceLocalIP) {
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
     config->Write("xLightsLocalIP", wxString(forceLocalIP));
+    config->Flush();
 
     if (forceLocalIP != "") {
         ForceLocalIP(forceLocalIP);
@@ -5269,9 +5271,9 @@ void ScheduleManager::SetForceLocalIP(const std::string& forceLocalIP) {
 }
 
 std::string ScheduleManager::GetForceLocalIP() const {
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
     wxString localIP;
-    config->Read(_("xLightsLocalIP"), &localIP, "");
+    config->Read("xLightsLocalIP", &localIP, "");
     if (localIP != "") {
         if (ip_utils::IsValidLocalIP(localIP.ToStdString())) {
             spdlog::info("Forcing output via {}.", localIP.ToStdString());

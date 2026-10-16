@@ -651,6 +651,7 @@ IF EXIST "$(SolutionDir)..\bin\*.cfg" copy "$(SolutionDir)..\bin\*.cfg" "$(Targe
     <ClInclude Include="ModernUI.h" />
     <ClInclude Include="Holidays.h" />
     <ClInclude Include="ScheduleConfig.h" />
+    <ClInclude Include="SettingsFiles.h" />
     <ClInclude Include="md5.h" />
     <ClInclude Include="MyTreeItemData.h" />
     <ClInclude Include="OptionsDialog.h" />

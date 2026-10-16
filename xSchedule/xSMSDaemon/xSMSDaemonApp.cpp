@@ -27,6 +27,7 @@
 #endif
 
 #include "xSMSDaemonApp.h"
+#include "../SettingsFiles.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/common.h"
@@ -101,12 +102,18 @@ p_xSchedule_Action xSMSDaemonApp::GetAction()
     return __action;
 }
 
+PluginSettings& SMSDaemonSettings()
+{
+    static PluginSettings settings("xSMSDaemon", "xSMSDaemon");
+    return settings;
+}
+
 static void WipeSettings()
 {
     spdlog::warn("------ Wiping xSMSDaemon settings ------");
 
-    wxConfigBase* config = wxConfigBase::Get();
-    config->DeleteAll();
+    SMSDaemonSettings().DeleteAll();
+    SMSDaemonSettings().Flush();
 }
 
 static void InitialiseLogging(bool fromMain)
@@ -310,13 +317,8 @@ bool xSMSDaemonApp::OnInit()
 
 #ifdef __WXMSW__
     // the plugin has its own copy of wxWidgets, so xSchedule turning dark mode on doesn't reach it
-    {
-        wxConfig config("xSchedule");
-        bool suppress = false;
-        config.Read("SuppressDarkMode", &suppress, false);
-        if (!suppress) {
-            MSWEnableDarkMode();
-        }
+    if (ReadXScheduleSetting("SuppressDarkMode", "0") != "1") {
+        MSWEnableDarkMode();
     }
 #endif
 

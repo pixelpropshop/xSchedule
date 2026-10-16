@@ -23,6 +23,7 @@
 #include "../../xlights/src-ui-wx/shared/utils/wxUtilities.h"
 #include "../ScheduleOptions.h"
 #include "../ModernUI.h"
+#include "../../xlights/src-ui-wx/settings/XLightsConfigAdapter.h"
 
 #include <wx/xml/xml.h>
 #include <wx/menu.h>
@@ -144,11 +145,11 @@ PlayListSimpleDialog::PlayListSimpleDialog(wxWindow* parent, OutputManager* outp
 	//*)
 
     int x, y, w, h;
-    wxConfigBase* config = wxConfigBase::Get();
-    x = config->ReadLong(_("xsPLWindowPosX"), 50);
-    y = config->ReadLong(_("xsPLWindowPosY"), 50);
-    w = config->ReadLong(_("xsPLWindowPosW"), 800);
-    h = config->ReadLong(_("xsPLWindowPosH"), 600);
+    auto* config = GetXLightsConfig();
+    x = config->ReadLong("xsPLWindowPosX", 50);
+    y = config->ReadLong("xsPLWindowPosY", 50);
+    w = config->ReadLong("xsPLWindowPosW", 800);
+    h = config->ReadLong("xsPLWindowPosH", 600);
     SetPosition(wxPoint(x, y));
     SetSize(w, h);
     EnsureWindowHeaderIsOnScreen(this);
@@ -191,11 +192,11 @@ PlayListSimpleDialog::~PlayListSimpleDialog()
     int w, h;
     GetSize(&w, &h);
 
-    wxConfigBase* config = wxConfigBase::Get();
-    config->Write(_("xsPLWindowPosX"), x);
-    config->Write(_("xsPLWindowPosY"), y);
-    config->Write(_("xsPLWindowPosW"), w);
-    config->Write(_("xsPLWindowPosH"), h);
+    auto* config = GetXLightsConfig();
+    config->Write("xsPLWindowPosX", x);
+    config->Write("xsPLWindowPosY", y);
+    config->Write("xsPLWindowPosW", w);
+    config->Write("xsPLWindowPosH", h);
     config->Flush();
 
     // manually remove the notebook page to force updating now rather than during deletion

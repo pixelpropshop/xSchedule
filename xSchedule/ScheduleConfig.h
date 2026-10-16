@@ -10,14 +10,17 @@
  * License: https://github.com/xLightsSequencer/xLights/blob/master/License.txt
  **************************************************************/
 
+#include <filesystem>
 #include <list>
 #include <string>
 
-// xSchedule's settings stay in wxConfig (HKCU\Software\xSchedule on Windows). The shared xLights wx helpers
-// (IsDarkMode, GetConfigBool, ...) read xLights' own settings store instead, so read and write xSchedule's
-// settings here; MirrorIntoCore copies them into that store (in memory only) for the helpers to see.
+// xSchedule's settings are in settings.json (see SettingsFiles.h), read and written through the xLights settings
+// store, so GetXLightsConfig() and the shared xLights helpers (IsDarkMode, GetConfigBool, ...) see them.
 namespace ScheduleConfig {
-    void MirrorIntoCore();
+    // points the settings store at xSchedule's settings.json, importing the registry (wxConfig) the first time
+    void Initialize();
+    std::filesystem::path SettingsFile();
+    void Wipe();
 
     bool GetBool(const std::string& key, bool defaultValue);
     void SetBool(const std::string& key, bool value);

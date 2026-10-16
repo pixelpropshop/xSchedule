@@ -97,6 +97,7 @@
 #include <log.h>
 #include "Diagnostics.h"
 #include "xScheduleApp.h"
+#include "../xlights/src-ui-wx/settings/XLightsConfigAdapter.h"
 
 ScheduleManager* xScheduleFrame::__schedule = nullptr;
 
@@ -716,11 +717,11 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     SetIcons(icons);
 
     int x, y, w, h;
-    wxConfigBase* config = wxConfigBase::Get();
-    x = config->ReadLong(_("xsWindowPosX"), 50);
-    y = config->ReadLong(_("xsWindowPosY"), 50);
-    w = config->ReadLong(_("xsWindowPosW"), 800);
-    h = config->ReadLong(_("xsWindowPosH"), 600);
+    auto* config = GetXLightsConfig();
+    x = config->ReadLong("xsWindowPosX", 50);
+    y = config->ReadLong("xsWindowPosY", 50);
+    w = config->ReadLong("xsWindowPosW", 800);
+    h = config->ReadLong("xsWindowPosH", 600);
 
     // limit weirdness
     if (x < -100) x = 0;
@@ -770,7 +771,7 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
 
     // a sash position saved at another display scale must not squeeze the playlist buttons
     SplitterWindow1->SetMinimumPaneSize(Button_Add->GetContainingSizer()->CalcMin().x + FromDIP(24));
-    SplitterWindow1->SetSashPosition(std::max((int)wxConfigBase::Get()->ReadLong("xsSashPositionV", 500), SplitterWindow1->GetMinimumPaneSize()));
+    SplitterWindow1->SetSashPosition(std::max((int)GetXLightsConfig()->ReadLong("xsSashPositionV", 500), SplitterWindow1->GetMinimumPaneSize()));
 
     ModernUI::FitListHeaders(this);
     CallAfter([this]() { ModernUI::LogClippedControls(this); });
@@ -778,11 +779,11 @@ xScheduleFrame::xScheduleFrame(wxWindow* parent, const std::string& showdir, con
     // set once the window has its final size: the splitter splits later size changes between its panes, so a
     // position set earlier moves a little on every start
     CallAfter([this]() {
-        long pane = wxConfigBase::Get()->ReadLong("xsControllerPaneHeight", -1);
+        long pane = GetXLightsConfig()->ReadLong("xsControllerPaneHeight", -1);
         if (pane > 0) {
             SplitterWindow2->SetSashPosition(SplitterWindow2->GetSize().y - pane);
         } else {
-            SplitterWindow2->SetSashPosition(wxConfigBase::Get()->ReadLong("xsSashPositionH", 150));
+            SplitterWindow2->SetSashPosition(GetXLightsConfig()->ReadLong("xsSashPositionH", 150));
         }
     });
 
@@ -1009,7 +1010,7 @@ void xScheduleFrame::LoadSchedule()
 
 void xScheduleFrame::RebuildPluginsMenu()
 {
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
 
     // remove any menu items (and their event bindings) left over from a previous show folder
     auto oldItems = Menu_Plugins->GetMenuItems();
@@ -1022,7 +1023,7 @@ void xScheduleFrame::RebuildPluginsMenu()
         wxMenuItem* mi = Menu_Plugins->Append(_pluginManager.GetId(it), _pluginManager.GetMenuLabel(it), nullptr);
         mi->SetCheckable(true);
         Connect(_pluginManager.GetId(it), wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)&xScheduleFrame::OnPluginMenu);
-        if (config->ReadBool(_("Plugin") + it, false)) {
+        if (config->ReadBool("Plugin" + it, false)) {
             if (_pluginManager.StartPlugin(it, _showDir, __schedule->GetOptions()->GetOurURL())) {
                 mi->Check(true);
             }
@@ -1096,13 +1097,13 @@ xScheduleFrame::~xScheduleFrame()
     int w, h;
     GetSize(&w, &h);
 
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
     if (config != nullptr)
     {
-        config->Write(_("xsWindowPosX"), x);
-        config->Write(_("xsWindowPosY"), y);
-        config->Write(_("xsWindowPosW"), w);
-        config->Write(_("xsWindowPosH"), h);
+        config->Write("xsWindowPosX", x);
+        config->Write("xsWindowPosY", y);
+        config->Write("xsWindowPosW", w);
+        config->Write("xsWindowPosH", h);
         config->Write("xsSashPositionV", SplitterWindow1->GetSashPosition());
         config->Write("xsSashPositionH", SplitterWindow2->GetSashPosition());
         config->Write("xsControllerPaneHeight", SplitterWindow2->GetSize().y - SplitterWindow2->GetSashPosition());
@@ -1222,7 +1223,7 @@ bool xScheduleFrame::CheckForUpdate(bool showMessageBoxes)
     }
 
     wxString skipver;
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
     if (!showMessageBoxes && config != nullptr) {
         config->Read("xsSkipVersion", &skipver);
     }
@@ -1589,21 +1590,17 @@ void xScheduleFrame::OnMenuItem_ShowFolderSelected(wxCommandEvent& event)
 
 void xScheduleFrame::SaveShowDir() const
 {
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
     auto sd = wxString(_showDir);
     spdlog::debug("Saving show folder location {}.", sd.ToStdString());
-    if (!config->Write(_("SchedulerLastDir"), sd))
-    {
-        spdlog::error("Error saving 'SchedulerLastDir'.");
-    }
+    config->Write("SchedulerLastDir", sd);
     config->Flush();
 }
 
 void xScheduleFrame::LoadShowDir()
 {    
-    wxConfigBase* config = wxConfigBase::Get();
-    spdlog::debug("Config: AppName '{}' Path '{}' Entries {} Groups {} Style {} Vendor '{}'.", 
-        config->GetAppName().ToStdString(), config->GetPath().ToStdString(), (int)config->GetNumberOfEntries(), (int)config->GetNumberOfGroups(), config->GetStyle(), config->GetVendorName().ToStdString());
+    auto* config = GetXLightsConfig();
+    spdlog::debug("Settings: {} entries in {}.", config->GetNumberOfEntries(), ScheduleConfig::SettingsFile().string());
 
     // get the show directory
     wxString showDir = ScheduleManager::xScheduleShowDir();
@@ -2635,7 +2632,8 @@ void xScheduleFrame::StopPluginAndRemember(const std::string& label)
     std::string plugin = _pluginManager.GetPluginFromLabel(label);
     if (plugin == "") return;
     _pluginManager.StopPlugin(plugin);
-    wxConfigBase::Get()->Write(_("Plugin") + plugin, false);
+    GetXLightsConfig()->Write("Plugin" + plugin, false);
+    GetXLightsConfig()->Flush();
     PluginStateChanged();
 }
 
@@ -3399,24 +3397,25 @@ void xScheduleFrame::CorrectTimer(int rate)
 void xScheduleFrame::OnPluginMenu(wxCommandEvent& event)
 {
     std::string plugin = _pluginManager.GetPluginFromId(event.GetId());
-    wxConfigBase* config = wxConfigBase::Get();
+    auto* config = GetXLightsConfig();
 
     if (((wxMenu*)event.GetEventObject())->IsChecked(event.GetId()))
     {
         if (!_pluginManager.StartPlugin(plugin, _showDir, __schedule->GetOptions()->GetOurURL()))
         {
             ((wxMenu*)event.GetEventObject())->Check(event.GetId(), false);
-            config->Write(_("Plugin") + plugin, false);
+            config->Write("Plugin" + plugin, false);
         }
         else
         {
-            config->Write(_("Plugin") + plugin, true);
+            config->Write("Plugin" + plugin, true);
         }
     }
     else {
         _pluginManager.StopPlugin(plugin);
-        config->Write(_("Plugin") + plugin, false);
+        config->Write("Plugin" + plugin, false);
     }
+    config->Flush();
 }
 
 void xScheduleFrame::OnBitmapButton_VolumeDownClick(wxCommandEvent& event)
@@ -4510,17 +4509,18 @@ void xScheduleFrame::OnMenuItem_SMPTESelected(wxCommandEvent& event)
 
 void xScheduleFrame::OnMenuItem_ResetWindowLocationsSelected(wxCommandEvent& event)
 {
-    wxConfigBase* config = wxConfigBase::Get();
-    config->DeleteEntry(_("xsPLWindowPosX"));
-    config->DeleteEntry(_("xsPLWindowPosY"));
-    config->DeleteEntry(_("xsPLWindowPosW"));
-    config->DeleteEntry(_("xsPLWindowPosH"));
-    config->DeleteEntry(_("xsWindowPosX"));
-    config->DeleteEntry(_("xsWindowPosY"));
-    config->DeleteEntry(_("xsWindowPosW"));
-    config->DeleteEntry(_("xsWindowPosH"));
+    auto* config = GetXLightsConfig();
+    config->DeleteEntry("xsPLWindowPosX");
+    config->DeleteEntry("xsPLWindowPosY");
+    config->DeleteEntry("xsPLWindowPosW");
+    config->DeleteEntry("xsPLWindowPosH");
+    config->DeleteEntry("xsWindowPosX");
+    config->DeleteEntry("xsWindowPosY");
+    config->DeleteEntry("xsWindowPosW");
+    config->DeleteEntry("xsWindowPosH");
     config->DeleteEntry("xsSashPositionH");
     config->DeleteEntry("xsControllerPaneHeight");
     config->DeleteEntry("xsSashPositionV");
+    config->Flush();
 }
 

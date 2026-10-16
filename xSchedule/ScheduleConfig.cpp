@@ -9,7 +9,9 @@
  **************************************************************/
 
 #include "ScheduleConfig.h"
+#include "SettingsFiles.h"
 #include "../xlights/src-core/settings/XLightsSettings.h"
+#include "../xlights/src-ui-wx/settings/XLightsConfigAdapter.h"
 
 #include <wx/confbase.h>
 #include <wx/config.h>
@@ -29,54 +31,52 @@
 
 namespace ScheduleConfig {
 
-void MirrorIntoCore()
+std::filesystem::path SettingsFile()
 {
-    // the core store has no file behind it in xSchedule, so nothing here is ever written to disk
-    auto& core = XLightsSettings::Get();
-    core.Load();
-    core.DeleteAll("main");
+    return XScheduleSettingsFolder() / "settings.json";
+}
 
-    wxConfigBase* config = wxConfigBase::Get();
-    if (config == nullptr) return;
+void Initialize()
+{
+    const auto file = SettingsFile();
+    auto& settings = XLightsSettings::Get();
+    settings.SetFilePath(file);
+    std::error_code ec;
+    const bool existed = std::filesystem::exists(file, ec) && !ec;
+    settings.Load();
+    spdlog::info("Settings file: {}", file.string());
 
-    wxString key;
-    long index = 0;
-    int count = 0;
-    for (bool more = config->GetFirstEntry(key, index); more; more = config->GetNextEntry(key, index)) {
-        const std::string k = key.ToStdString();
-        switch (config->GetEntryType(key)) {
-        case wxConfigBase::Type_Boolean:
-            core.WriteBool(k, config->ReadBool(key, false));
-            break;
-        case wxConfigBase::Type_Integer:
-            core.WriteLong(k, config->ReadLong(key, 0));
-            break;
-        case wxConfigBase::Type_Float:
-            core.WriteDouble(k, config->ReadDouble(key, 0.0));
-            break;
-        default:
-            core.WriteString(k, config->Read(key, "").ToStdString());
-            break;
+    // the registry is left as it was, so an older xSchedule still finds its settings
+    if (!existed && !settings.WasMigrated()) {
+        nlohmann::json legacy = nlohmann::json::object();
+        ImportLegacySettings("xSchedule", legacy);
+        for (const auto& [key, value] : legacy.items()) {
+            if (value.is_boolean()) settings.WriteBool(key, value.get<bool>());
+            else if (value.is_number_integer()) settings.WriteLong(key, (long)value.get<long long>());
+            else if (value.is_number()) settings.WriteDouble(key, value.get<double>());
+            else if (value.is_string()) settings.WriteString(key, value.get<std::string>());
         }
-        ++count;
+        settings.SetMigrated();
+        settings.Flush();
+        spdlog::info("Imported {} settings from the registry.", legacy.size());
     }
-    spdlog::debug("Mirrored {} settings into the xLights core.", count);
+}
+
+void Wipe()
+{
+    GetXLightsConfig()->DeleteAll();
+    GetXLightsConfig()->Flush();
 }
 
 bool GetBool(const std::string& key, bool defaultValue)
 {
-    wxConfigBase* config = wxConfigBase::Get();
-    return config != nullptr ? config->ReadBool(key, defaultValue) : defaultValue;
+    return GetXLightsConfig()->ReadBool(key, defaultValue);
 }
 
 void SetBool(const std::string& key, bool value)
 {
-    wxConfigBase* config = wxConfigBase::Get();
-    if (config != nullptr) {
-        config->Write(key, value);
-        config->Flush();
-    }
-    XLightsSettings::Get().WriteBool(key, value);
+    GetXLightsConfig()->Write(key, value);
+    GetXLightsConfig()->Flush();
 }
 
 bool IsSuppressDarkMode()
