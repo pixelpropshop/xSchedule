@@ -20,7 +20,7 @@ cl /nologo /std:c++20 /EHsc /MD /O2 /utf-8 /W3 /DNDEBUG /DUNICODE /D_UNICODE /D_
    /I..\..\xlights\include /I..\..\xlights\src-core /I..\..\xlights\src-core\utils /I..\..\xlights\src-ui-wx /I..\..\xlights\src-ui-wx\shared\utils /I..\..\xlights\common ^
    /I..\..\dependencies /I..\..\dependencies\spdlog\include ^
    /Fobuild\ /Fe:build\xScheduleTests.exe ^
-   ScheduleTests.cpp ..\Schedule.cpp ..\SchedulePreview.cpp ..\City.cpp ..\Holidays.cpp ^
+   ScheduleTests.cpp ..\Schedule.cpp ..\SchedulePreview.cpp ..\ShowBackups.cpp ..\City.cpp ..\Holidays.cpp ^
    /link /LIBPATH:%WX%\lib\vc_x64_lib /SUBSYSTEM:CONSOLE
 if errorlevel 1 exit /b 1
 

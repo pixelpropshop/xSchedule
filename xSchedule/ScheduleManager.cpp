@@ -62,6 +62,7 @@
 #include <log.h>
 #include "Diagnostics.h"
 #include "ScheduleCalendar.h"
+#include "ShowBackups.h"
 #include "../xlights/src-ui-wx/settings/XLightsConfigAdapter.h"
 
 ScheduleManager::ScheduleManager(xScheduleFrame* frame, const std::string& showDir) {
@@ -530,6 +531,11 @@ bool ScheduleManager::Save() {
     }
 
     // write a temporary file and rename it over the show file, so a failed save cannot damage it
+    std::string backupError;
+    if (!ShowBackups::Take(_showDir, GetScheduleFile(), ShowBackups::Now(), backupError)) {
+        spdlog::warn("Could not back up the show file before saving: {}", backupError);
+    }
+
     const std::string file = _showDir + "/" + GetScheduleFile();
     const std::string temp = file + ".saving";
     if (!doc.Save(temp)) {

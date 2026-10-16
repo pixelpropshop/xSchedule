@@ -108,6 +108,9 @@ class xScheduleFrame : public xlFrame {
     void LoadSchedule();
     void ApplyLogLevel();
     void RebuildPluginsMenu();
+    // loads the show folder again, as choosing it does
+    void ReloadShow();
+    void RestoreFromBackup();
     bool HandleHotkeys(wxKeyEvent& event);
     bool HandleSpecialKeys(wxKeyEvent& event);
     void AddPlayList(bool forceadvanced = false);

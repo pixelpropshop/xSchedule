@@ -25,6 +25,7 @@
 #include "../Schedule.h"
 #include "../SchedulePreview.h"
 #include "../SettingsFiles.h"
+#include "../ShowBackups.h"
 
 #include <wx/config.h>
 
@@ -739,6 +740,91 @@ void TestPluginSettings() {
     }
 }
 
+std::string ReadAll(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+void WriteAll(const std::filesystem::path& file, const std::string& content) {
+    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+    out << content;
+}
+
+std::tm At(int day, int hour, int min, int sec) {
+    std::tm t{};
+    t.tm_year = 2026 - 1900;
+    t.tm_mon = 11;
+    t.tm_mday = day;
+    t.tm_hour = hour;
+    t.tm_min = min;
+    t.tm_sec = sec;
+    return t;
+}
+
+void TestShowBackups() {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "xScheduleTestsBackups";
+    const std::string show = "xlights.xschedule";
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+    fs::create_directories(dir, ec);
+    std::string error;
+
+    CHECK(ShowBackups::NameFor(show, At(16, 14, 30, 12)) == "xlights_2026-12-16_143012.xschedule");
+    CHECK(ShowBackups::NameFor(show, At(16, 14, 30, 12), 2) == "xlights_2026-12-16_143012_2.xschedule");
+
+    // no show file yet: nothing to keep
+    CHECK(ShowBackups::Take(dir, show, At(1, 10, 0, 0), error));
+    CHECK(!fs::exists(ShowBackups::Folder(dir)));
+
+    WriteAll(dir / show, "v1");
+    CHECK(ShowBackups::Take(dir, show, At(1, 10, 0, 0), error));
+    auto list = ShowBackups::List(dir, show);
+    CHECK(list.size() == 1 && list[0].file.filename() == "xlights_2026-12-01_100000.xschedule" && ReadAll(list[0].file) == "v1");
+    CHECK(list.size() == 1 && list[0].when.tm_mday == 1 && list[0].when.tm_hour == 10 && list[0].size == 2);
+
+    // the same show again is not kept twice
+    CHECK(ShowBackups::Take(dir, show, At(1, 11, 0, 0), error));
+    CHECK(ShowBackups::List(dir, show).size() == 1);
+
+    // a change in the same second gets its own name, and lists as the newer
+    WriteAll(dir / show, "v2");
+    CHECK(ShowBackups::Take(dir, show, At(1, 10, 0, 0), error));
+    list = ShowBackups::List(dir, show);
+    CHECK(list.size() == 2 && list[0].file.filename() == "xlights_2026-12-01_100000_2.xschedule" && ReadAll(list[0].file) == "v2");
+
+    // other files in the folder are left alone and not listed
+    WriteAll(ShowBackups::Folder(dir) / "notes.txt", "keep me");
+    WriteAll(ShowBackups::Folder(dir) / "xlights_old.xschedule", "keep me");
+    CHECK(ShowBackups::List(dir, show).size() == 2);
+
+    // only the newest are kept
+    for (int i = 0; i < 60; ++i) {
+        WriteAll(dir / show, "change " + std::to_string(i));
+        CHECK(ShowBackups::Take(dir, show, At(2, 12, i / 60, i % 60), error));
+    }
+    list = ShowBackups::List(dir, show);
+    CHECK(list.size() == ShowBackups::Keep);
+    CHECK(ReadAll(list.front().file) == "change 59");
+    CHECK(ReadAll(list.back().file) == "change 10");
+    CHECK(fs::exists(ShowBackups::Folder(dir) / "notes.txt") && fs::exists(ShowBackups::Folder(dir) / "xlights_old.xschedule"));
+
+    // restoring the oldest backup: the show as it was is kept first, which pushes the oldest out
+    WriteAll(dir / show, "current");
+    const auto oldest = list.back().file;
+    CHECK(ShowBackups::Restore(dir, show, oldest, At(3, 9, 0, 0), error));
+    CHECK(ReadAll(dir / show) == "change 10");
+    list = ShowBackups::List(dir, show);
+    CHECK(list.size() == ShowBackups::Keep && ReadAll(list.front().file) == "current");
+    CHECK(!fs::exists(oldest));
+
+    // a backup that has gone is reported, and the show is left as it is
+    CHECK(!ShowBackups::Restore(dir, show, ShowBackups::Folder(dir) / "gone.xschedule", At(3, 9, 1, 0), error));
+    CHECK(!error.empty() && ReadAll(dir / show) == "change 10");
+
+    fs::remove_all(dir, ec);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -766,6 +852,7 @@ int main(int argc, char** argv) {
     TestPreviewBranches();
     TestPreviewShuffle();
     TestPluginSettings();
+    TestShowBackups();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;
