@@ -27,6 +27,7 @@
 #endif
 
 #include "RemoteFalconApp.h"
+#include "../SettingsFiles.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/common.h"
@@ -97,12 +98,18 @@ RemoteFalconApp::RemoteFalconApp() :
 {
 }
 
+PluginSettings& RemoteFalconSettings()
+{
+    static PluginSettings settings("RemoteFalcon", "RemoteFalcon");
+    return settings;
+}
+
 static void WipeSettings()
 {
     spdlog::warn("------ Wiping RemoteFalcon settings ------");
 
-    wxConfigBase* config = wxConfigBase::Get();
-    config->DeleteAll();
+    RemoteFalconSettings().DeleteAll();
+    RemoteFalconSettings().Flush();
 }
 
 static void InitialiseLogging(bool fromMain)
@@ -293,13 +300,8 @@ bool RemoteFalconApp::OnInit()
 
 #ifdef __WXMSW__
     // the plugin has its own copy of wxWidgets, so xSchedule turning dark mode on doesn't reach it
-    {
-        wxConfig config("xSchedule");
-        bool suppress = false;
-        config.Read("SuppressDarkMode", &suppress, false);
-        if (!suppress) {
-            MSWEnableDarkMode();
-        }
+    if (ReadXScheduleSetting("SuppressDarkMode", "0") != "1") {
+        MSWEnableDarkMode();
     }
 #endif
 

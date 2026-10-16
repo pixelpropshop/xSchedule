@@ -74,4 +74,10 @@ Filename: "{app}\xSchedule.exe"; Description: "Launch application"; Flags: posti
 #if Other == ""
 Root: HKCU; Subkey: "Software\xSchedule"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\xSMSDaemon"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\RemoteFalcon"; Flags: uninsdeletekey
+#endif
+
+[UninstallDelete]
+#if Other == ""
+Type: filesandordirs; Name: "{userappdata}\xSchedule"
 #endif

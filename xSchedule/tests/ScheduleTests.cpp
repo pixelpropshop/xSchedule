@@ -24,6 +24,11 @@
 #include "../Holidays.h"
 #include "../Schedule.h"
 #include "../SchedulePreview.h"
+#include "../SettingsFiles.h"
+
+#include <wx/config.h>
+
+#include <fstream>
 
 namespace {
 
@@ -668,6 +673,72 @@ void TestPreviewShuffle() {
     CHECK(late == nullptr || late->amount >= 0);
 }
 
+// a plugin's settings file: imported once from wxConfig, then the file wins; a damaged file starts empty
+void TestPluginSettings() {
+    const std::string name = "xScheduleTestsSettings";
+    const auto file = XScheduleSettingsFolder() / (name + ".json");
+    std::error_code ec;
+    std::filesystem::remove(file, ec);
+    {
+        wxConfig legacy(name);
+        legacy.DeleteAll();
+    }
+    {
+        wxConfig legacy(name);
+        legacy.Write("Long", 42L);
+        legacy.Write("Text", "hello");
+        legacy.Write("Flag", true);
+        legacy.Flush();
+    }
+    {
+        PluginSettings s(name, name);
+        CHECK(std::filesystem::exists(file, ec));
+        CHECK(s.ReadLong("Long", 0) == 42);
+        CHECK(s.Read("Text", "") == "hello");
+        CHECK(s.ReadBool("Flag", false));
+        CHECK(s.ReadLong("Missing", 7) == 7);
+        CHECK(!s.HasEntry("Missing"));
+        s.Write("Long", 43);
+        s.Write("Text", std::string("bye"));
+        s.Write("Flag", false);
+        s.Flush();
+    }
+    {
+        wxConfig legacy(name);
+        legacy.Write("Long", 99L);
+        legacy.Flush();
+    }
+    {
+        PluginSettings s(name, name);
+        CHECK(s.ReadLong("Long", 0) == 43);
+        CHECK(s.Read("Text", "") == "bye");
+        CHECK(!s.ReadBool("Flag", true));
+    }
+    {
+        std::ofstream out(file);
+        out << "{ not json";
+    }
+    {
+        PluginSettings s(name, name);
+        CHECK(s.ReadLong("Long", 5) == 5);
+        s.Write("Long", 6);
+        s.Flush();
+    }
+    {
+        PluginSettings s(name, name);
+        CHECK(s.ReadLong("Long", 0) == 6);
+        s.DeleteAll();
+        s.Flush();
+        CHECK(s.ReadLong("Long", 1) == 1);
+    }
+    CHECK(PluginSettings(name, name).ReadLong("Long", 2) == 2);
+    std::filesystem::remove(file, ec);
+    {
+        wxConfig legacy(name);
+        legacy.DeleteAll();
+    }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -694,6 +765,7 @@ int main(int argc, char** argv) {
     TestPreviewFireEvery();
     TestPreviewBranches();
     TestPreviewShuffle();
+    TestPluginSettings();
 
     std::printf("%d checks, %d failed\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

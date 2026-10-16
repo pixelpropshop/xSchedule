@@ -325,6 +325,7 @@
 		<Unit filename="Holidays.h" />
 		<Unit filename="ScheduleConfig.cpp" />
 		<Unit filename="ScheduleConfig.h" />
+		<Unit filename="SettingsFiles.h" />
 		<Unit filename="OSCPacket.cpp" />
 		<Unit filename="OSCPacket.h" />
 		<Unit filename="OptionsDialog.cpp" />

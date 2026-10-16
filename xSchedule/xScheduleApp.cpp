@@ -32,6 +32,7 @@
 #include "xScheduleVersion.h"
 #include "../xlights/src-core/utils/UtilFunctions.h"
 #include "ScheduleConfig.h"
+#include "../xlights/src-core/settings/XLightsSettings.h"
 #include "ModernUI.h"
 #include <wx/dialog.h>
 #include "../xlights/src-ui-wx/shared/utils/wxUtilities.h"
@@ -271,9 +272,7 @@ void xScheduleApp::WipeSettings()
 {
     spdlog::info("Wiping settings.");
 
-    wxConfigBase* config = wxConfigBase::Get();
-    config->DeleteAll();
-    ScheduleConfig::MirrorIntoCore();
+    ScheduleConfig::Wipe();
 }
 
 int xScheduleApp::OnExit()
@@ -283,6 +282,7 @@ int xScheduleApp::OnExit()
         _checker = nullptr;
     }
     spdlog::info("xSchedule exiting.");
+    XLightsSettings::Get().Flush();
     Diagnostics::StopWatchdog();
     if (__logSink != nullptr) {
         __logSink->Stop();
@@ -364,7 +364,7 @@ bool xScheduleApp::OnInit()
     // the core finds the controller definitions here
     spdlog::info("Resources folder: {}", GetResourcesDirectory());
 
-    ScheduleConfig::MirrorIntoCore();
+    ScheduleConfig::Initialize();
 
 #ifdef __WXMSW__
     spdlog::debug("xSchedule module handle {:#x}", reinterpret_cast<uintptr_t>(::GetModuleHandle(nullptr)));
