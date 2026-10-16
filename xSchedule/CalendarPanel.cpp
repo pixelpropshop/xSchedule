@@ -28,8 +28,10 @@
 #include <wx/sizer.h>
 #include <wx/simplebook.h>
 #include <wx/stattext.h>
+#include <wx/wrapsizer.h>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <memory>
 
@@ -144,6 +146,66 @@ wxString StateText(const ScheduleCalendar::Detail& d, const ScheduleCalendar::Se
     if (g.state == ScheduleCalendar::State::Done) return "Playlist finished";
     wxString by = g.by >= 0 ? wxString(d.windows[g.by].schedule->GetName()) : wxString();
     return (g.state == ScheduleCalendar::State::Hidden ? "Waiting: " : "Clash with ") + by;
+}
+
+int MinuteOf(long long ms)
+{
+    return (int)std::floor(ms / 60000.0);
+}
+
+wxString FindingText(const SchedulePreview::Finding& f, const ScheduleCalendar::Preview& p)
+{
+    using SchedulePreview::Kind;
+    wxString name = f.window >= 0 ? wxString::FromUTF8(p.windows[f.window].name) : wxString("The show");
+    wxString amount = SchedulePreview::Duration(f.amount);
+    switch (f.kind) {
+    case Kind::RunsLate:
+        return name + (f.upTo ? " can run up to " : " runs ") + amount + " past " + ScheduleCalendar::FormatMinutes(MinuteOf(f.at));
+    case Kind::StartsLate:
+        return name + " starts " + amount + " late";
+    case Kind::CutOff:
+        return name + " cuts a step at " + ScheduleCalendar::FormatMinutes(MinuteOf(f.at));
+    case Kind::GoesDark:
+        return "Nothing plays " + ScheduleCalendar::FormatRange(MinuteOf(f.at), MinuteOf(f.at + f.amount));
+    }
+    return "";
+}
+
+wxString KindName(SchedulePreview::Kind kind)
+{
+    switch (kind) {
+    case SchedulePreview::Kind::RunsLate: return "Runs late";
+    case SchedulePreview::Kind::StartsLate: return "Starts late";
+    case SchedulePreview::Kind::CutOff: return "Cut off";
+    case SchedulePreview::Kind::GoesDark: return "Goes dark";
+    }
+    return "";
+}
+
+wxColour FindingColor(SchedulePreview::Kind kind)
+{
+    const auto& t = ModernUI::GetTheme();
+    return kind == SchedulePreview::Kind::CutOff || kind == SchedulePreview::Kind::GoesDark ? t.badText : t.waitText;
+}
+
+// where a finding shows on the timeline: the moment it is seen on the lights
+long long FindingTime(const SchedulePreview::Finding& f, const ScheduleCalendar::Preview& p)
+{
+    if (f.play >= 0 && f.kind == SchedulePreview::Kind::RunsLate) return p.plan.plays[f.play].end;
+    if (f.play >= 0 && f.kind == SchedulePreview::Kind::StartsLate) return p.plan.plays[f.play].start;
+    return f.at;
+}
+
+void Marker(wxGraphicsContext* gc, const wxColour& color, double x, double y, double size)
+{
+    wxGraphicsPath path = gc->CreatePath();
+    path.MoveToPoint(x - size, y);
+    path.AddLineToPoint(x + size, y);
+    path.AddLineToPoint(x, y + size * 1.4);
+    path.CloseSubpath();
+    gc->SetPen(*wxTRANSPARENT_PEN);
+    gc->SetBrush(wxBrush(color));
+    gc->FillPath(path);
 }
 
 } // namespace
@@ -355,14 +417,20 @@ private:
 // the chosen night as a strip: what is on the lights, then a row per schedule
 class CalendarDay : public wxWindow {
 public:
-    CalendarDay(wxWindow* parent, CalendarPanel::EditSchedule edit, std::function<void(const wxDateTime&)> menu) :
-        wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS | wxFULL_REPAINT_ON_RESIZE), _edit(edit) {
+    CalendarDay(wxWindow* parent, CalendarPanel::EditSchedule edit, std::function<void(const wxDateTime&)> menu, std::function<void(int)> finding) :
+        wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxWANTS_CHARS | wxFULL_REPAINT_ON_RESIZE), _edit(edit), _finding(finding) {
         SetName("Calendar night");
         Bind(wxEVT_RIGHT_UP, [this, menu](wxMouseEvent&) {
             if (_has) menu(_detail.night.date);
         });
         Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent& e) {
             SetFocus();
+            for (const auto& c : _chips) {
+                if (c.first.Contains(e.GetPosition())) {
+                    _finding(c.second);
+                    return;
+                }
+            }
             e.Skip();
         });
         SetBackgroundColour(ModernUI::GetTheme().panel);
@@ -373,16 +441,32 @@ public:
         Bind(wxEVT_MOTION, &CalendarDay::OnMotion, this);
     }
 
-    void Set(const ScheduleCalendar::Detail& detail) {
+    void Set(const ScheduleCalendar::Detail& detail, const ScheduleCalendar::Preview& preview) {
         _detail = detail;
+        _preview = preview;
         _has = true;
         Refresh();
     }
 
     void Clear() {
         _detail = ScheduleCalendar::Detail();
+        _preview = ScheduleCalendar::Preview();
         _has = false;
         Refresh();
+    }
+
+    // just the night's title and findings, above the play-by-play list
+    void SetHeaderOnly(bool headerOnly) {
+        _headerOnly = headerOnly;
+        Refresh();
+    }
+
+    int HeaderHeight(int width) {
+        wxClientDC dc(this);
+        dc.SetFont(GetFont());
+        std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+        if (!gc || !_has) return FromDIP(40);
+        return (int)std::ceil(PaintHeader(gc.get(), dc, width));
     }
 
 private:
@@ -391,6 +475,63 @@ private:
         Schedule* schedule = nullptr;
         wxString tip;
     };
+
+    // the title row and the night's findings; returns where the timeline starts
+    double PaintHeader(wxGraphicsContext* gc, wxDC& dc, double width) {
+        const auto& t = ModernUI::GetTheme();
+        const auto& d = _detail;
+        wxFont base = GetFont();
+        wxFont title = base.Scaled(1.15f).Bold();
+        wxFont smallFont = base.Scaled(0.88f);
+        wxFont smallBold = smallFont.Bold();
+        const wxSize size((int)width, 0);
+        _chips.clear();
+
+        double y = FromDIP(8);
+        wxString heading = LongDate(d.night.date);
+        Text(gc, dc, title, t.text, heading, 0, y, size.x);
+        double hx = TextWidth(gc, title, heading) + FromDIP(10);
+        double titleH = TextHeight(gc, title);
+        if (!d.night.holiday.empty()) {
+            double pw = TextWidth(gc, smallBold, d.night.holiday) + FromDIP(16);
+            double ph = TextHeight(gc, smallBold) + FromDIP(4);
+            Fill(gc, t.waitBg, *wxTRANSPARENT_PEN, hx, y + (titleH - ph) / 2, pw, ph, ph / 2);
+            Text(gc, dc, smallBold, t.waitText, d.night.holiday, hx + FromDIP(8), y + (titleH - ph) / 2 + FromDIP(2), pw);
+            hx += pw + FromDIP(10);
+        }
+        wxString sun = "Sunset " + ScheduleCalendar::FormatMinutes(d.night.sunset) + wxString::FromUTF8("  \xC2\xB7  Dusk ") + ScheduleCalendar::FormatMinutes(d.night.dusk);
+        Text(gc, dc, base, t.muted, sun, hx, y + (titleH - TextHeight(gc, base)) / 2, size.x - hx);
+        wxString hint = _headerOnly ? "Click a finding to find its step" : "Double-click a bar to edit its schedule";
+        double hintW = TextWidth(gc, smallFont, hint);
+        if (hx + TextWidth(gc, base, sun) + hintW + FromDIP(30) < size.x) {
+            Text(gc, dc, smallFont, t.muted, hint, size.x - hintW - FromDIP(4), y + (titleH - TextHeight(gc, smallFont)) / 2, hintW + 2);
+        }
+        y += titleH + FromDIP(12);
+
+        // the findings, as chips that wrap
+        const double chipH = TextHeight(gc, smallFont) + FromDIP(8);
+        double cx = 0;
+        bool any = false;
+        for (int i = 0; i < (int)_preview.plan.findings.size(); ++i) {
+            const auto& f = _preview.plan.findings[i];
+            long long when = FindingTime(f, _preview);
+            if (when < d.axisStart * 60000LL || when > d.axisEnd * 60000LL) continue;
+            wxString text = FindingText(f, _preview);
+            double cw = TextWidth(gc, smallFont, text) + FromDIP(30);
+            if (cx > 0 && cx + cw > size.x) {
+                cx = 0;
+                y += chipH + FromDIP(6);
+            }
+            Fill(gc, t.panel, wxPen(t.line), cx + 0.5, y + 0.5, cw - 1, chipH - 1, chipH / 2);
+            Marker(gc, FindingColor(f.kind), cx + FromDIP(12), y + chipH / 2 - FromDIP(3), FromDIP(4));
+            Text(gc, dc, smallFont, t.text, text, cx + FromDIP(21), y + FromDIP(4), cw - FromDIP(24));
+            _chips.push_back({ wxRect((int)cx, (int)y, (int)cw, (int)chipH), i });
+            cx += cw + FromDIP(6);
+            any = true;
+        }
+        if (any) y += chipH + FromDIP(10);
+        return y;
+    }
 
     void OnPaint(wxPaintEvent&) {
         wxAutoBufferedPaintDC dc(this);
@@ -404,7 +545,6 @@ private:
         const auto& d = _detail;
         wxFont base = GetFont();
         wxFont bold = base.Bold();
-        wxFont title = base.Scaled(1.15f).Bold();
         wxFont smallFont = base.Scaled(0.88f);
         wxFont smallBold = smallFont.Bold();
         const wxSize size = GetClientSize();
@@ -413,27 +553,10 @@ private:
         const double trackW = std::max(10.0, size.x - x0 - FromDIP(4));
         const double span = std::max(1, d.axisEnd - d.axisStart);
         auto X = [&](int m) { return x0 + trackW * std::clamp((m - d.axisStart) / span, 0.0, 1.0); };
+        auto XMS = [&](long long ms) { return x0 + trackW * std::clamp((ms / 60000.0 - d.axisStart) / span, 0.0, 1.0); };
 
-        double y = FromDIP(8);
-        wxString heading = LongDate(d.night.date);
-        Text(gc.get(), dc, title, t.text, heading, 0, y, size.x);
-        double hx = TextWidth(gc.get(), title, heading) + FromDIP(10);
-        double titleH = TextHeight(gc.get(), title);
-        if (!d.night.holiday.empty()) {
-            double pw = TextWidth(gc.get(), smallBold, d.night.holiday) + FromDIP(16);
-            double ph = TextHeight(gc.get(), smallBold) + FromDIP(4);
-            Fill(gc.get(), t.waitBg, *wxTRANSPARENT_PEN, hx, y + (titleH - ph) / 2, pw, ph, ph / 2);
-            Text(gc.get(), dc, smallBold, t.waitText, d.night.holiday, hx + FromDIP(8), y + (titleH - ph) / 2 + FromDIP(2), pw);
-            hx += pw + FromDIP(10);
-        }
-        wxString sun = "Sunset " + ScheduleCalendar::FormatMinutes(d.night.sunset) + wxString::FromUTF8("  \xC2\xB7  Dusk ") + ScheduleCalendar::FormatMinutes(d.night.dusk);
-        Text(gc.get(), dc, base, t.muted, sun, hx, y + (titleH - TextHeight(gc.get(), base)) / 2, size.x - hx);
-        wxString hint = "Double-click a bar to edit its schedule";
-        double hintW = TextWidth(gc.get(), smallFont, hint);
-        if (hx + TextWidth(gc.get(), base, sun) + hintW + FromDIP(30) < size.x) {
-            Text(gc.get(), dc, smallFont, t.muted, hint, size.x - hintW - FromDIP(4), y + (titleH - TextHeight(gc.get(), smallFont)) / 2, hintW + 2);
-        }
-        y += titleH + FromDIP(12);
+        double y = PaintHeader(gc.get(), dc, size.x);
+        if (_headerOnly) return;
 
         if (d.windows.empty()) {
             Text(gc.get(), dc, base, t.muted, "Nothing is scheduled this night.", 0, y, size.x);
@@ -474,6 +597,43 @@ private:
             }
         }
         y += rowH + FromDIP(6);
+
+        // every step that plays, in its schedule's color, with the findings marked above
+        const auto& plays = _preview.plan.plays;
+        if (!plays.empty()) {
+            y += FromDIP(4);
+            Text(gc.get(), dc, bold, t.text, "Songs", 0, y + (barH - TextHeight(gc.get(), bold)) / 2, labelW);
+            wxString count = wxString::Format("%d steps", (int)plays.size());
+            double countW = TextWidth(gc.get(), smallFont, count);
+            Text(gc.get(), dc, smallFont, t.muted, count, labelW - countW, y + (barH - smallH) / 2, countW + 2);
+            Fill(gc.get(), t.track, *wxTRANSPARENT_PEN, x0, y, trackW, barH, FromDIP(4));
+            std::vector<int> shade(d.windows.size(), 0);
+            for (const auto& p : plays) {
+                if (p.window < 0 || p.end <= p.start) continue;
+                int dwi = _preview.detailWindow[p.window];
+                const auto& w = d.windows[dwi];
+                Colors col = PaletteFor(w);
+                double sx = XMS(p.start);
+                double ex = XMS(p.end);
+                if (ex - sx < 1) ex = sx + 1;
+                wxColour fill = shade[dwi]++ % 2 == 0 ? col.bar : Mix(col.bar, t.panel, 0.35);
+                if (p.called) Fill(gc.get(), col.soft, wxPen(col.bar), sx, y + 0.5, ex - sx, barH - 1, 0);
+                else Fill(gc.get(), fill, *wxTRANSPARENT_PEN, sx, y, ex - sx, barH, 0);
+                wxString tip = wxString::FromUTF8(p.step) + "\n" + w.schedule->GetName() + (p.called ? ", playlist " + wxString::FromUTF8(_preview.playlists[p.playlist]) : wxString()) + "\n" +
+                               ScheduleCalendar::FormatTime(p.start) + " - " + ScheduleCalendar::FormatTime(p.end) + " (" + SchedulePreview::Duration(p.end - p.start) + ")" +
+                               (p.note.empty() ? wxString() : "\n" + wxString::FromUTF8(p.note)) + (p.estimated ? "\nShuffled: one possible order" : "");
+                _hits.push_back({ wxRect((int)sx, (int)y, std::max(1, (int)(ex - sx)), (int)barH), w.schedule, tip });
+            }
+            for (const auto& f : _preview.plan.findings) {
+                long long when = FindingTime(f, _preview);
+                if (when < d.axisStart * 60000LL || when > d.axisEnd * 60000LL) continue;
+                double mx = XMS(when);
+                Marker(gc.get(), FindingColor(f.kind), mx, y - FromDIP(7), FromDIP(4));
+                Schedule* s = f.window >= 0 ? d.windows[_preview.detailWindow[f.window]].schedule : nullptr;
+                _hits.push_back({ wxRect((int)mx - FromDIP(5), (int)y - FromDIP(8), FromDIP(10), FromDIP(8)), s, FindingText(f, _preview) });
+            }
+            y += rowH + FromDIP(8);
+        }
 
         const double legendH = TextHeight(gc.get(), smallFont) + FromDIP(10);
         int shownLanes = 0;
@@ -542,11 +702,17 @@ private:
         key("Waits for a higher priority", [&](double kx, double ky) { Hatch(gc.get(), grey.soft, kx, ky + FromDIP(2), FromDIP(22), kh, FromDIP(5)); });
         key("Same priority: a clash to fix", [&](double kx, double ky) { Fill(gc.get(), wxNullColour, wxPen(t.badText, FromDIP(2)), kx + 1, ky + FromDIP(3), FromDIP(20), kh - 2, FromDIP(2)); });
         key("Skipped, inactive or finished", [&](double kx, double ky) { Fill(gc.get(), wxNullColour, wxPen(t.muted, 1, wxPENSTYLE_SHORT_DASH), kx, ky + FromDIP(2), FromDIP(22), kh, FromDIP(2)); });
+        if (!plays.empty()) {
+            key("Song timing", [&](double kx, double ky) {
+                Marker(gc.get(), t.waitText, kx + FromDIP(5), ky + FromDIP(2), FromDIP(5));
+                Marker(gc.get(), t.badText, kx + FromDIP(17), ky + FromDIP(2), FromDIP(5));
+            });
+        }
     }
 
     void OnDoubleClick(wxMouseEvent& event) {
         for (const auto& h : _hits) {
-            if (h.rect.Contains(event.GetPosition())) {
+            if (h.rect.Contains(event.GetPosition()) && h.schedule != nullptr) {
                 _edit(h.schedule);
                 return;
             }
@@ -558,6 +724,9 @@ private:
         for (const auto& h : _hits) {
             if (h.rect.Contains(event.GetPosition())) tip = h.tip;
         }
+        for (const auto& c : _chips) {
+            if (c.first.Contains(event.GetPosition())) tip = "Show this in the play-by-play";
+        }
         if (tip != _tip) {
             _tip = tip;
             if (tip.empty()) UnsetToolTip(); else SetToolTip(tip);
@@ -565,7 +734,11 @@ private:
     }
 
     CalendarPanel::EditSchedule _edit;
+    std::function<void(int)> _finding;
     ScheduleCalendar::Detail _detail;
+    ScheduleCalendar::Preview _preview;
+    std::vector<std::pair<wxRect, int>> _chips;
+    bool _headerOnly = false;
     bool _has = false;
     std::vector<Hit> _hits;
     wxString _tip;
@@ -602,7 +775,7 @@ public:
         _list->AppendColumn("When");
         _list->AppendColumn("Details");
         top->Add(_list, 1, wxLEFT | wxRIGHT | wxEXPAND, FromDIP(12));
-        top->Add(new wxStaticText(this, wxID_ANY, "Double-click a clash or a skipped night to edit its schedule."), 0, wxALL, FromDIP(12));
+        top->Add(new wxStaticText(this, wxID_ANY, "Double-click a clash or a skipped night to edit its schedule, or a song timing finding to see its worst night."), 0, wxALL, FromDIP(12));
         top->Add(CreateButtonSizer(wxCLOSE), 0, wxALL | wxEXPAND, FromDIP(8));
         SetSizerAndFit(top);
         SetEscapeId(wxID_CLOSE);
@@ -610,10 +783,19 @@ public:
         check->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { Check(); });
         _list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](wxListEvent& e) {
             long i = e.GetIndex();
-            if (i >= 0 && i < (long)_rowSchedules.size() && _rowSchedules[i] != nullptr) _edit(_rowSchedules[i]);
+            if (i < 0 || i >= (long)_rowSchedules.size()) return;
+            if (_rowNights[i].IsValid()) {
+                _chosen = _rowNights[i];
+                EndModal(wxID_OK);
+            } else if (_rowSchedules[i] != nullptr) {
+                _edit(_rowSchedules[i]);
+            }
         });
         Check();
     }
+
+    // the night to open after a song timing finding was double-clicked
+    wxDateTime Chosen() const { return _chosen; }
 
 private:
     void Check() {
@@ -625,15 +807,18 @@ private:
 
         _list->DeleteAllItems();
         _rowSchedules.clear();
+        _rowNights.clear();
         const auto& t = ModernUI::GetTheme();
         int empty = 0;
         int clashes = 0;
-        auto add = [this, &t](const wxString& finding, const wxString& when, const wxString& details, Schedule* s, bool bad) {
+        auto add = [this, &t](const wxString& finding, const wxString& when, const wxString& details, Schedule* s, bool bad, const wxDateTime& night = wxDateTime(), const wxColour& color = wxNullColour) {
             long i = _list->InsertItem(_list->GetItemCount(), finding);
             _list->SetItem(i, 1, when);
             _list->SetItem(i, 2, details);
             if (bad) _list->SetItemTextColour(i, t.badText);
+            else if (color.IsOk()) _list->SetItemTextColour(i, color);
             _rowSchedules.push_back(s);
+            _rowNights.push_back(night);
         };
         for (size_t i = 0; i < _nights.size();) {
             bool none = std::none_of(_nights[i].windows.begin(), _nights[i].windows.end(), [](const auto& w) { return w.Competes(); });
@@ -663,11 +848,67 @@ private:
                 if (w.skipped) add("Skipped", ShortDate(n.date), w.schedule->GetName() + " skips this night (skip date).", w.schedule, false);
             }
         }
+        int timing = SongTiming(add);
         if (_list->GetItemCount() == 0) add("All good", "", "A show every night, and no clashes.", nullptr, false);
         for (int c = 0; c < 3; ++c) _list->SetColumnWidth(c, wxLIST_AUTOSIZE);
-        _summary->SetLabel(wxString::Format("%d nights checked: %d without a show, %d %s.", (int)_nights.size(), empty, clashes, clashes == 1 ? "clash" : "clashes"));
+        wxString summary = wxString::Format("%d nights checked: %d without a show, %d %s.", (int)_nights.size(), empty, clashes, clashes == 1 ? "clash" : "clashes");
+        if (timing > 0) summary += wxString::Format(" Song timing findings on %d %s.", timing, timing == 1 ? "night" : "nights");
+        _summary->SetLabel(summary);
         _strip->Refresh();
         Layout();
+    }
+
+    // plays every night out step by step; a finding that repeats becomes one row with its worst night. Returns the
+    // number of nights with a finding.
+    template <typename Add>
+    int SongTiming(Add& add) {
+        wxBusyCursor busy;
+        struct Group {
+            SchedulePreview::Kind kind;
+            Schedule* schedule = nullptr;
+            int nights = 0;
+            int lastNight = -1;
+            wxDateTime first;
+            wxDateTime last;
+            wxDateTime worstNight;
+            long long worst = -1;
+            wxString text;
+        };
+        std::vector<Group> groups;
+        _timing.assign(_nights.size(), false);
+        for (size_t n = 0; n < _nights.size(); ++n) {
+            auto d = ScheduleCalendar::DetailOf(*_manager, _nights[n].date, false);
+            auto p = ScheduleCalendar::PreviewOf(*_manager, d);
+            for (const auto& f : p.plan.findings) {
+                if (f.window < 0) continue;
+                const auto& w = d.windows[p.detailWindow[f.window]];
+                // the nights either side are checked on their own
+                if (DayNumber(w.night) != DayNumber(_nights[n].date)) continue;
+                _timing[n] = true;
+                auto g = std::find_if(groups.begin(), groups.end(), [&](const Group& x) { return x.kind == f.kind && x.schedule == w.schedule; });
+                if (g == groups.end()) {
+                    groups.push_back({ f.kind, w.schedule });
+                    g = groups.end() - 1;
+                    g->first = _nights[n].date;
+                }
+                if (g->lastNight != (int)n) {
+                    ++g->nights;
+                    g->lastNight = (int)n;
+                }
+                g->last = _nights[n].date;
+                if (f.amount > g->worst) {
+                    g->worst = f.amount;
+                    g->worstNight = _nights[n].date;
+                    g->text = FindingText(f, p);
+                }
+            }
+        }
+        for (const auto& g : groups) {
+            wxString when = g.nights == 1 ? ShortDate(g.first) : wxString::Format("%d nights, ", g.nights) + ShortDate(g.first) + " - " + ShortDate(g.last);
+            wxString details = g.text + (g.nights > 1 ? " (worst " + ShortDate(g.worstNight) + ")" : wxString());
+            add(KindName(g.kind), when, details, g.schedule, false, g.worstNight, FindingColor(g.kind));
+        }
+        return (int)std::count(_timing.begin(), _timing.end(), true);
     }
 
     void OnPaintStrip(wxPaintEvent&) {
@@ -688,6 +929,7 @@ private:
             if (none) Fill(gc.get(), t.badText, *wxTRANSPARENT_PEN, x, 0, w, size.y, FromDIP(2));
             else if (clash) Fill(gc.get(), wxNullColour, wxPen(t.badText, FromDIP(2)), x + 1, 1, w - 2, size.y - 2, FromDIP(2));
             else Fill(gc.get(), n.holiday.empty() ? t.accent : t.waitText, *wxTRANSPARENT_PEN, x, 0, w, size.y, FromDIP(2));
+            if (i < _timing.size() && _timing[i]) Fill(gc.get(), ModernUI::GetTheme().dark ? wxColour("#f2b84b") : wxColour("#d18b00"), *wxTRANSPARENT_PEN, x, size.y - FromDIP(6), w, FromDIP(6), 0);
         }
     }
 
@@ -700,6 +942,9 @@ private:
     wxListView* _list = nullptr;
     std::vector<ScheduleCalendar::Night> _nights;
     std::vector<Schedule*> _rowSchedules;
+    std::vector<wxDateTime> _rowNights;
+    std::vector<bool> _timing;
+    wxDateTime _chosen;
 };
 
 CalendarPanel::CalendarPanel(wxWindow* parent, EditSchedule edit, AddSchedule add) :
@@ -723,7 +968,6 @@ CalendarPanel::CalendarPanel(wxWindow* parent, EditSchedule edit, AddSchedule ad
         return b;
     };
     auto* top = new wxBoxSizer(wxVERTICAL);
-    auto* bar = new wxBoxSizer(wxHORIZONTAL);
     _back = text("Back to month", "Back to the month (Esc)");
     _prev = icon(ModernUI::Glyph::ChevronLeft, "Previous", "Previous month (Page Up)");
     _next = icon(ModernUI::Glyph::ChevronRight, "Next", "Next month (Page Down)");
@@ -734,24 +978,48 @@ CalendarPanel::CalendarPanel(wxWindow* parent, EditSchedule edit, AddSchedule ad
     auto* today = text("Today", "Go to today (Home)");
     _inactiveBox = new wxCheckBox(this, wxID_ANY, "Show inactive");
     _inactiveBox->SetForegroundColour(t.text);
-    auto* season = text("Check season...", "Nights with no show, clashes and skipped nights");
-    bar->Add(_back, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(10));
-    bar->Add(_prev, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
-    bar->Add(_next, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(10));
-    bar->Add(_title, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
-    bar->Add(today, 0, wxALIGN_CENTER_VERTICAL);
-    bar->AddStretchSpacer();
-    bar->Add(_inactiveBox, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
-    bar->Add(season, 0, wxALIGN_CENTER_VERTICAL);
-    top->Add(bar, 0, wxEXPAND | wxALL, FromDIP(8));
+    auto* season = text("Check season...", "Nights with no show, clashes, skipped nights and song timing");
+    _timelineButton = text("Timeline", "The night as a timeline");
+    _listButton = text("Play-by-play", "Every step the night plays, with its times");
+    auto* left = new wxBoxSizer(wxHORIZONTAL);
+    left->Add(_back, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(10));
+    left->Add(_prev, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
+    left->Add(_next, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(10));
+    left->Add(_title, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
+    left->Add(today, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(16));
+    auto* right = new wxBoxSizer(wxHORIZONTAL);
+    right->AddStretchSpacer();
+    right->Add(_timelineButton, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
+    right->Add(_listButton, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(16));
+    right->Add(_inactiveBox, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(12));
+    right->Add(season, 0, wxALIGN_CENTER_VERTICAL);
+    // in a narrow window the right-hand buttons move to a second line, still on the right
+    auto* bar = new wxWrapSizer(wxHORIZONTAL, wxEXTEND_LAST_ON_EACH_LINE);
+    bar->Add(left, 0, wxALIGN_CENTER_VERTICAL | wxBOTTOM, FromDIP(8));
+    bar->Add(right, 0, wxALIGN_CENTER_VERTICAL | wxBOTTOM, FromDIP(8));
+    top->Add(bar, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(8));
 
     // the month uses the whole tab; a night opens in its place
     _book = new wxSimplebook(this, wxID_ANY);
     auto menu = [this](const wxDateTime& d) { NightMenu(d); };
     _monthView = new CalendarMonth(_book, [this](const wxDateTime& d) { Select(d); }, [this](const wxDateTime& d) { Select(d); ShowNight(true); }, _edit, menu);
-    _dayView = new CalendarDay(_book, _edit, menu);
+    _nightPage = new wxPanel(_book);
+    _nightPage->SetBackgroundColour(t.panel);
+    _dayView = new CalendarDay(_nightPage, _edit, menu, [this](int f) { ShowFinding(f); });
+    _list = new wxListView(_nightPage, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_NO_SORT_HEADER);
+    _list->SetName("Play-by-play");
+    for (const char* c : { "Starts", "Ends", "Schedule", "Step", "Length", "Why" }) _list->AppendColumn(c);
+    _footer = new wxStaticText(_nightPage, wxID_ANY, "");
+    _footer->SetForegroundColour(t.muted);
+    auto* night = new wxBoxSizer(wxVERTICAL);
+    night->Add(_dayView, 1, wxEXPAND);
+    night->Add(_list, 1, wxEXPAND);
+    night->Add(_footer, 0, wxEXPAND | wxTOP, FromDIP(6));
+    _nightPage->SetSizer(night);
+    _list->Hide();
+    _footer->Hide();
     _book->AddPage(_monthView, "Month");
-    _book->AddPage(_dayView, "Night");
+    _book->AddPage(_nightPage, "Night");
     top->Add(_book, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
     SetSizer(top);
 
@@ -764,6 +1032,18 @@ CalendarPanel::CalendarPanel(wxWindow* parent, EditSchedule edit, AddSchedule ad
             if (!Keyboard(e)) e.Skip();
         });
     }
+    _timelineButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { SetPlayByPlay(false); });
+    _listButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { SetPlayByPlay(true); });
+    _list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](wxListEvent& e) { ActivateRow(e.GetIndex()); });
+    _list->Bind(wxEVT_KEY_DOWN, [this](wxKeyEvent& e) {
+        if (e.GetKeyCode() == WXK_ESCAPE) ShowNight(false);
+        else e.Skip();
+    });
+    _nightPage->Bind(wxEVT_SIZE, [this](wxSizeEvent& e) {
+        e.Skip();
+        if (_playByPlay) CallAfter([this]() { FitHeader(); });
+    });
+    SetPlayByPlay(false);
     ShowNight(false);
     _inactiveBox->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent& e) { _inactive = e.IsChecked(); RefreshFrom(_manager); });
     season->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
@@ -781,6 +1061,11 @@ CalendarPanel::CalendarPanel(wxWindow* parent, EditSchedule edit, AddSchedule ad
         }
         SeasonCheckDialog dlg(this, _manager, from, to, _edit);
         dlg.ShowModal();
+        if (dlg.Chosen().IsValid()) {
+            Select(dlg.Chosen());
+            ShowNight(true);
+            SetPlayByPlay(true);
+        }
     });
     Bind(wxEVT_TIMER, &CalendarPanel::OnClock, this);
     _clock.Start(30000);
@@ -798,11 +1083,13 @@ void CalendarPanel::ShowNight(bool night)
     _night = night;
     _book->ChangeSelection(night ? 1 : 0);
     _back->Show(night);
+    _timelineButton->Show(night);
+    _listButton->Show(night);
     _prev->SetToolTip(night ? "Previous night (Left)" : "Previous month (Page Up)");
     _next->SetToolTip(night ? "Next night (Right)" : "Next month (Page Down)");
     Layout();
     Refresh(); // the hidden Back button's area is left unpainted otherwise
-    if (IsShownOnScreen()) (night ? (wxWindow*)_dayView : (wxWindow*)_monthView)->SetFocus();
+    if (IsShownOnScreen()) (night ? (_playByPlay ? (wxWindow*)_list : (wxWindow*)_dayView) : (wxWindow*)_monthView)->SetFocus();
 }
 
 // arrows move between nights, Enter opens one and Esc goes back, Page Up and Down change month, Home is today
@@ -889,6 +1176,10 @@ void CalendarPanel::Forget()
     _signature.clear();
     _monthView->Set({}, _month, _selected);
     _dayView->Clear();
+    _detail = ScheduleCalendar::Detail();
+    _preview = ScheduleCalendar::Preview();
+    _rows.clear();
+    _list->DeleteAllItems();
 }
 
 std::string CalendarPanel::Signature() const
@@ -900,7 +1191,9 @@ std::string CalendarPanel::Signature() const
     Schedule::GetLocation(latitude, longitude);
     sig += std::to_string(latitude) + "," + std::to_string(longitude) + "|";
     for (const auto& pl : _manager->GetPlayLists()) {
-        sig += std::to_string(pl->GetId()) + ":";
+        // step edits change the play-by-play
+        sig += std::to_string(pl->GetId()) + "/" + std::to_string(pl->GetChangeCount()) + "/" + std::to_string(pl->GetStepCount()) + "/" + std::to_string(pl->GetLengthMS()) +
+               (pl->GetFirstOnce() ? "f" : "") + (pl->GetLastOnce() ? "l" : "") + (pl->GetShuffle() ? "s" : "") + ":";
         for (const auto& s : pl->GetSchedules()) {
             sig += std::to_string(s->GetId()) + "." + std::to_string(s->GetChangeCount()) + (s->GetEnabled() ? "e" : "d") + ",";
         }
@@ -928,8 +1221,201 @@ void CalendarPanel::Recompute()
     wxDateTime last = _month + wxDateSpan::Month() - wxDateSpan::Day();
     wxDateTime end = last + wxDateSpan::Days(6 - ((int)last.GetWeekDay() - fw + 7) % 7);
     _monthView->Set(ScheduleCalendar::Nights(*_manager, start, end, _inactive), _month, _selected);
-    _dayView->Set(ScheduleCalendar::DetailOf(*_manager, _selected, _inactive));
+    _detail = ScheduleCalendar::DetailOf(*_manager, _selected, _inactive);
+    _preview = ScheduleCalendar::PreviewOf(*_manager, _detail);
+    // stretch the timeline to show a show running on past its end, within reason
+    long long showEnd = 0;
+    for (const auto& p : _preview.plan.plays) {
+        if (p.window < 0) continue;
+        if (DayNumber(_detail.windows[_preview.detailWindow[p.window]].night) <= DayNumber(_detail.night.date)) showEnd = std::max(showEnd, p.end);
+    }
+    int lastMinute = (int)std::ceil(showEnd / 3600000.0) * 60;
+    _detail.axisEnd = std::min(std::max(_detail.axisEnd, lastMinute), _detail.axisEnd + 120);
+    if (!_unfoldedNight.IsValid() || DayNumber(_unfoldedNight) != DayNumber(_selected)) {
+        _unfolded.clear();
+        _unfoldedNight = _selected;
+    }
+    _dayView->Set(_detail, _preview);
+    if (_playByPlay) {
+        FillList();
+        FitHeader();
+    }
     Layout();
+}
+
+void CalendarPanel::SetPlayByPlay(bool list)
+{
+    _playByPlay = list;
+    const auto& t = ModernUI::GetTheme();
+    _timelineButton->SetBitmap(ModernUI::MakeTextButton(this, "Timeline", !list, 30, &t.panel));
+    _listButton->SetBitmap(ModernUI::MakeTextButton(this, "Play-by-play", list, 30, &t.panel));
+    _dayView->SetHeaderOnly(list);
+    _list->Show(list);
+    _footer->Show(list);
+    _nightPage->GetSizer()->GetItem(_dayView)->SetProportion(list ? 0 : 1);
+    _dayView->SetMinSize(list ? wxSize(-1, _dayView->HeaderHeight(_nightPage->GetClientSize().x)) : FromDIP(wxSize(500, 150)));
+    if (list) FillList();
+    Layout();
+    _nightPage->Layout();
+    if (_night && IsShownOnScreen()) (list ? (wxWindow*)_list : (wxWindow*)_dayView)->SetFocus();
+}
+
+// the header's findings wrap, so its height follows the width
+void CalendarPanel::FitHeader()
+{
+    if (!_playByPlay) return;
+    int h = _dayView->HeaderHeight(_nightPage->GetClientSize().x);
+    if (_dayView->GetMinSize().y != h) {
+        _dayView->SetMinSize(wxSize(-1, h));
+        _nightPage->Layout();
+    }
+}
+
+void CalendarPanel::FillList()
+{
+    using SchedulePreview::Play;
+    const auto& t = ModernUI::GetTheme();
+    const auto& plays = _preview.plan.plays;
+    const auto& findings = _preview.plan.findings;
+
+    // four or more steps in a row with nothing to say about them show as one row
+    _rows.clear();
+    _folds.clear();
+    auto plain = [](const Play& p) {
+        return p.note.empty() && p.flag == SchedulePreview::Flag::None && p.ending == SchedulePreview::Ending::Finished && !p.called && p.offset == 0;
+    };
+    for (int i = 0; i < (int)plays.size();) {
+        int j = i;
+        if (plain(plays[i])) {
+            while (j + 1 < (int)plays.size() && plain(plays[j + 1]) && plays[j + 1].window == plays[i].window) ++j;
+        }
+        if (j - i + 1 >= 4) _folds.push_back({ i, j });
+        i = j + 1;
+    }
+    std::vector<int> darks;
+    for (int i = 0; i < (int)findings.size(); ++i) {
+        if (findings[i].kind == SchedulePreview::Kind::GoesDark) darks.push_back(i);
+    }
+    size_t d = 0;
+    auto darkUntil = [&](long long when) {
+        while (d < darks.size() && findings[darks[d]].at <= when) _rows.push_back({ -1, -1, darks[d++] });
+    };
+    size_t fold = 0;
+    for (int i = 0; i < (int)plays.size();) {
+        darkUntil(plays[i].start);
+        if (fold < _folds.size() && _folds[fold].first == i) {
+            _rows.push_back({ -1, (int)fold, -1 });
+            if (_unfolded.count(i) > 0) {
+                for (int k = i; k <= _folds[fold].second; ++k) _rows.push_back({ k, -1, -1 });
+            }
+            i = _folds[fold].second + 1;
+            ++fold;
+            continue;
+        }
+        _rows.push_back({ i, -1, -1 });
+        ++i;
+    }
+    darkUntil(LLONG_MAX);
+
+    auto schedule = [this](int w) { return w >= 0 ? wxString::FromUTF8(_preview.windows[w].name) : wxString(); };
+    auto time = [](long long ms, bool estimated) { return (estimated ? wxString("~") : wxString()) + ScheduleCalendar::FormatTime(ms); };
+    _list->Freeze();
+    _list->DeleteAllItems();
+    for (const auto& r : _rows) {
+        long i = _list->InsertItem(_list->GetItemCount(), "");
+        wxColour color;
+        if (r.play >= 0) {
+            const auto& p = plays[r.play];
+            wxString step = wxString::FromUTF8(p.step);
+            if (p.called) step += "  (" + wxString::FromUTF8(_preview.playlists[p.playlist]) + ")";
+            if (p.pass > 1) step += wxString::FromUTF8("  \xC2\xB7  pass ") + wxString::Format("%d", p.pass);
+            _list->SetItem(i, 0, time(p.start, p.estimated));
+            _list->SetItem(i, 1, time(p.end, p.estimated));
+            _list->SetItem(i, 2, schedule(p.window));
+            _list->SetItem(i, 3, step);
+            _list->SetItem(i, 4, SchedulePreview::Duration(p.end - p.start));
+            _list->SetItem(i, 5, wxString::FromUTF8(p.note));
+            if (p.flag == SchedulePreview::Flag::Cut) color = t.badText;
+            else if (p.flag != SchedulePreview::Flag::None) color = t.waitText;
+        } else if (r.fold >= 0) {
+            int a = _folds[r.fold].first;
+            int b = _folds[r.fold].second;
+            bool open = _unfolded.count(a) > 0;
+            bool same = std::all_of(plays.begin() + a, plays.begin() + b + 1, [&](const Play& p) { return p.step == plays[a].step; });
+            wxString what = same ? wxString::FromUTF8(plays[a].step) + wxString::Format(" x%d", b - a + 1)
+                            : plays[a].pass != plays[b].pass ? wxString::Format("Passes %d-%d, %d steps", plays[a].pass, plays[b].pass, b - a + 1)
+                                                             : wxString::Format("%d steps", b - a + 1);
+            _list->SetItem(i, 0, time(plays[a].start, plays[a].estimated));
+            _list->SetItem(i, 1, time(plays[b].end, plays[b].estimated));
+            _list->SetItem(i, 2, schedule(plays[a].window));
+            _list->SetItem(i, 3, wxString::FromUTF8(open ? "\xE2\x96\xBE " : "\xE2\x96\xB8 ") + what);
+            _list->SetItem(i, 4, SchedulePreview::Duration(plays[b].end - plays[a].start));
+            _list->SetItem(i, 5, open ? "Double-click to fold these steps" : "Double-click to list these steps");
+            color = t.muted;
+        } else {
+            const auto& f = findings[r.finding];
+            _list->SetItem(i, 0, time(f.at, false));
+            _list->SetItem(i, 1, time(f.at + f.amount, false));
+            _list->SetItem(i, 2, schedule(f.window));
+            _list->SetItem(i, 3, "Nothing plays");
+            _list->SetItem(i, 4, SchedulePreview::Duration(f.amount));
+            _list->SetItem(i, 5, "The lights are off: nothing scheduled has anything left to play");
+            color = t.badText;
+        }
+        if (color.IsOk()) _list->SetItemTextColour(i, color);
+    }
+    for (int c = 0; c < 6; ++c) {
+        _list->SetColumnWidth(c, wxLIST_AUTOSIZE_USEHEADER);
+        if (!_rows.empty()) {
+            int header = _list->GetColumnWidth(c);
+            _list->SetColumnWidth(c, wxLIST_AUTOSIZE);
+            if (_list->GetColumnWidth(c) < header) _list->SetColumnWidth(c, header);
+        }
+    }
+    _list->Thaw();
+
+    wxString footer = plays.empty() ? wxString("Nothing plays this night. ") : wxString();
+    footer += "Requests, events and button presses can change the night. Shuffled playlists show one possible order, with its times marked ~.";
+    if (!_preview.background.empty()) footer += " The background playlist " + wxString::FromUTF8(_preview.background) + " plays alongside.";
+    if (_preview.plan.truncated) footer += " Only the first 20,000 steps are shown.";
+    _footer->SetLabel(footer);
+}
+
+void CalendarPanel::ActivateRow(long row)
+{
+    if (row < 0 || row >= (long)_rows.size()) return;
+    const Row r = _rows[row];
+    if (r.fold >= 0) {
+        int first = _folds[r.fold].first;
+        if (_unfolded.erase(first) == 0) _unfolded.insert(first);
+        FillList();
+        _list->Select(row);
+        _list->Focus(row);
+        return;
+    }
+    int w = r.play >= 0 ? _preview.plan.plays[r.play].window : _preview.plan.findings[r.finding].window;
+    if (w >= 0) _edit(_detail.windows[_preview.detailWindow[w]].schedule);
+}
+
+void CalendarPanel::ShowFinding(int finding)
+{
+    if (finding < 0 || finding >= (int)_preview.plan.findings.size()) return;
+    if (!_playByPlay) SetPlayByPlay(true);
+    const auto f = _preview.plan.findings[finding];
+    bool unfolded = false;
+    for (const auto& fold : _folds) {
+        if (f.play >= fold.first && f.play <= fold.second) unfolded = _unfolded.insert(fold.first).second || unfolded;
+    }
+    if (unfolded) FillList();
+    for (long i = 0; i < (long)_rows.size(); ++i) {
+        if ((f.play >= 0 && _rows[i].play == f.play) || _rows[i].finding == finding) {
+            _list->Select(i);
+            _list->Focus(i);
+            _list->EnsureVisible(i);
+            break;
+        }
+    }
+    _list->SetFocus();
 }
 
 void CalendarPanel::OnClock(wxTimerEvent&)

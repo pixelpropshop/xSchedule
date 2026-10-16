@@ -355,6 +355,8 @@
 		<Unit filename="Diagnostics.h" />
 		<Unit filename="ScheduleCalendar.cpp" />
 		<Unit filename="ScheduleCalendar.h" />
+		<Unit filename="SchedulePreview.cpp" />
+		<Unit filename="SchedulePreview.h" />
 		<Unit filename="CalendarPanel.cpp" />
 		<Unit filename="CalendarPanel.h" />
 		<Unit filename="LogSink.cpp" />

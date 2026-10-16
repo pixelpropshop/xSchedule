@@ -1528,6 +1528,7 @@ bool ScheduleManager::IsQuery(const wxString& command) {
         c == "getbuttons" ||
         c == "getcalendar" ||
         c == "getcalendarday" ||
+        c == "getnightplan" ||
         c == "getmatrix") {
         return true;
     }
@@ -3385,6 +3386,9 @@ bool ScheduleManager::Query(const wxString& command, const wxString& parameters,
     } else if (c == "getcalendar" || c == "getcalendarday") {
         data = CalendarJSON(c == "getcalendarday", parameters.ToStdString(), reference, msg);
         result = !data.empty();
+    } else if (c == "getnightplan") {
+        data = NightPlanJSON(parameters.ToStdString(), reference, msg);
+        result = !data.empty();
     } else {
         result = false;
         msg = "Unknown query.";
@@ -3486,6 +3490,46 @@ std::string ScheduleManager::CalendarJSON(bool day, const std::string& parameter
         }
         res += "]";
     }
+    return res + ",\"reference\":\"" + reference + "\"}";
+}
+
+// GetNightPlan: "date[,inactive]", the date as YYYY-MM-DD. What each schedule will play that night, step by step, with
+// times in ms from the night's midnight.
+std::string ScheduleManager::NightPlanJSON(const std::string& parameters, const std::string& reference, wxString& msg) {
+    auto parts = wxSplit(parameters, ',');
+    wxDateTime date;
+    if (parts.empty() || !date.ParseISODate(parts[0].Trim().Trim(false))) {
+        msg = "Expected a date, YYYY-MM-DD.";
+        return "";
+    }
+    bool inactive = parts.size() > 1 && parts.back().Trim().Trim(false).Lower() == "inactive";
+    auto d = ScheduleCalendar::DetailOf(*this, date, inactive);
+    auto p = ScheduleCalendar::PreviewOf(*this, d);
+    auto window = [&](int w) {
+        if (w < 0) return std::string("\"schedule\":\"\",\"id\":\"\"");
+        const auto& dw = d.windows[p.detailWindow[w]];
+        return "\"schedule\":\"" + JSONSafe(dw.schedule->GetName()) + "\",\"id\":\"" + wxString::Format("%u", (unsigned)dw.schedule->GetId()).ToStdString() + "\"";
+    };
+    static const char* endings[] = { "finished", "suspended", "cut", "unfinished" };
+    static const char* flags[] = { "none", "late", "wait", "cut" };
+    static const char* kinds[] = { "runslate", "startslate", "cutoff", "goesdark" };
+    std::string res = "{\"date\":\"" + date.FormatISODate().ToStdString() + "\",\"plays\":[";
+    for (size_t i = 0; i < p.plan.plays.size(); ++i) {
+        const auto& pl = p.plan.plays[i];
+        if (i > 0) res += ",";
+        res += "{\"start\":" + std::to_string(pl.start) + ",\"end\":" + std::to_string(pl.end) + "," + window(pl.window) +
+               ",\"playlist\":\"" + JSONSafe(p.playlists[pl.playlist]) + "\",\"step\":\"" + JSONSafe(pl.step) + "\",\"pass\":" + std::to_string(pl.pass) +
+               ",\"offset\":" + std::to_string(pl.offset) + ",\"called\":" + (pl.called ? "true" : "false") + ",\"estimated\":" + (pl.estimated ? "true" : "false") +
+               ",\"ending\":\"" + endings[(int)pl.ending] + "\",\"flag\":\"" + flags[(int)pl.flag] + "\",\"note\":\"" + JSONSafe(pl.note) + "\"}";
+    }
+    res += "],\"findings\":[";
+    for (size_t i = 0; i < p.plan.findings.size(); ++i) {
+        const auto& f = p.plan.findings[i];
+        if (i > 0) res += ",";
+        res += "{\"kind\":\"" + std::string(kinds[(int)f.kind]) + "\"," + window(f.window) + ",\"at\":" + std::to_string(f.at) + ",\"amount\":" + std::to_string(f.amount) +
+               ",\"upTo\":" + (f.upTo ? "true" : "false") + ",\"play\":" + std::to_string(f.play) + ",\"text\":\"" + JSONSafe(SchedulePreview::Describe(f, p.windows)) + "\"}";
+    }
+    res += "],\"truncated\":" + std::string(p.plan.truncated ? "true" : "false") + ",\"background\":\"" + JSONSafe(p.background) + "\"";
     return res + ",\"reference\":\"" + reference + "\"}";
 }
 

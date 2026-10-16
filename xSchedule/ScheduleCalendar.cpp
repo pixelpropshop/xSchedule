@@ -13,12 +13,15 @@
 #include "City.h"
 #include "Holidays.h"
 #include "PlayList/PlayList.h"
+#include "PlayList/PlayListItemBranch.h"
+#include "PlayList/PlayListStep.h"
 #include "Schedule.h"
 #include "ScheduleManager.h"
 
 #include <wx/uilocale.h>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <map>
 
@@ -245,17 +248,114 @@ Detail DetailOf(ScheduleManager& manager, const wxDateTime& date, bool includeIn
     return d;
 }
 
-std::string FormatMinutes(int minutes)
+Preview PreviewOf(ScheduleManager& manager, const Detail& detail)
+{
+    Preview res;
+    SchedulePreview::Input in;
+    const wxDateTime night = detail.night.date;
+    auto at = [night](long long ms) { return night + wxTimeSpan::Milliseconds(ms); };
+
+    std::map<PlayList*, int> index;
+    for (const auto& pl : manager.GetPlayLists()) {
+        SchedulePreview::PlayList p;
+        p.name = pl->GetNameNoTime();
+        p.firstOnce = pl->GetFirstOnce();
+        p.lastOnce = pl->GetLastOnce();
+        p.shuffle = pl->GetShuffle();
+        for (const auto& st : pl->GetSteps()) {
+            SchedulePreview::Step s;
+            s.name = st->GetNameNoTime();
+            // a step counts as done on the first frame within a frame of its length (PlayListStep::Frame)
+            s.lengthMS = std::max(0LL, (long long)st->GetLengthMS() - (long long)st->GetFrameMS() / 2);
+            s.excludeFromRandom = st->GetExcludeFromRandom();
+            if (PlayListItemBranch* b = st->GetBranch(); b != nullptr) {
+                auto branch = std::make_shared<SchedulePreview::Branch>();
+                branch->isTrue = [b, at](long long ms, int loop) { return b->IsTrue(at(ms), loop); };
+                branch->trueStep = b->GetTrueStep();
+                branch->falseStep = b->GetFalseStep();
+                branch->truePlayList = b->GetTruePlayList();
+                s.branch = branch;
+            }
+            p.steps.push_back(s);
+        }
+        index[pl] = (int)in.playlists.size();
+        res.playlists.push_back(p.name);
+        in.playlists.push_back(std::move(p));
+    }
+
+    // the scheduler looks at schedules in playlist order, then schedule order
+    std::vector<int> order;
+    for (int i = 0; i < (int)detail.windows.size(); ++i) {
+        if (detail.windows[i].Competes()) order.push_back(i);
+    }
+    std::stable_sort(order.begin(), order.end(), [&detail](int a, int b) {
+        const auto& wa = detail.windows[a];
+        const auto& wb = detail.windows[b];
+        return wa.order < wb.order || (wa.order == wb.order && wa.start < wb.start);
+    });
+    std::vector<Schedule*> schedules;
+    long long from = LLONG_MAX;
+    for (int i : order) {
+        const auto& w = detail.windows[i];
+        auto known = std::find(schedules.begin(), schedules.end(), w.schedule);
+        SchedulePreview::Window pw;
+        pw.schedule = (int)(known - schedules.begin());
+        if (known == schedules.end()) schedules.push_back(w.schedule);
+        pw.name = w.schedule->GetName();
+        pw.playlist = index[w.playlist];
+        pw.priority = w.schedule->GetPriority();
+        pw.start = w.start * 60000LL;
+        pw.end = w.end * 60000LL;
+        pw.loop = w.schedule->GetLoop();
+        pw.loops = w.schedule->GetLoops();
+        pw.random = w.schedule->GetRandom();
+        pw.fireOnce = w.schedule->GetFireFrequency() == "Fire once";
+        pw.graceful = w.schedule->GetGracefullyInterrupt();
+        pw.hardStop = w.schedule->IsHardStop();
+        pw.stopAtEndOfLoop = w.schedule->IsStopAtEndOfLoop();
+        from = std::min(from, pw.start);
+        in.windows.push_back(pw);
+        res.detailWindow.push_back(i);
+    }
+    if (PlayList* bg = manager.GetBackgroundPlayList(); bg != nullptr) res.background = bg->GetNameNoTime();
+    if (in.windows.empty()) return res;
+
+    in.shouldFire = [&schedules, at](int s, long long now, long long last) { return schedules[s]->ShouldFireAt(at(now), at(last)); };
+    in.seed = (unsigned)DayNumber(night);
+    // a show can run on past its window, but not for ever
+    res.plan = SchedulePreview::Run(in, from, (detail.axisEnd + 6 * 60) * 60000LL);
+    res.windows = in.windows;
+    return res;
+}
+
+namespace {
+bool TwelveHour()
 {
     static int twelveHour = -1;
     if (twelveHour < 0) {
         wxString fmt = wxUILocale(wxUILocale::GetSystemLocaleId()).GetInfo(wxLOCALE_TIME_FMT);
         twelveHour = fmt.Contains("%p") || fmt.Contains("%I") ? 1 : 0;
     }
+    return twelveHour == 1;
+}
+} // namespace
+
+std::string FormatMinutes(int minutes)
+{
     int m = ((minutes % 1440) + 1440) % 1440;
     int h = m / 60;
-    if (twelveHour == 0) return wxString::Format("%d:%02d", h, m % 60).ToStdString();
+    if (!TwelveHour()) return wxString::Format("%d:%02d", h, m % 60).ToStdString();
     return wxString::Format("%d:%02d %s", h % 12 == 0 ? 12 : h % 12, m % 60, h < 12 ? "AM" : "PM").ToStdString();
+}
+
+std::string FormatTime(long long ms)
+{
+    long long s = ms / 1000 - (ms % 1000 < 0 ? 1 : 0);
+    int d = (int)(((s % 86400) + 86400) % 86400);
+    int h = d / 3600;
+    int m = (d / 60) % 60;
+    if (!TwelveHour()) return wxString::Format("%d:%02d:%02d", h, m, d % 60).ToStdString();
+    return wxString::Format("%d:%02d:%02d %s", h % 12 == 0 ? 12 : h % 12, m, d % 60, h < 12 ? "AM" : "PM").ToStdString();
 }
 
 std::string FormatRange(int start, int end)

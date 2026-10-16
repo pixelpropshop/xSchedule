@@ -240,6 +240,7 @@ public:
     PlayList* GetRunningPlayList(int id) const;
     std::list<PlayList*> GetPlayLists();
     std::string CalendarJSON(bool day, const std::string& parameters, const std::string& reference, wxString& msg);
+    std::string NightPlanJSON(const std::string& parameters, const std::string& reference, wxString& msg);
     std::list<Command*> GetCommands() const {
         return _commandManager.GetCommands();
     }

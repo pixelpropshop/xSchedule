@@ -464,14 +464,20 @@ bool Schedule::CheckActive()
 
 bool Schedule::ShouldFire() const
 {
+    return ShouldFireAt(wxDateTime::Now(), _lastFired);
+}
+
+bool Schedule::ShouldFireAt(const wxDateTime& now, const wxDateTime& lastFired) const
+{
     bool fire = true;
-    wxDateTime start = GetStartTime();
-    wxTimeSpan gap = wxDateTime::Now() - _lastFired;
-    wxTimeSpan sinceStart = wxDateTime::Now() - start;
+    wxDateTime start = now;
+    SetTime(start, _startTime, _startTimeString, _onOffsetMins);
+    wxTimeSpan gap = now - lastFired;
+    wxTimeSpan sinceStart = now - start;
     // the first fire is at the start time itself; the interval checks below only cover the later ones
     bool atStart = !sinceStart.IsNegative() && sinceStart < wxTimeSpan(0, 1, 0, 0);
 
-    int minute = wxDateTime::Now().GetMinute();
+    int minute = now.GetMinute();
 
     if (_fireFrequency == "Fire every hour") {
         fire = false;

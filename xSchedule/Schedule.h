@@ -169,5 +169,6 @@ class Schedule
         wxDateTime GetNextTriggerDateTime();
         static std::string GetNextNthDay(int nthDay, int nthDayOffset);
         bool ShouldFire() const;
+        bool ShouldFireAt(const wxDateTime& now, const wxDateTime& lastFired) const;
         void DidFire();
 };
