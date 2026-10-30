@@ -4,10 +4,4 @@
 #define MyTitleName "xSchedule"
 #define Year 2026
 #define Version "06"
-; a side by side variant (e.g. ISCC /DOther=" (JBD Build)") gets its own name, folder and uninstall entry
-#ifndef Other
 #define Other ""
-#endif
-#ifndef FileTag
-#define FileTag Other
-#endif

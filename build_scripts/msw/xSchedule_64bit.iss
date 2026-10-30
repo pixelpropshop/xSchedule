@@ -9,8 +9,7 @@ DisableDirPage=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-AppId={#MyTitleName}{#Other}
-AppName={#MyTitleName}{#Other}
+AppName={#MyTitleName}
 AppVersion={#Year}.{#Version}{#Other}
 DefaultDirName={commonpf64}\{#MyTitleName}{#Other}
 DefaultGroupName={#MyTitleName}{#Other}
@@ -19,7 +18,7 @@ UninstallDisplayIcon={app}\{#MyTitleName}.exe
 Compression=lzma2
 SolidCompression=yes
 OutputDir=output
-OutputBaseFilename={#MyTitleName}_{#Year}_{#Version}{#FileTag}
+OutputBaseFilename={#MyTitleName}_{#Year}_{#Version}{#Other}
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "Do you want to create desktop icon?"; Flags: checkablealone
@@ -60,7 +59,7 @@ Source: "../../xlights/build_scripts/msw/vcredist/VC_redist.x64.exe"; DestDir: {
 
 [Icons]
 Name: "{group}\xSchedule"; Filename: "{app}\xSchedule.EXE"; WorkingDir: "{app}"
-Name: "{commondesktop}\{#MyTitleName}{#Other}"; Filename: "{app}\xSchedule.EXE"; WorkingDir: "{app}"; Tasks: desktopicon; IconFilename: "{app}\xSchedule64.ico";
+Name: "{commondesktop}\xSchedule"; Filename: "{app}\xSchedule.EXE"; WorkingDir: "{app}"; Tasks: desktopicon; IconFilename: "{app}\xSchedule64.ico";
 
 [Run]
 Filename: {tmp}\vc_redist.x64.exe; \
@@ -70,14 +69,9 @@ Filename: {tmp}\vc_redist.x64.exe; \
 Filename: "{app}\xSchedule.exe"; Description: "Launch application"; Flags: postinstall nowait skipifsilent
 
 [Registry]
-; settings are shared with a side by side variant, so only the standard install removes them
-#if Other == ""
 Root: HKCU; Subkey: "Software\xSchedule"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\xSMSDaemon"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\RemoteFalcon"; Flags: uninsdeletekey
-#endif
 
 [UninstallDelete]
-#if Other == ""
 Type: filesandordirs; Name: "{userappdata}\xSchedule"
-#endif

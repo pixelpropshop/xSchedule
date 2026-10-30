@@ -19,7 +19,7 @@ permissions:
   actions: write
 
 env:
-  BUILD_WORKFLOWS: jbd_build.yml
+  BUILD_WORKFLOWS: win_CI.yml Ubuntu_CI.yml
 
 jobs:
   update:
